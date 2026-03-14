@@ -1,12 +1,17 @@
+
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Phone, Mail, Globe, MessageSquare, Plus, Trash2, ExternalLink } from "lucide-react"
+import { Phone, Mail, Globe, MessageSquare, Plus, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useFirestore, useCollection } from "@/firebase"
+import { collection, doc, setDoc, deleteDoc } from "firebase/firestore"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 type Supplier = {
   id: string
@@ -27,24 +32,9 @@ const PRESET_COLORS = [
 ]
 
 export function SuppliersModule() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>([
-    { 
-      id: "1", 
-      name: "Tukku-Eero Oy", 
-      url: "https://www.example.com/tilaus", 
-      phone: "+358401234567", 
-      email: "myynti@tukkueero.fi", 
-      color: "bg-[#b87333]" 
-    },
-    { 
-      id: "2", 
-      name: "Kalatukku Sjöman", 
-      url: "https://www.example.com/kala", 
-      phone: "+358509876543", 
-      email: "tilaukset@sjoman.fi", 
-      color: "bg-sky-500" 
-    }
-  ])
+  const firestore = useFirestore()
+  const suppliersRef = useMemo(() => (firestore ? collection(firestore, 'suppliers') : null), [firestore])
+  const { data: suppliers = [] } = useCollection<Supplier>(suppliersRef)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -55,17 +45,30 @@ export function SuppliersModule() {
   })
 
   const addSupplier = () => {
-    if (!formData.name.trim()) return
-    const newSupplier: Supplier = {
-      id: Math.random().toString(36).substr(2, 9),
-      ...formData
-    }
-    setSuppliers([...suppliers, newSupplier])
+    if (!formData.name.trim() || !firestore) return
+    const id = Math.random().toString(36).substr(2, 9)
+    const docRef = doc(firestore, 'suppliers', id)
+    
+    setDoc(docRef, { id, ...formData })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'create',
+          requestResourceData: formData
+        }))
+      })
     setFormData({ name: "", url: "", phone: "", email: "", color: PRESET_COLORS[0].value })
   }
 
   const removeSupplier = (id: string) => {
-    setSuppliers(suppliers.filter(s => s.id !== id))
+    if (!firestore) return
+    const docRef = doc(firestore, 'suppliers', id)
+    deleteDoc(docRef).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete'
+      }))
+    })
   }
 
   return (
@@ -76,7 +79,6 @@ export function SuppliersModule() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Lisäyslomake */}
         <Card className="lg:col-span-1 bg-card border-border shadow-xl h-fit sticky top-24">
           <CardHeader>
             <CardTitle className="text-sm font-headline uppercase tracking-wider text-accent">Lisää uusi toimittaja</CardTitle>
@@ -145,7 +147,6 @@ export function SuppliersModule() {
           </CardContent>
         </Card>
 
-        {/* Toimittajien listaus */}
         <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
           {suppliers.length === 0 && (
             <div className="col-span-full py-20 text-center border-2 border-dashed border-border rounded-xl text-muted-foreground italic">
@@ -173,60 +174,30 @@ export function SuppliersModule() {
               </CardHeader>
               <CardContent className="pt-2">
                 <div className="flex justify-around items-center p-3 bg-white/5 rounded-xl border border-border/50">
-                  {/* Tilaussivu */}
-                  <a 
-                    href={s.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-1 group/icon hover:scale-110 transition-transform"
-                    title="Avaa tilaussivu"
-                  >
+                  <a href={s.url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group/icon hover:scale-110 transition-transform">
                     <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-accent group-hover/icon:bg-primary group-hover/icon:text-white transition-colors">
                       <Globe className="w-5 h-5" />
                     </div>
                     <span className="text-[10px] font-bold text-muted-foreground group-hover/icon:text-accent">VERKKO</span>
                   </a>
-
-                  {/* Puhelu */}
-                  <a 
-                    href={`tel:${s.phone}`} 
-                    className="flex flex-col items-center gap-1 group/icon hover:scale-110 transition-transform"
-                    title="Soita"
-                  >
+                  <a href={`tel:${s.phone}`} className="flex flex-col items-center gap-1 group/icon hover:scale-110 transition-transform">
                     <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-accent group-hover/icon:bg-primary group-hover/icon:text-white transition-colors">
                       <Phone className="w-5 h-5" />
                     </div>
                     <span className="text-[10px] font-bold text-muted-foreground group-hover/icon:text-accent">SOITA</span>
                   </a>
-
-                  {/* Viesti */}
-                  <a 
-                    href={`sms:${s.phone}`} 
-                    className="flex flex-col items-center gap-1 group/icon hover:scale-110 transition-transform"
-                    title="Lähetä tekstiviesti"
-                  >
+                  <a href={`sms:${s.phone}`} className="flex flex-col items-center gap-1 group/icon hover:scale-110 transition-transform">
                     <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-accent group-hover/icon:bg-primary group-hover/icon:text-white transition-colors">
                       <MessageSquare className="w-5 h-5" />
                     </div>
                     <span className="text-[10px] font-bold text-muted-foreground group-hover/icon:text-accent">VIESTI</span>
                   </a>
-
-                  {/* Sähköposti */}
-                  <a 
-                    href={`mailto:${s.email}`} 
-                    className="flex flex-col items-center gap-1 group/icon hover:scale-110 transition-transform"
-                    title="Sähköposti"
-                  >
+                  <a href={`mailto:${s.email}`} className="flex flex-col items-center gap-1 group/icon hover:scale-110 transition-transform">
                     <div className="p-2 rounded-lg bg-primary/10 border border-primary/20 text-accent group-hover/icon:bg-primary group-hover/icon:text-white transition-colors">
                       <Mail className="w-5 h-5" />
                     </div>
                     <span className="text-[10px] font-bold text-muted-foreground group-hover/icon:text-accent">MAIL</span>
                   </a>
-                </div>
-
-                <div className="mt-4 space-y-1">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Viimeisin tilaus</p>
-                  <p className="text-xs text-foreground font-medium">Ei tallennettuja tapahtumia</p>
                 </div>
               </CardContent>
             </Card>

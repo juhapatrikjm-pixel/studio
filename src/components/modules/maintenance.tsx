@@ -1,13 +1,16 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Wrench, Plus, Trash2, Phone, Mail, Cpu, UserCog, History } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Wrench, Plus, Trash2, Phone, Mail, Cpu, UserCog } from "lucide-react"
+import { useFirestore, useCollection } from "@/firebase"
+import { collection, doc, setDoc, deleteDoc } from "firebase/firestore"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 type Equipment = {
   id: string
@@ -23,37 +26,69 @@ type MaintenanceContact = {
 }
 
 export function MaintenanceModule() {
-  const [equipmentList, setEquipmentList] = useState<Equipment[]>([
-    { id: "e1", name: "RATIONAL iCombi Pro 10-1/1", code: "SN: G11SK210528" },
-    { id: "e2", name: "Metos Master hood-malli", code: "HUOLTO-ID: 44221" },
-  ])
-
-  const [contacts, setContacts] = useState<MaintenanceContact[]>([
-    { id: "c1", name: "Metos Huoltopalvelu", phone: "+3582043913", email: "huolto@metos.fi" },
-    { id: "c2", name: "LVI-Pekka Oy", phone: "+358400123456", email: "huolto@lvipekka.fi" },
-  ])
+  const firestore = useFirestore()
+  
+  const equipRef = useMemo(() => (firestore ? collection(firestore, 'equipment') : null), [firestore])
+  const contactsRef = useMemo(() => (firestore ? collection(firestore, 'maintenanceContacts') : null), [firestore])
+  
+  const { data: equipmentList = [] } = useCollection<Equipment>(equipRef)
+  const { data: contacts = [] } = useCollection<MaintenanceContact>(contactsRef)
 
   const [newEquip, setNewEquip] = useState({ name: "", code: "" })
   const [newContact, setNewContact] = useState({ name: "", phone: "", email: "" })
 
   const addEquipment = () => {
-    if (!newEquip.name.trim()) return
-    setEquipmentList([...equipmentList, { id: Date.now().toString(), ...newEquip }])
+    if (!newEquip.name.trim() || !firestore) return
+    const id = Math.random().toString(36).substr(2, 9)
+    const docRef = doc(firestore, 'equipment', id)
+    
+    setDoc(docRef, { id, ...newEquip })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'create',
+          requestResourceData: newEquip
+        }))
+      })
     setNewEquip({ name: "", code: "" })
   }
 
   const removeEquipment = (id: string) => {
-    setEquipmentList(equipmentList.filter(e => e.id !== id))
+    if (!firestore) return
+    const docRef = doc(firestore, 'equipment', id)
+    deleteDoc(docRef).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete'
+      }))
+    })
   }
 
   const addContact = () => {
-    if (!newContact.name.trim()) return
-    setContacts([...contacts, { id: Date.now().toString(), ...newContact }])
+    if (!newContact.name.trim() || !firestore) return
+    const id = Math.random().toString(36).substr(2, 9)
+    const docRef = doc(firestore, 'maintenanceContacts', id)
+    
+    setDoc(docRef, { id, ...newContact })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'create',
+          requestResourceData: newContact
+        }))
+      })
     setNewContact({ name: "", phone: "", email: "" })
   }
 
   const removeContact = (id: string) => {
-    setContacts(contacts.filter(c => c.id !== id))
+    if (!firestore) return
+    const docRef = doc(firestore, 'maintenanceContacts', id)
+    deleteDoc(docRef).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete'
+      }))
+    })
   }
 
   return (
@@ -64,7 +99,6 @@ export function MaintenanceModule() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Laiteluettelo */}
         <div className="space-y-6">
           <Card className="bg-card border-border shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-50" />
@@ -129,7 +163,6 @@ export function MaintenanceModule() {
           </Card>
         </div>
 
-        {/* Huoltoyhteystiedot */}
         <div className="space-y-6">
           <Card className="bg-card border-border shadow-xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-1 h-full steel-detail opacity-50" />
