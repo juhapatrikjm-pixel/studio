@@ -110,7 +110,7 @@ function BackgroundWatermark() {
   if (!profile?.logoUrl) return null
 
   return (
-    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden opacity-[0.07] grayscale contrast-150 transition-all duration-1000">
+    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden opacity-[0.15] grayscale contrast-200 transition-all duration-1000">
       <img 
         src={profile.logoUrl} 
         alt="Background Watermark" 
