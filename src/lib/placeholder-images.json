@@ -1,3 +1,22 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "team-avatar-1",
+      "description": "Professional team member avatar",
+      "imageUrl": "https://picsum.photos/seed/team1/200/200",
+      "imageHint": "professional person"
+    },
+    {
+      "id": "team-avatar-2",
+      "description": "Professional team member avatar",
+      "imageUrl": "https://picsum.photos/seed/team2/200/200",
+      "imageHint": "office worker"
+    },
+    {
+      "id": "project-thumb",
+      "description": "Project overview dashboard",
+      "imageUrl": "https://picsum.photos/seed/project/600/400",
+      "imageHint": "business dashboard"
+    }
+  ]
 }
