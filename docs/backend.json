@@ -67,6 +67,28 @@
         "phone": { "type": "string" },
         "email": { "type": "string" }
       }
+    },
+    "SelfMonitoringTask": {
+      "title": "SelfMonitoringTask",
+      "description": "Omavalvontatehtävät ja kylmiöt",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["fridge", "task"] },
+        "description": { "type": "string" }
+      }
+    },
+    "SelfMonitoringRecord": {
+      "title": "SelfMonitoringRecord",
+      "description": "Kirjatut omavalvontasuoritukset",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date-time" },
+        "completedBy": { "type": "string" },
+        "status": { "type": "boolean" },
+        "values": { "type": "object" }
+      }
     }
   },
   "auth": {
@@ -92,6 +114,14 @@
     "/maintenanceContacts/{contactId}": {
       "schema": "MaintenanceContact",
       "description": "Huollon yhteystiedot"
+    },
+    "/selfMonitoringTasks/{taskId}": {
+      "schema": "SelfMonitoringTask",
+      "description": "Määritellyt omavalvontatehtävät"
+    },
+    "/selfMonitoringRecords/{recordId}": {
+      "schema": "SelfMonitoringRecord",
+      "description": "Päivittäiset kirjaukset"
     }
   }
 }
