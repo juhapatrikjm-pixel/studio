@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Shield, UserCog, Settings, Lock, Percent, Smile, Plus, Trash2 } from "lucide-react"
+import { Shield, UserCog, Settings, Lock, Percent, Smile, Plus, Trash2, Banknote, Clock } from "lucide-react"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc, setDoc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -23,12 +23,14 @@ export function AdminModule() {
   const { data: settings } = useDoc<any>(settingsRef)
 
   const [targetMargin, setTargetMargin] = useState(75)
+  const [hourlyRate, setHourlyRate] = useState(22)
   const [messages, setMessages] = useState<string[]>([])
   const [newMessage, setNewMessage] = useState("")
 
   useEffect(() => {
     if (settings) {
       if (settings.targetMargin) setTargetMargin(settings.targetMargin)
+      if (settings.hourlyRate) setHourlyRate(settings.hourlyRate)
       if (settings.cheerMessages) setMessages(settings.cheerMessages)
     }
   }, [settings])
@@ -37,6 +39,7 @@ export function AdminModule() {
     if (!firestore || !settingsRef) return
     setDoc(settingsRef, { 
       targetMargin: Number(targetMargin),
+      hourlyRate: Number(hourlyRate),
       cheerMessages: messages
     }, { merge: true })
       .then(() => {
@@ -79,22 +82,40 @@ export function AdminModule() {
               <CardTitle className="font-headline">Sovelluksen asetukset</CardTitle>
               <CardDescription>Määritä koko järjestelmän kattavia parametreja.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2 max-w-sm">
-                <Label className="flex items-center gap-2">
-                  <Percent className="w-4 h-4 text-accent" />
-                  Reseptiikan tavoitekatetuotto (%)
-                </Label>
-                <div className="flex gap-2">
+            <CardContent className="space-y-8">
+              <div className="space-y-4 max-w-sm">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Percent className="w-4 h-4 text-accent" />
+                    Reseptiikan tavoitekatetuotto (%)
+                  </Label>
                   <Input 
                     type="number" 
                     value={targetMargin} 
                     onChange={(e) => setTargetMargin(Number(e.target.value))}
                     className="bg-muted/30"
                   />
-                  <Button onClick={saveSettings} className="copper-gradient">Tallenna</Button>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Käytetään annosten hinnoittelun seurannassa.</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold">Tätä arvoa käytetään annosten hinnoittelun visuaalisessa seurannassa.</p>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-accent" />
+                    Tuntipalkka kuluineen (€/h)
+                  </Label>
+                  <div className="relative">
+                    <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input 
+                      type="number" 
+                      value={hourlyRate} 
+                      onChange={(e) => setHourlyRate(Number(e.target.value))}
+                      className="pl-10 bg-muted/30"
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Käytetään palkkakulujen laskentaan Tulos-sivulla. (Oletus: 22 €/h)</p>
+                </div>
+
+                <Button onClick={saveSettings} className="w-full copper-gradient">Tallenna asetukset</Button>
               </div>
             </CardContent>
           </Card>

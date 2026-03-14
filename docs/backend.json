@@ -129,6 +129,7 @@
       "type": "object",
       "properties": {
         "targetMargin": { "type": "number" },
+        "hourlyRate": { "type": "number", "description": "Tuntipalkka kuluineen" },
         "cheerMessages": { "type": "array", "items": { "type": "string" } }
       }
     },
@@ -153,6 +154,7 @@
         "revenue": { "type": "number" },
         "foodCost": { "type": "number" },
         "laborCost": { "type": "number" },
+        "workHours": { "type": "number" },
         "otherExpenses": { "type": "number" },
         "comment": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }

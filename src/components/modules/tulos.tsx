@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,15 +16,16 @@ import {
   ArrowUpRight, 
   ArrowDownRight,
   Calculator,
-  PieChart
+  PieChart,
+  Clock
 } from "lucide-react"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp } from "firebase/firestore"
 import { format, startOfMonth, endOfMonth, isSameMonth } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Line, LineChart, Tooltip } from "recharts"
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts"
 import { cn } from "@/lib/utils"
 
 type FinancialRecord = {
@@ -33,6 +34,7 @@ type FinancialRecord = {
   revenue: number
   foodCost: number
   laborCost: number
+  workHours: number
   otherExpenses: number
   comment?: string
   createdAt: any
@@ -43,21 +45,32 @@ export function TulosModule() {
   const { toast } = useToast()
   
   const recordsRef = useMemo(() => (firestore ? collection(firestore, 'financialRecords') : null), [firestore])
+  const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
+  
   const recordsQuery = useMemo(() => {
     if (!recordsRef) return null
     return query(recordsRef, orderBy('date', 'desc'), limit(100))
   }, [recordsRef])
   
   const { data: records = [] } = useCollection<FinancialRecord>(recordsQuery)
+  const { data: settings } = useDoc<any>(settingsRef)
+
+  const hourlyRate = settings?.hourlyRate || 22
 
   const [formData, setFormData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     revenue: "",
     foodCost: "",
-    laborCost: "",
+    workHours: "",
     otherExpenses: "",
     comment: ""
   })
+
+  // Lasketaan palkkakulut reaaliajassa näkymään
+  const currentLaborCost = useMemo(() => {
+    const hours = Number(formData.workHours) || 0
+    return hours * hourlyRate
+  }, [formData.workHours, hourlyRate])
 
   // Laskelmat kuukausitasolla
   const monthlyStats = useMemo(() => {
@@ -68,8 +81,9 @@ export function TulosModule() {
       revenue: acc.revenue + (curr.revenue || 0),
       foodCost: acc.foodCost + (curr.foodCost || 0),
       laborCost: acc.laborCost + (curr.laborCost || 0),
+      workHours: acc.workHours + (curr.workHours || 0),
       otherExpenses: acc.otherExpenses + (curr.otherExpenses || 0),
-    }), { revenue: 0, foodCost: 0, laborCost: 0, otherExpenses: 0 })
+    }), { revenue: 0, foodCost: 0, laborCost: 0, workHours: 0, otherExpenses: 0 })
 
     const profit = totals.revenue - totals.foodCost - totals.laborCost - totals.otherExpenses
     const foodCostPerc = totals.revenue > 0 ? (totals.foodCost / totals.revenue) * 100 : 0
@@ -94,12 +108,15 @@ export function TulosModule() {
     const id = formData.date
     const docRef = doc(firestore, 'financialRecords', id)
     
+    const laborCost = Number(formData.workHours) * hourlyRate
+
     const dataToSave = {
       id,
       date: formData.date,
       revenue: Number(formData.revenue),
       foodCost: Number(formData.foodCost) || 0,
-      laborCost: Number(formData.laborCost) || 0,
+      workHours: Number(formData.workHours) || 0,
+      laborCost: laborCost,
       otherExpenses: Number(formData.otherExpenses) || 0,
       comment: formData.comment,
       createdAt: serverTimestamp()
@@ -109,13 +126,13 @@ export function TulosModule() {
       .then(() => {
         toast({
           title: "Tiedot tallennettu",
-          description: `Päivän ${format(new Date(formData.date), 'd.M.')} luvut päivitetty.`,
+          description: `Päivän ${format(new Date(formData.date), 'd.M.')} luvut ja palkkakulut (${laborCost.toFixed(2)} €) päivitetty.`,
         })
         setFormData({
           ...formData,
           revenue: "",
           foodCost: "",
-          laborCost: "",
+          workHours: "",
           otherExpenses: "",
           comment: ""
         })
@@ -165,7 +182,7 @@ export function TulosModule() {
           </CardHeader>
           <CardContent className="p-3 pt-1">
             <div className="text-xl font-bold">{monthlyStats.laborCostPerc.toFixed(1)} %</div>
-            <p className="text-[9px] text-muted-foreground mt-1">Tavoite: 30-35%</p>
+            <p className="text-[9px] text-muted-foreground mt-1">Tunnit: {monthlyStats.totals.workHours.toFixed(1)} h</p>
           </CardContent>
         </Card>
 
@@ -213,7 +230,7 @@ export function TulosModule() {
                     placeholder="0.00"
                     value={formData.revenue}
                     onChange={(e) => setFormData({...formData, revenue: e.target.value})}
-                    className="pl-10 bg-muted/30 border-border"
+                    className="pl-10 bg-muted/30 border-border font-bold"
                   />
                 </div>
               </div>
@@ -229,14 +246,22 @@ export function TulosModule() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Palkkakulut</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="€"
-                    value={formData.laborCost}
-                    onChange={(e) => setFormData({...formData, laborCost: e.target.value})}
-                    className="bg-muted/30 border-border"
-                  />
+                  <Label className="text-[10px] uppercase font-bold text-muted-foreground">Työtunnit (h)</Label>
+                  <div className="relative">
+                    <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                    <Input 
+                      type="number" 
+                      placeholder="0.0"
+                      value={formData.workHours}
+                      onChange={(e) => setFormData({...formData, workHours: e.target.value})}
+                      className="pl-8 bg-muted/30 border-border"
+                    />
+                  </div>
+                  {formData.workHours && (
+                    <p className="text-[9px] text-accent font-bold uppercase mt-1">
+                      = {currentLaborCost.toFixed(2)} € ({hourlyRate} €/h)
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
@@ -298,18 +323,21 @@ export function TulosModule() {
                     <div className="flex items-center gap-4">
                       <div className="flex flex-col">
                         <span className="text-xs font-bold text-accent">{format(new Date(r.date), 'EEEE d.M.', { locale: fi })}</span>
-                        <span className="text-[10px] text-muted-foreground uppercase">{r.revenue.toLocaleString()} €</span>
+                        <div className="flex gap-2">
+                          <span className="text-[10px] text-muted-foreground uppercase">{r.revenue.toLocaleString()} € myynti</span>
+                          <span className="text-[10px] text-muted-foreground/60 uppercase">({r.workHours || 0} h)</span>
+                        </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <div className={cn(
                           "text-xs font-bold",
-                          (r.revenue - (r.foodCost || 0) - (r.laborCost || 0)) >= 0 ? "text-green-500" : "text-destructive"
+                          (r.revenue - (r.foodCost || 0) - (r.laborCost || 0) - (r.otherExpenses || 0)) >= 0 ? "text-green-500" : "text-destructive"
                         )}>
-                          {(r.revenue - (r.foodCost || 0) - (r.laborCost || 0)).toLocaleString()} €
+                          {(r.revenue - (r.foodCost || 0) - (r.laborCost || 0) - (r.otherExpenses || 0)).toLocaleString()} €
                         </div>
-                        <div className="text-[9px] text-muted-foreground">Kate</div>
+                        <div className="text-[9px] text-muted-foreground uppercase font-bold">Kate</div>
                       </div>
                       <Button variant="ghost" size="icon" onClick={() => deleteRecord(r.id)} className="opacity-0 group-hover:opacity-100 h-8 w-8 text-destructive">
                         <Trash2 className="w-4 h-4" />
