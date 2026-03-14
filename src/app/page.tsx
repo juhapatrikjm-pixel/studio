@@ -29,7 +29,7 @@ const menuItems = [
   { id: 'archive', icon: Archive, label: 'Arkisto' },
   { id: 'messaging', icon: MessageSquare, label: 'Messaging' },
   { id: 'cloud', icon: Cloud, label: 'Cloud Data' },
-  { id: 'directory', icon: Users, label: 'Directory' },
+  { id: 'directory', icon: Users, label: 'Yhteystiedot' },
   { id: 'admin', icon: ShieldCheck, label: 'Administration' },
 ] as const
 

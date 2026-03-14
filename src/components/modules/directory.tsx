@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -35,8 +36,8 @@ export function DirectoryModule() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-headline font-bold text-primary">Team Directory</h2>
-          <p className="text-muted-foreground">Manage your team contacts and reach out instantly.</p>
+          <h2 className="text-3xl font-headline font-bold text-primary">Yhteystiedot</h2>
+          <p className="text-muted-foreground">Hallitse tiimisi yhteystietoja ja ota yhteyttä välittömästi.</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 gap-2">
           <UserPlus className="w-4 h-4" /> Add Team Member
