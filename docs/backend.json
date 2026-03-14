@@ -1,6 +1,22 @@
 
 {
   "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Käyttäjän ja yrityksen profiilitiedot",
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string" },
+        "userName": { "type": "string" },
+        "title": { "type": "string" },
+        "workPhone": { "type": "string" },
+        "personalPhone": { "type": "string" },
+        "address": { "type": "string" },
+        "businessId": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "MisaList": {
       "title": "MisaList",
       "description": "Keittiön prep- ja valmistelulistat",
@@ -133,6 +149,10 @@
     "providers": ["google.com"]
   },
   "firestore": {
+    "/userProfiles/{userId}": {
+      "schema": "UserProfile",
+      "description": "Käyttäjäprofiilit"
+    },
     "/misaLists/{listId}": {
       "schema": "MisaList",
       "description": "Prep-listat"

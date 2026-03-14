@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -17,11 +17,12 @@ import { MaintenanceModule } from "@/components/modules/maintenance"
 import { OmavalvontaModule } from "@/components/modules/omavalvonta"
 import { RecipesModule } from "@/components/modules/recipes"
 import { ShiftInfoModule } from "@/components/modules/shift-info"
+import { ProfileModule } from "@/components/modules/profile"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 
-type ModuleId = 'info' | 'shift-info' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'admin'
+type ModuleId = 'info' | 'shift-info' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
 const menuItems = [
   { id: 'info', icon: LayoutDashboard, label: 'Ohjauspaneeli' },
@@ -36,6 +37,7 @@ const menuItems = [
   { id: 'messaging', icon: MessageSquare, label: 'Viestintä' },
   { id: 'cloud', icon: Cloud, label: 'Pilvidata' },
   { id: 'directory', icon: Users, label: 'Yhteystiedot' },
+  { id: 'profile', icon: UserCircle, label: 'Profiili' },
   { id: 'admin', icon: ShieldCheck, label: 'Hallinta' },
 ] as const
 
@@ -124,6 +126,7 @@ export default function Home() {
       case 'messaging': return <MessagingModule />
       case 'cloud': return <CloudStorageModule />
       case 'directory': return <DirectoryModule />
+      case 'profile': return <ProfileModule />
       case 'admin': return <AdminModule />
       default: return <WorkspaceModule />
     }
