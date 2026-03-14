@@ -140,7 +140,6 @@ export function RecipesModule() {
       createdAt: new Date().toISOString()
     }
 
-    // Tallennus ilman awaitia, catch hoitaa virheet
     setDoc(recipeRef, recipeData)
       .then(() => {
         toast({
@@ -213,7 +212,7 @@ export function RecipesModule() {
           </DialogHeader>
 
           <ScrollArea className="flex-1 p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4">
               <div className="lg:col-span-2 space-y-8">
                 {/* Perustiedot */}
                 <Card className="bg-card border-border shadow-xl">
@@ -390,14 +389,17 @@ export function RecipesModule() {
                 </Card>
               </div>
             </div>
-          </ScrollArea>
 
-          <DialogFooter className="p-6 border-t border-border bg-card">
-            <Button variant="outline" onClick={() => setIsCreating(false)}>Peruuta</Button>
-            <Button onClick={handleSave} className="copper-gradient text-white font-bold gap-2">
-              <Save className="w-4 h-4" /> Tallenna resepti
-            </Button>
-          </DialogFooter>
+            {/* Toiminnot sisällön lopussa */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 pb-12 mt-6 border-t border-border">
+              <Button onClick={handleSave} className="flex-1 copper-gradient text-white font-bold h-12 gap-2">
+                <Save className="w-5 h-5" /> Tallenna resepti
+              </Button>
+              <Button variant="outline" onClick={() => setIsCreating(false)} className="sm:w-32 h-12 border-border">
+                Peruuta
+              </Button>
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </div>
