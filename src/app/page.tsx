@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -10,16 +10,18 @@ import { DirectoryModule } from "@/components/modules/directory"
 import { AdminModule } from "@/components/modules/admin"
 import { MisaModule } from "@/components/modules/misa"
 import { SuppliersModule } from "@/components/modules/suppliers"
+import { OrdersModule } from "@/components/modules/orders"
 import { Button } from "@/components/ui/button"
 
 export default function Home() {
-  const [activeModule, setActiveModule] = useState<'info' | 'misa' | 'suppliers' | 'messaging' | 'cloud' | 'directory' | 'admin'>('info')
+  const [activeModule, setActiveModule] = useState<'info' | 'misa' | 'suppliers' | 'orders' | 'messaging' | 'cloud' | 'directory' | 'admin'>('info')
 
   const renderModule = () => {
     switch(activeModule) {
       case 'info': return <WorkspaceModule />
       case 'misa': return <MisaModule />
       case 'suppliers': return <SuppliersModule />
+      case 'orders': return <OrdersModule onNavigateToSuppliers={() => setActiveModule('suppliers')} />
       case 'messaging': return <MessagingModule />
       case 'cloud': return <CloudStorageModule />
       case 'directory': return <DirectoryModule />
@@ -32,6 +34,7 @@ export default function Home() {
     { id: 'info', icon: LayoutDashboard, label: 'Info' },
     { id: 'misa', icon: ClipboardList, label: 'MISA' },
     { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
+    { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
     { id: 'messaging', icon: MessageSquare, label: 'Messaging' },
     { id: 'cloud', icon: Cloud, label: 'Cloud Data' },
     { id: 'directory', icon: Users, label: 'Directory' },
@@ -74,7 +77,7 @@ export default function Home() {
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <div className="mt-auto p-6 border-t border-border">
+          <div className="p-6 border-t border-border mt-auto">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-md steel-detail flex items-center justify-center text-background font-bold text-xs shadow-sm">
                 JS
