@@ -143,6 +143,21 @@
         "freeText": { "type": "string" },
         "acknowledgedBy": { "type": "array", "items": { "type": "string" } }
       }
+    },
+    "FinancialRecord": {
+      "title": "FinancialRecord",
+      "description": "Päivittäiset talousluvut",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "revenue": { "type": "number" },
+        "foodCost": { "type": "number" },
+        "laborCost": { "type": "number" },
+        "otherExpenses": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["date", "revenue"]
     }
   },
   "auth": {
@@ -188,6 +203,10 @@
     "/shiftInfos/{infoId}": {
       "schema": "ShiftInfo",
       "description": "Vuorokohtaiset merkinnät"
+    },
+    "/financialRecords/{recordId}": {
+      "schema": "FinancialRecord",
+      "description": "Päivittäiset talousmerkinnät"
     }
   }
 }
