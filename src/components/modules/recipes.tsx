@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from "react"
@@ -140,14 +141,15 @@ export function RecipesModule() {
       createdAt: new Date().toISOString()
     }
 
+    // Tallennus ja popupin sulkeminen
     setDoc(recipeRef, recipeData)
       .then(() => {
         toast({
           title: "Resepti tallennettu",
           description: `"${recipeName}" on nyt arkistoitu.`,
         })
-        setIsCreating(false)
-        resetForm()
+        setIsCreating(false) // Sulkee popupin
+        resetForm() // Tyhjentää lomakkeen
       })
       .catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
