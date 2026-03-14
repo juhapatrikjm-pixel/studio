@@ -118,10 +118,11 @@
     },
     "ShiftInfo": {
       "title": "ShiftInfo",
-      "description": "Päivittäiset vuorotiedot ja muistiot",
+      "description": "Vuorokohtaiset merkinnät ja tiedotteet",
       "type": "object",
       "properties": {
         "date": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" },
         "bulletPoints": { "type": "array", "items": { "type": "string" } },
         "freeText": { "type": "string" },
         "acknowledgedBy": { "type": "array", "items": { "type": "string" } }
@@ -164,9 +165,9 @@
       "schema": "AppSetting",
       "description": "Yleiset asetukset"
     },
-    "/shiftInfos/{dateId}": {
+    "/shiftInfos/{infoId}": {
       "schema": "ShiftInfo",
-      "description": "Päiväkohtaiset vuorotiedot"
+      "description": "Vuorokohtaiset merkinnät"
     }
   }
 }

@@ -1,19 +1,19 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import { Plus, Trash2, Smile, Sparkles, Save, Info, History, Calendar as CalendarIcon, ChevronRight } from "lucide-react"
 import { useFirestore, useDoc, useCollection } from "@/firebase"
-import { doc, setDoc, collection, query, orderBy, limit } from "firebase/firestore"
+import { collection, addDoc, query, orderBy, limit, serverTimestamp } from "firebase/firestore"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 const DEFAULT_CHEERS = [
@@ -62,15 +62,12 @@ const DEFAULT_CHEERS = [
 export function ShiftInfoModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
-  const dateId = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
-  
-  const infoRef = useMemo(() => (firestore ? doc(firestore, 'shiftInfos', dateId) : null), [firestore, dateId])
-  const { data: shiftInfo } = useDoc<any>(infoRef)
   
   const historyQuery = useMemo(() => {
     if (!firestore) return null
-    return query(collection(firestore, 'shiftInfos'), orderBy('date', 'desc'), limit(10))
+    return query(collection(firestore, 'shiftInfos'), orderBy('createdAt', 'desc'), limit(20))
   }, [firestore])
+  
   const { data: history = [] } = useCollection<any>(historyQuery)
 
   const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
@@ -80,29 +77,35 @@ export function ShiftInfoModule() {
   const [freeText, setFreeText] = useState("")
   const [cheer, setCheer] = useState("Paina hymiötä tsempin saamiseksi! 😊")
 
-  useEffect(() => {
-    if (shiftInfo) {
-      setPoints(shiftInfo.bulletPoints || [])
-      setFreeText(shiftInfo.freeText || "")
-    }
-  }, [shiftInfo])
-
   const saveInfo = () => {
-    if (!firestore || !infoRef) return
-    setDoc(infoRef, {
-      date: dateId,
-      bulletPoints: points,
+    if (!firestore || (!points.length && !freeText.trim())) return
+
+    const infoData = {
+      date: format(new Date(), 'yyyy-MM-dd'),
+      createdAt: serverTimestamp(),
+      bulletPoints: points.filter(p => p.trim() !== ""),
       freeText: freeText,
-      acknowledgedBy: shiftInfo?.acknowledgedBy || []
-    }, { merge: true }).then(() => {
-      toast({ 
-        title: "Vuoro-info tallennettu", 
-        description: `Päivän ${format(new Date(), 'd.M.yyyy')} tiedot on tallennettu ja arkistoitu.`,
+      acknowledgedBy: []
+    }
+
+    const shiftInfosRef = collection(firestore, 'shiftInfos')
+
+    addDoc(shiftInfosRef, infoData)
+      .then(() => {
+        toast({ 
+          title: "Vuoro-info tallennettu", 
+          description: "Merkintä on lisätty päivän historiaan ja tiedote näkyy ohjauspaneelissa.",
+        })
+        setPoints([])
+        setFreeText("")
       })
-      // Tyhjennetään kentät tallennuksen jälkeen
-      setPoints([])
-      setFreeText("")
-    })
+      .catch(async () => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: shiftInfosRef.path,
+          operation: 'create',
+          requestResourceData: infoData
+        }))
+      })
   }
 
   const addPoint = () => setPoints([...points, ""])
@@ -200,48 +203,51 @@ export function ShiftInfoModule() {
       </div>
 
       <div className="flex justify-center pt-4">
-        <Button onClick={saveInfo} size="lg" className="copper-gradient text-white font-bold w-full max-w-md h-12 shadow-lg gap-2">
+        <Button 
+          onClick={saveInfo} 
+          size="lg" 
+          disabled={!points.some(p => p.trim() !== "") && !freeText.trim()}
+          className="copper-gradient text-white font-bold w-full max-w-md h-12 shadow-lg gap-2"
+        >
           <Save className="w-5 h-5" /> Tallenna ja arkistoi vuoro-info
         </Button>
       </div>
 
-      {/* HISTORIA-OSIO */}
       <div className="space-y-4 pt-10 border-t border-border/50">
         <div className="flex items-center gap-2 text-muted-foreground mb-4">
           <History className="w-5 h-5" />
-          <h3 className="font-headline font-bold uppercase tracking-widest text-sm">Arkistoidut vuoro-infot</h3>
+          <h3 className="font-headline font-bold uppercase tracking-widest text-sm">Viimeisimmät vuoro-infot</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {history.filter(h => h.date !== dateId).map((entry) => (
+          {history.map((entry) => (
             <Card key={entry.id} className="bg-card border-border hover:border-accent/40 transition-all group">
               <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-sm font-headline text-accent flex items-center gap-2">
+                <CardTitle className="text-xs font-headline text-accent flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4" />
-                  {entry.date ? format(new Date(entry.date), 'EEEE d.M.yyyy', { locale: fi }) : entry.id}
+                  {entry.date ? format(new Date(entry.date), 'EEEE d.M.yyyy', { locale: fi }) : "Merkintä"}
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 pt-0">
-                <div className="space-y-2">
-                  {entry.bulletPoints?.slice(0, 2).map((p: string, idx: number) => p && (
-                    <div key={idx} className="flex items-center gap-2 text-[10px] text-muted-foreground truncate">
-                      <ChevronRight className="w-3 h-3 text-accent" />
-                      {p}
-                    </div>
-                  ))}
-                  {entry.freeText && (
-                    <p className="text-[10px] text-muted-foreground italic line-clamp-2 border-l border-accent/20 pl-2 mt-2">
-                      {entry.freeText}
-                    </p>
-                  )}
-                  {(!entry.bulletPoints?.length && !entry.freeText) && (
-                    <p className="text-[10px] text-muted-foreground italic">Ei tallennettuja merkintöjä.</p>
-                  )}
-                </div>
+                <ScrollArea className="max-h-[150px]">
+                  <div className="space-y-2">
+                    {entry.bulletPoints?.map((p: string, idx: number) => p && (
+                      <div key={idx} className="flex items-start gap-2 text-[10px] text-muted-foreground">
+                        <ChevronRight className="w-3 h-3 text-accent shrink-0 mt-0.5" />
+                        <span>{p}</span>
+                      </div>
+                    ))}
+                    {entry.freeText && (
+                      <p className="text-[10px] text-muted-foreground italic border-l border-accent/20 pl-2 mt-2 whitespace-pre-wrap">
+                        {entry.freeText}
+                      </p>
+                    )}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           ))}
-          {history.length <= 1 && (
+          {history.length === 0 && (
             <div className="col-span-full py-10 text-center border-2 border-dashed border-border rounded-xl text-muted-foreground italic">
               Ei aiempia arkistoituja vuoro-infoja.
             </div>

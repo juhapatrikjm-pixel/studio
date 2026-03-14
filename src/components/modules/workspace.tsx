@@ -6,15 +6,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Activity, LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, CheckCircle, Info } from "lucide-react"
 import { OmavalvontaStatusHeader } from "./omavalvonta"
-import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion } from "firebase/firestore"
+import { useFirestore, useCollection } from "@/firebase"
+import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where } from "firebase/firestore"
 import { format } from "date-fns"
 import { Button } from "@/components/ui/button"
 
 export function WorkspaceModule() {
   const firestore = useFirestore()
-  const dateId = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   
+  // Haetaan päivän viimeisin vuoro-info
+  const shiftInfoQuery = useMemo(() => {
+    if (!firestore) return null
+    return query(
+      collection(firestore, 'shiftInfos'), 
+      where('date', '==', todayDate),
+      orderBy('createdAt', 'desc'),
+      limit(1)
+    )
+  }, [firestore, todayDate])
+  
+  const { data: shiftInfos = [] } = useCollection<any>(shiftInfoQuery)
+  const shiftInfo = shiftInfos[0] || null
+
   const recordsQuery = useMemo(() => {
     if (!firestore) return null
     return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(1))
@@ -23,27 +37,25 @@ export function WorkspaceModule() {
   const { data: records = [] } = useCollection<any>(recordsQuery)
   const latestRecord = records[0] || null
 
-  const infoRef = useMemo(() => (firestore ? doc(firestore, 'shiftInfos', dateId) : null), [firestore, dateId])
-  const { data: shiftInfo } = useDoc<any>(infoRef)
-
   const [isReadLocal, setIsReadLocal] = useState(false)
-  const currentUser = "John Smith" // Mockattu käyttäjä
+  const currentUser = "John Smith"
+
+  const isRead = shiftInfo?.acknowledgedBy?.includes(currentUser) || isReadLocal
+
+  const markAsRead = () => {
+    if (!firestore || !shiftInfo) return
+    setIsReadLocal(true)
+    const docRef = doc(firestore, 'shiftInfos', shiftInfo.id)
+    updateDoc(docRef, {
+      acknowledgedBy: arrayUnion(currentUser)
+    })
+  }
 
   const activities = [
     { id: 1, text: "Uudet arkkitehtuurikuvat ladattu: 'Keittiölaajennus'", time: "2 min sitten", type: "cloud" },
     { id: 2, text: "Sarah Miller tägäsi sinut kanavalla #insinööri-ops", time: "15 min sitten", type: "message" },
     { id: 3, text: "Päivittäinen huoltopalaveri alkaa", time: "Nyt", type: "call" },
   ]
-
-  const isRead = shiftInfo?.acknowledgedBy?.includes(currentUser) || isReadLocal
-
-  const markAsRead = () => {
-    if (!firestore || !infoRef) return
-    setIsReadLocal(true)
-    updateDoc(infoRef, {
-      acknowledgedBy: arrayUnion(currentUser)
-    })
-  }
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
@@ -74,15 +86,15 @@ export function WorkspaceModule() {
             {shiftInfo.bulletPoints?.length > 0 && (
               <ul className="space-y-1">
                 {shiftInfo.bulletPoints.map((p: string, i: number) => p && (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                    {p}
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
+                    <span>{p}</span>
                   </li>
                 ))}
               </ul>
             )}
             {shiftInfo.freeText && (
-              <p className="text-sm text-foreground/80 italic border-l-2 border-accent/20 pl-4 py-1">
+              <p className="text-sm text-foreground/80 italic border-l-2 border-accent/20 pl-4 py-1 whitespace-pre-wrap">
                 {shiftInfo.freeText}
               </p>
             )}
