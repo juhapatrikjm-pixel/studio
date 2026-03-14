@@ -37,14 +37,23 @@ export function WorkspaceModule() {
   const { data: records = [] } = useCollection<any>(recordsQuery)
   const latestRecord = records[0] || null
 
-  const [isReadLocal, setIsReadLocal] = useState(false)
+  // Seurataan luettuja ID:itä paikallisesti, jotta poistuminen on välitöntä
+  const [readInfoIds, setReadInfoIds] = useState<string[]>([])
   const currentUser = "John Smith"
 
-  const isRead = shiftInfo?.acknowledgedBy?.includes(currentUser) || isReadLocal
+  // Tarkistetaan onko nykyinen info jo luettu joko tietokannassa tai tässä istunnossa
+  const isRead = useMemo(() => {
+    if (!shiftInfo) return false
+    return shiftInfo.acknowledgedBy?.includes(currentUser) || readInfoIds.includes(shiftInfo.id)
+  }, [shiftInfo, currentUser, readInfoIds])
 
   const markAsRead = () => {
     if (!firestore || !shiftInfo) return
-    setIsReadLocal(true)
+    
+    // Lisätään paikalliseen tilaan välitöntä piilottamista varten
+    setReadInfoIds(prev => [...prev, shiftInfo.id])
+    
+    // Päivitetään tietokantaan, jotta tieto säilyy
     const docRef = doc(firestore, 'shiftInfos', shiftInfo.id)
     updateDoc(docRef, {
       acknowledgedBy: arrayUnion(currentUser)
