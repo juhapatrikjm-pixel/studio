@@ -1,0 +1,97 @@
+
+{
+  "entities": {
+    "MisaList": {
+      "title": "MisaList",
+      "description": "Keittiön prep- ja valmistelulistat",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "completed": { "type": "boolean" }
+            }
+          }
+        }
+      },
+      "required": ["title"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Tukkutoimittajat ja yhteistyökumppanit",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "color": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Tehdyt tilaukset ja toimitukset",
+      "type": "object",
+      "properties": {
+        "supplierId": { "type": "string" },
+        "supplierName": { "type": "string" },
+        "color": { "type": "string" },
+        "orderDate": { "type": "string", "format": "date-time" },
+        "arrivalDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "shipped", "arrived"] }
+      }
+    },
+    "Equipment": {
+      "title": "Equipment",
+      "description": "Keittiön laitekanta",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "code": { "type": "string" }
+      }
+    },
+    "MaintenanceContact": {
+      "title": "MaintenanceContact",
+      "description": "Huoltoliikkeiden yhteystiedot",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/misaLists/{listId}": {
+      "schema": "MisaList",
+      "description": "Kaikki prep-listat"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "Supplier",
+      "description": "Toimittajarekisteri"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Tilaushistoria ja tulevat kuormat"
+    },
+    "/equipment/{equipId}": {
+      "schema": "Equipment",
+      "description": "Laiteluettelo"
+    },
+    "/maintenanceContacts/{contactId}": {
+      "schema": "MaintenanceContact",
+      "description": "Huollon yhteystiedot"
+    }
+  }
+}
