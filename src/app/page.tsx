@@ -1,7 +1,8 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
-import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
@@ -15,8 +16,81 @@ import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 
+type ModuleId = 'info' | 'misa' | 'suppliers' | 'orders' | 'messaging' | 'cloud' | 'directory' | 'admin'
+
+const menuItems = [
+  { id: 'info', icon: LayoutDashboard, label: 'Info' },
+  { id: 'misa', icon: ClipboardList, label: 'MISA' },
+  { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
+  { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
+  { id: 'messaging', icon: MessageSquare, label: 'Messaging' },
+  { id: 'cloud', icon: Cloud, label: 'Cloud Data' },
+  { id: 'directory', icon: Users, label: 'Directory' },
+  { id: 'admin', icon: ShieldCheck, label: 'Administration' },
+] as const
+
+function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId, setActiveModule: (id: ModuleId) => void }) {
+  const { setOpen, setOpenMobile } = useSidebar()
+
+  const handleModuleChange = (id: ModuleId) => {
+    setActiveModule(id)
+    // Suljetaan sivupalkki automaattisesti valinnan jälkeen
+    setOpen(false)
+    setOpenMobile(false)
+  }
+
+  return (
+    <Sidebar className="border-r border-border bg-sidebar shadow-2xl" collapsible="offcanvas">
+      <SidebarHeader className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg copper-gradient flex items-center justify-center shadow-[0_0_15px_rgba(184,115,51,0.4)]">
+            <span className="text-white font-headline font-bold text-xl">W</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="font-headline font-bold text-lg text-primary leading-tight">WorkHub</span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Industrial Edition</span>
+          </div>
+        </div>
+      </SidebarHeader>
+      <SidebarContent className="px-3">
+        <SidebarMenu className="gap-2">
+          {menuItems.map((item) => (
+            <SidebarMenuItem key={item.id}>
+              <SidebarMenuButton 
+                isActive={activeModule === item.id}
+                onClick={() => handleModuleChange(item.id as ModuleId)}
+                className={`h-12 px-4 rounded-lg transition-all duration-300 border border-transparent ${
+                  activeModule === item.id 
+                  ? "bg-primary/20 text-accent font-bold border-primary/50 shadow-inner" 
+                  : "hover:bg-white/5 text-muted-foreground"
+                }`}
+              >
+                <item.icon className={`w-5 h-5 ${activeModule === item.id ? 'text-accent' : 'text-muted-foreground'}`} />
+                <span className="ml-3 font-medium">{item.label}</span>
+                {activeModule === item.id && <ChevronRight className="ml-auto w-4 h-4 text-accent" />}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarContent>
+      <div className="p-6 border-t border-border mt-auto">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-md steel-detail flex items-center justify-center text-background font-bold text-xs shadow-sm">
+            JS
+          </div>
+          <div className="flex flex-col">
+            <span className="text-xs font-bold text-foreground">John Smith</span>
+            <span className="text-[10px] text-muted-foreground">Lead Engineer</span>
+          </div>
+          <Settings className="w-4 h-4 ml-auto text-muted-foreground hover:text-accent cursor-pointer transition-colors" />
+        </div>
+      </div>
+    </Sidebar>
+  )
+}
+
 export default function Home() {
-  const [activeModule, setActiveModule] = useState<'info' | 'misa' | 'suppliers' | 'orders' | 'messaging' | 'cloud' | 'directory' | 'admin'>('info')
+  const [activeModule, setActiveModule] = useState<ModuleId>('info')
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
 
   useEffect(() => {
@@ -41,71 +115,15 @@ export default function Home() {
     }
   }
 
-  const menuItems = [
-    { id: 'info', icon: LayoutDashboard, label: 'Info' },
-    { id: 'misa', icon: ClipboardList, label: 'MISA' },
-    { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
-    { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
-    { id: 'messaging', icon: MessageSquare, label: 'Messaging' },
-    { id: 'cloud', icon: Cloud, label: 'Cloud Data' },
-    { id: 'directory', icon: Users, label: 'Directory' },
-    { id: 'admin', icon: ShieldCheck, label: 'Administration' },
-  ] as const
-
   return (
-    <SidebarProvider defaultOpen={true}>
+    <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground">
-        <Sidebar className="border-r border-border bg-sidebar shadow-2xl">
-          <SidebarHeader className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg copper-gradient flex items-center justify-center shadow-[0_0_15px_rgba(184,115,51,0.4)]">
-                <span className="text-white font-headline font-bold text-xl">W</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-headline font-bold text-lg text-primary leading-tight">WorkHub</span>
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Industrial Edition</span>
-              </div>
-            </div>
-          </SidebarHeader>
-          <SidebarContent className="px-3">
-            <SidebarMenu className="gap-2">
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton 
-                    isActive={activeModule === item.id}
-                    onClick={() => setActiveModule(item.id)}
-                    className={`h-12 px-4 rounded-lg transition-all duration-300 border border-transparent ${
-                      activeModule === item.id 
-                      ? "bg-primary/20 text-accent font-bold border-primary/50 shadow-inner" 
-                      : "hover:bg-white/5 text-muted-foreground"
-                    }`}
-                  >
-                    <item.icon className={`w-5 h-5 ${activeModule === item.id ? 'text-accent' : 'text-muted-foreground'}`} />
-                    <span className="ml-3 font-medium">{item.label}</span>
-                    {activeModule === item.id && <ChevronRight className="ml-auto w-4 h-4 text-accent" />}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarContent>
-          <div className="p-6 border-t border-border mt-auto">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-md steel-detail flex items-center justify-center text-background font-bold text-xs shadow-sm">
-                JS
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-bold text-foreground">John Smith</span>
-                <span className="text-[10px] text-muted-foreground">Lead Engineer</span>
-              </div>
-              <Settings className="w-4 h-4 ml-auto text-muted-foreground hover:text-accent cursor-pointer transition-colors" />
-            </div>
-          </div>
-        </Sidebar>
+        <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0">
           <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10 px-6 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1">
-              <SidebarTrigger className="md:hidden text-muted-foreground" />
+              <SidebarTrigger className="text-muted-foreground hover:text-accent" />
               <div className="hidden sm:flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-lg border border-border/50 shadow-inner">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <input 
