@@ -141,16 +141,8 @@ export function RecipesModule() {
       createdAt: new Date().toISOString()
     }
 
-    // Tallennus ja popupin sulkeminen
+    // Käynnistetään tallennus (ei await, jotta käyttöliittymä ei jää odottamaan)
     setDoc(recipeRef, recipeData)
-      .then(() => {
-        toast({
-          title: "Resepti tallennettu",
-          description: `"${recipeName}" on nyt arkistoitu.`,
-        })
-        setIsCreating(false) // Sulkee popupin
-        resetForm() // Tyhjentää lomakkeen
-      })
       .catch(async (error) => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: recipeRef.path,
@@ -158,6 +150,14 @@ export function RecipesModule() {
           requestResourceData: recipeData
         }))
       })
+
+    // Suljetaan popup ja nollataan lomake välittömästi (optimistinen paluu)
+    toast({
+      title: "Resepti tallennettu",
+      description: `"${recipeName}" on nyt arkistoitu.`,
+    })
+    setIsCreating(false) 
+    resetForm()
   }
 
   return (
@@ -201,7 +201,10 @@ export function RecipesModule() {
         </Card>
       </div>
 
-      <Dialog open={isCreating} onOpenChange={setIsCreating}>
+      <Dialog open={isCreating} onOpenChange={(open) => {
+        if (!open) resetForm()
+        setIsCreating(open)
+      }}>
         <DialogContent className="max-w-6xl h-[90vh] bg-background border-border overflow-hidden flex flex-col p-0">
           <DialogHeader className="p-6 border-b border-border bg-card">
             <div className="flex items-center justify-between w-full">
@@ -216,7 +219,6 @@ export function RecipesModule() {
           <ScrollArea className="flex-1 p-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4">
               <div className="lg:col-span-2 space-y-8">
-                {/* Perustiedot */}
                 <Card className="bg-card border-border shadow-xl">
                   <CardHeader>
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Perustiedot</CardTitle>
@@ -261,7 +263,6 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
-                {/* Raaka-aineet */}
                 <Card className="bg-card border-border shadow-xl">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Raaka-aineet</CardTitle>
@@ -298,7 +299,6 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
-                {/* Vaiheet */}
                 <Card className="bg-card border-border shadow-xl">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Vaiheet</CardTitle>
@@ -320,7 +320,6 @@ export function RecipesModule() {
                 </Card>
               </div>
 
-              {/* Laskelmat ja Laitteet */}
               <div className="space-y-6">
                 <Card className="bg-card border-border shadow-2xl overflow-hidden sticky top-0">
                   <div className="absolute top-0 right-0 w-1 h-full copper-gradient" />
@@ -353,7 +352,6 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
-                {/* Laitteet */}
                 <Card className="bg-card border-border shadow-xl">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Laitteet</CardTitle>
@@ -392,7 +390,6 @@ export function RecipesModule() {
               </div>
             </div>
 
-            {/* Toiminnot sisällön lopussa */}
             <div className="flex flex-col sm:flex-row gap-3 pt-6 pb-12 mt-6 border-t border-border">
               <Button onClick={handleSave} className="flex-1 copper-gradient text-white font-bold h-12 gap-2">
                 <Save className="w-5 h-5" /> Tallenna resepti
