@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export function AdminModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
-  const settingsRef = firestore ? doc(firestore, 'settings', 'global') : null
+  
+  const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
   const { data: settings } = useDoc<any>(settingsRef)
 
   const [targetMargin, setTargetMargin] = useState(75)
@@ -33,9 +34,8 @@ export function AdminModule() {
   }, [settings])
 
   const saveSettings = () => {
-    if (!firestore) return
-    const ref = doc(firestore, 'settings', 'global')
-    setDoc(ref, { 
+    if (!firestore || !settingsRef) return
+    setDoc(settingsRef, { 
       targetMargin: Number(targetMargin),
       cheerMessages: messages
     }, { merge: true })

@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -23,8 +23,9 @@ type FolderType = {
 
 export function ArchiveModule() {
   const firestore = useFirestore()
-  const foldersRef = firestore ? collection(firestore, 'archiveFolders') : null
-  const recipesRef = firestore ? collection(firestore, 'recipes') : null
+  
+  const foldersRef = useMemo(() => (firestore ? collection(firestore, 'archiveFolders') : null), [firestore])
+  const recipesRef = useMemo(() => (firestore ? collection(firestore, 'recipes') : null), [firestore])
   
   const { data: folders = [] } = useCollection<FolderType>(foldersRef)
   const { data: recipes = [] } = useCollection<any>(recipesRef)

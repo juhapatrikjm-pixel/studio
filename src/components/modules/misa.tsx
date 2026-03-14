@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -34,7 +34,7 @@ type MisaList = {
 
 export function MisaModule() {
   const firestore = useFirestore();
-  const misaListsRef = firestore ? collection(firestore, 'misaLists') : null;
+  const misaListsRef = useMemo(() => (firestore ? collection(firestore, 'misaLists') : null), [firestore]);
   const { data: misaLists = [] } = useCollection<MisaList>(misaListsRef);
 
   const [newListTitle, setNewListTitle] = useState("")

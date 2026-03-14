@@ -65,10 +65,15 @@ export function RecipesModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
   
-  const { data: globalEquipment = [] } = useCollection<any>(firestore ? collection(firestore, 'equipment') : null)
-  const { data: folders = [] } = useCollection<any>(firestore ? collection(firestore, 'archiveFolders') : null)
-  const { data: globalRecipes = [] } = useCollection<any>(firestore ? collection(firestore, 'recipes') : null)
-  const { data: settings } = useDoc<any>(firestore ? doc(firestore, 'settings', 'global') : null)
+  const equipmentRef = useMemo(() => (firestore ? collection(firestore, 'equipment') : null), [firestore])
+  const foldersRef = useMemo(() => (firestore ? collection(firestore, 'archiveFolders') : null), [firestore])
+  const recipesRef = useMemo(() => (firestore ? collection(firestore, 'recipes') : null), [firestore])
+  const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
+
+  const { data: globalEquipment = [] } = useCollection<any>(equipmentRef)
+  const { data: folders = [] } = useCollection<any>(foldersRef)
+  const { data: globalRecipes = [] } = useCollection<any>(recipesRef)
+  const { data: settings } = useDoc<any>(settingsRef)
 
   const targetMargin = settings?.targetMargin || 75
 

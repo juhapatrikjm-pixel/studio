@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -86,11 +86,17 @@ export function OmavalvontaStatusHeader({ record }: { record: SMRecord | null })
 
 export function OmavalvontaModule() {
   const firestore = useFirestore()
-  const tasksRef = firestore ? collection(firestore, 'selfMonitoringTasks') : null
-  const recordsRef = firestore ? collection(firestore, 'selfMonitoringRecords') : null
+  
+  const tasksRef = useMemo(() => (firestore ? collection(firestore, 'selfMonitoringTasks') : null), [firestore])
+  const recordsRef = useMemo(() => (firestore ? collection(firestore, 'selfMonitoringRecords') : null), [firestore])
   
   const { data: tasks = [] } = useCollection<SMTask>(tasksRef)
-  const recordsQuery = recordsRef ? query(recordsRef, orderBy('date', 'desc'), limit(1)) : null
+  
+  const recordsQuery = useMemo(() => {
+    if (!recordsRef) return null
+    return query(recordsRef, orderBy('date', 'desc'), limit(1))
+  }, [recordsRef])
+  
   const { data: records = [] } = useCollection<SMRecord>(recordsQuery)
   
   const latestRecord = records[0] || null

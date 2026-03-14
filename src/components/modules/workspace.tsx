@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Activity, LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, CheckCircle, Info } from "lucide-react"
@@ -13,13 +13,17 @@ import { Button } from "@/components/ui/button"
 
 export function WorkspaceModule() {
   const firestore = useFirestore()
-  const dateId = format(new Date(), 'yyyy-MM-dd')
-  const recordsRef = firestore ? collection(firestore, 'selfMonitoringRecords') : null
-  const recordsQuery = recordsRef ? query(recordsRef, orderBy('date', 'desc'), limit(1)) : null
+  const dateId = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  
+  const recordsQuery = useMemo(() => {
+    if (!firestore) return null
+    return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(1))
+  }, [firestore])
+  
   const { data: records = [] } = useCollection<any>(recordsQuery)
   const latestRecord = records[0] || null
 
-  const infoRef = firestore ? doc(firestore, 'shiftInfos', dateId) : null
+  const infoRef = useMemo(() => (firestore ? doc(firestore, 'shiftInfos', dateId) : null), [firestore, dateId])
   const { data: shiftInfo } = useDoc<any>(infoRef)
 
   const [isReadLocal, setIsReadLocal] = useState(false)

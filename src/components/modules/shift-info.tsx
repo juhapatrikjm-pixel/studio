@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -60,11 +60,12 @@ const DEFAULT_CHEERS = [
 export function ShiftInfoModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
-  const dateId = format(new Date(), 'yyyy-MM-dd')
-  const infoRef = firestore ? doc(firestore, 'shiftInfos', dateId) : null
+  const dateId = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
+  
+  const infoRef = useMemo(() => (firestore ? doc(firestore, 'shiftInfos', dateId) : null), [firestore, dateId])
   const { data: shiftInfo } = useDoc<any>(infoRef)
   
-  const settingsRef = firestore ? doc(firestore, 'settings', 'global') : null
+  const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
   const { data: settings } = useDoc<any>(settingsRef)
 
   const [points, setPoints] = useState<string[]>([])
@@ -79,9 +80,8 @@ export function ShiftInfoModule() {
   }, [shiftInfo])
 
   const saveInfo = () => {
-    if (!firestore) return
-    const ref = doc(firestore, 'shiftInfos', dateId)
-    setDoc(ref, {
+    if (!firestore || !infoRef) return
+    setDoc(infoRef, {
       date: dateId,
       bulletPoints: points,
       freeText: freeText,
