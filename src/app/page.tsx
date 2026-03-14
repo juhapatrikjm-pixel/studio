@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
@@ -21,6 +21,8 @@ import { ProfileModule } from "@/components/modules/profile"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
+import { useFirestore, useDoc } from "@/firebase"
+import { doc } from "firebase/firestore"
 
 type ModuleId = 'info' | 'shift-info' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
@@ -100,6 +102,26 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
   )
 }
 
+function BackgroundWatermark() {
+  const firestore = useFirestore()
+  const userId = "demo-user-123"
+  const profileRef = useMemo(() => (firestore ? doc(firestore, 'userProfiles', userId) : null), [firestore])
+  const { data: profile } = useDoc<any>(profileRef)
+
+  if (!profile?.logoUrl) return null
+
+  return (
+    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden opacity-[0.03] grayscale contrast-125 transition-opacity duration-1000">
+      <img 
+        src={profile.logoUrl} 
+        alt="Background Watermark" 
+        className="w-[60%] max-w-[800px] object-contain animate-pulse-slow"
+        style={{ animationDuration: '8s' }}
+      />
+    </div>
+  )
+}
+
 export default function Home() {
   const [activeModule, setActiveModule] = useState<ModuleId>('info')
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
@@ -134,10 +156,12 @@ export default function Home() {
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground">
+      <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground relative">
+        <BackgroundWatermark />
+        
         <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} />
 
-        <SidebarInset className="bg-transparent flex flex-col min-w-0">
+        <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10">
           <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10 px-6 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1">
               <SidebarTrigger className="text-muted-foreground hover:text-accent" />
