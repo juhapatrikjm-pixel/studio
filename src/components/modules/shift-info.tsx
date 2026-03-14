@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Plus, Trash2, Smile, Sparkles, Save, Info, History, Calendar as CalendarIcon, ChevronRight } from "lucide-react"
 import { useFirestore, useDoc, useCollection } from "@/firebase"
-import { collection, addDoc, query, orderBy, limit, serverTimestamp, doc } from "firebase/firestore"
+import { collection, addDoc, query, orderBy, limit, serverTimestamp, doc, deleteDoc } from "firebase/firestore"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -106,6 +106,17 @@ export function ShiftInfoModule() {
           requestResourceData: infoData
         }))
       })
+  }
+
+  const deleteEntry = (id: string) => {
+    if (!firestore) return
+    const docRef = doc(firestore, 'shiftInfos', id)
+    deleteDoc(docRef).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete'
+      }))
+    })
   }
 
   const addPoint = () => setPoints([...points, ""])
@@ -222,11 +233,19 @@ export function ShiftInfoModule() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {history.map((entry) => (
             <Card key={entry.id} className="bg-card border-border hover:border-accent/40 transition-all group">
-              <CardHeader className="p-4 pb-2">
+              <CardHeader className="p-4 pb-2 flex flex-row items-center justify-between space-y-0">
                 <CardTitle className="text-xs font-headline text-accent flex items-center gap-2">
                   <CalendarIcon className="w-4 h-4" />
                   {entry.date ? format(new Date(entry.date), 'EEEE d.M.yyyy', { locale: fi }) : "Merkintä"}
                 </CardTitle>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => deleteEntry(entry.id)}
+                >
+                  <Trash2 className="w-3 h-3" />
+                </Button>
               </CardHeader>
               <CardContent className="p-4 pt-0">
                 <ScrollArea className="max-h-[150px]">
