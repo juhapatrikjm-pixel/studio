@@ -172,6 +172,28 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["date", "revenue"]
+    },
+    "CalendarEvent": {
+      "title": "CalendarEvent",
+      "description": "Kalenterimerkinnät ja muistutukset",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "time": { "type": "string" },
+        "description": { "type": "string" },
+        "alert": { "type": "boolean" }
+      }
+    },
+    "TodoTask": {
+      "title": "TodoTask",
+      "description": "Yleiset tehtävälistat",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -225,6 +247,14 @@
     "/financialRecords/{recordId}": {
       "schema": "FinancialRecord",
       "description": "Päivittäiset talousmerkinnät"
+    },
+    "/calendarEvents/{eventId}": {
+      "schema": "CalendarEvent",
+      "description": "Kalenteritapahtumat"
+    },
+    "/todoTasks/{taskId}": {
+      "schema": "TodoTask",
+      "description": "Yleiset tehtävät"
     }
   }
 }

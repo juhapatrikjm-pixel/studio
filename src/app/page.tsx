@@ -1,8 +1,9 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -18,18 +19,20 @@ import { RecipesModule } from "@/components/modules/recipes"
 import { ShiftInfoModule } from "@/components/modules/shift-info"
 import { ProfileModule } from "@/components/modules/profile"
 import { TulosModule } from "@/components/modules/tulos"
+import { TodoCalendarModule } from "@/components/modules/todo-calendar"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc } from "firebase/firestore"
 
-type ModuleId = 'info' | 'shift-info' | 'tulos' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
+type ModuleId = 'info' | 'shift-info' | 'tulos' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
 const menuItems = [
   { id: 'info', icon: LayoutDashboard, label: 'Ohjauspaneeli' },
   { id: 'shift-info', icon: Info, label: 'Vuoro-info' },
   { id: 'tulos', icon: TrendingUp, label: 'Tulosseuranta' },
+  { id: 'todo-calendar', icon: CalendarDays, label: 'Kalenteri & To do' },
   { id: 'omavalvonta', icon: ShieldAlert, label: 'Omavalvonta' },
   { id: 'misa', icon: ClipboardList, label: 'Prep-listat' },
   { id: 'recipes', icon: ChefHat, label: 'Reseptiikka' },
@@ -140,6 +143,7 @@ export default function Home() {
       case 'info': return <WorkspaceModule />
       case 'shift-info': return <ShiftInfoModule />
       case 'tulos': return <TulosModule />
+      case 'todo-calendar': return <TodoCalendarModule />
       case 'omavalvonta': return <OmavalvontaModule />
       case 'misa': return <MisaModule />
       case 'recipes': return <RecipesModule />
