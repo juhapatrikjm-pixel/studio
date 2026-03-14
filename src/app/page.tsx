@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -111,12 +110,12 @@ function BackgroundWatermark() {
   if (!profile?.logoUrl) return null
 
   return (
-    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden opacity-[0.03] grayscale contrast-125 transition-opacity duration-1000">
+    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden opacity-[0.07] grayscale contrast-150 transition-all duration-1000">
       <img 
         src={profile.logoUrl} 
         alt="Background Watermark" 
-        className="w-[60%] max-w-[800px] object-contain animate-pulse-slow"
-        style={{ animationDuration: '8s' }}
+        className="w-[70%] max-w-[900px] object-contain animate-pulse"
+        style={{ animationDuration: '10s', filter: 'drop-shadow(0 0 20px rgba(184, 115, 51, 0.2))' }}
       />
     </div>
   )
