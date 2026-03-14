@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { FolderPlus, Folder, FileText, FileImage, FileCode, Plus, Trash2, Search, Upload, ChevronRight, MoreVertical } from "lucide-react"
+import { FolderPlus, Folder, FileText, FileImage, FileCode, Plus, Trash2, Search, Upload, ChevronRight, MoreVertical, Archive } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
