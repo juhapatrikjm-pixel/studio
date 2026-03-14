@@ -29,7 +29,7 @@ const menuItems = [
   { id: 'info', icon: LayoutDashboard, label: 'Ohjauspaneeli' },
   { id: 'shift-info', icon: Info, label: 'Vuoro-info' },
   { id: 'omavalvonta', icon: ShieldAlert, label: 'Omavalvonta' },
-  { id: 'misa', icon: ClipboardList, label: 'MISA' },
+  { id: 'misa', icon: ClipboardList, label: 'Prep-listat' },
   { id: 'recipes', icon: ChefHat, label: 'Reseptiikka' },
   { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
   { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },

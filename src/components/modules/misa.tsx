@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -126,13 +125,13 @@ export function MisaModule() {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
       <header className="flex flex-col gap-1">
-        <h2 className="text-3xl font-headline font-bold text-accent">Keittiölogistiikka</h2>
-        <p className="text-muted-foreground">Hallitse menuja pilvisynkronoidusti.</p>
+        <h2 className="text-3xl font-headline font-bold text-accent">Prep-listat</h2>
+        <p className="text-muted-foreground">Hallitse keittiön valmisteluja ja menuja.</p>
       </header>
 
       <Tabs defaultValue="misa" className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-8 bg-muted/30 border border-border p-1">
-          <TabsTrigger value="misa" className="gap-2">Misa-listat</TabsTrigger>
+          <TabsTrigger value="misa" className="gap-2">Prep-listat</TabsTrigger>
           <TabsTrigger value="haku" className="gap-2">Haku-lista</TabsTrigger>
           <TabsTrigger value="puute" className="gap-2">Puute-lista</TabsTrigger>
         </TabsList>
