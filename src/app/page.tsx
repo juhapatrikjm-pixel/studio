@@ -34,16 +34,16 @@ export default function Home() {
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <div className="flex min-h-screen w-full bg-background overflow-hidden">
-        <Sidebar className="border-r border-accent/10 shadow-lg">
+      <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground">
+        <Sidebar className="border-r border-border bg-sidebar shadow-2xl">
           <SidebarHeader className="p-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md">
+              <div className="w-10 h-10 rounded-lg copper-gradient flex items-center justify-center shadow-[0_0_15px_rgba(184,115,51,0.4)]">
                 <span className="text-white font-headline font-bold text-xl">W</span>
               </div>
               <div className="flex flex-col">
                 <span className="font-headline font-bold text-lg text-primary leading-tight">WorkHub</span>
-                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Enterprise</span>
+                <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Industrial Edition</span>
               </div>
             </div>
           </SidebarHeader>
@@ -54,60 +54,62 @@ export default function Home() {
                   <SidebarMenuButton 
                     isActive={activeModule === item.id}
                     onClick={() => setActiveModule(item.id)}
-                    className={`h-12 px-4 rounded-xl transition-all duration-300 ${
+                    className={`h-12 px-4 rounded-lg transition-all duration-300 border border-transparent ${
                       activeModule === item.id 
-                      ? "bg-accent/10 text-primary font-bold border-l-4 border-primary" 
-                      : "hover:bg-accent/5 text-muted-foreground"
+                      ? "bg-primary/20 text-accent font-bold border-primary/50 shadow-inner" 
+                      : "hover:bg-white/5 text-muted-foreground"
                     }`}
                   >
-                    <item.icon className={`w-5 h-5 ${activeModule === item.id ? 'text-primary' : 'text-muted-foreground'}`} />
+                    <item.icon className={`w-5 h-5 ${activeModule === item.id ? 'text-accent' : 'text-muted-foreground'}`} />
                     <span className="ml-3 font-medium">{item.label}</span>
-                    {activeModule === item.id && <ChevronRight className="ml-auto w-4 h-4 text-primary" />}
+                    {activeModule === item.id && <ChevronRight className="ml-auto w-4 h-4 text-accent" />}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarContent>
-          <div className="mt-auto p-6 border-t border-accent/10">
+          <div className="mt-auto p-6 border-t border-border">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center text-primary font-bold text-xs">
+              <div className="w-8 h-8 rounded-md steel-detail flex items-center justify-center text-background font-bold text-xs shadow-sm">
                 JS
               </div>
               <div className="flex flex-col">
-                <span className="text-xs font-semibold">John Smith</span>
-                <span className="text-[10px] text-muted-foreground">Admin Access</span>
+                <span className="text-xs font-bold text-foreground">John Smith</span>
+                <span className="text-[10px] text-muted-foreground">Lead Engineer</span>
               </div>
-              <Settings className="w-4 h-4 ml-auto text-muted-foreground hover:text-primary cursor-pointer transition-colors" />
+              <Settings className="w-4 h-4 ml-auto text-muted-foreground hover:text-accent cursor-pointer transition-colors" />
             </div>
           </div>
         </Sidebar>
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0">
-          <header className="h-16 border-b border-accent/10 bg-white/50 backdrop-blur-md sticky top-0 z-10 px-6 flex items-center justify-between">
+          <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10 px-6 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <SidebarTrigger className="md:hidden" />
-              <div className="hidden sm:flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-full border border-accent/5">
+              <SidebarTrigger className="md:hidden text-muted-foreground" />
+              <div className="hidden sm:flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-lg border border-border/50 shadow-inner">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <input 
                   placeholder="Universal Search..." 
-                  className="bg-transparent border-none text-xs focus:outline-none w-32 md:w-64"
+                  className="bg-transparent border-none text-xs focus:outline-none w-32 md:w-64 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-primary">
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5">
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-white" />
+                <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background shadow-[0_0_8px_rgba(184,115,51,0.6)]" />
               </Button>
-              <div className="h-8 w-[1px] bg-accent/10 mx-2" />
-              <Button size="sm" className="hidden sm:flex bg-primary hover:bg-primary/90 rounded-full font-semibold">
-                New Action
+              <div className="h-6 w-[1px] bg-border mx-2" />
+              <Button size="sm" className="hidden sm:flex copper-gradient text-white hover:opacity-90 rounded-lg font-bold shadow-lg">
+                New Project
               </Button>
             </div>
           </header>
 
           <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-[1440px] mx-auto w-full">
-            {renderModule()}
+            <div className="max-w-6xl mx-auto">
+              {renderModule()}
+            </div>
           </main>
         </SidebarInset>
       </div>

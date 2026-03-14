@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Sparkles, Send, Loader2, Info } from "lucide-react"
+import { Sparkles, Send, Loader2 } from "lucide-react"
 import { summarizeTeamDiscussion } from "@/ai/flows/summarize-team-discussion-flow"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
@@ -57,53 +57,53 @@ export function MessagingModule() {
 
   return (
     <div className="flex flex-col h-full gap-4 max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
-      <header className="flex items-center justify-between border-b pb-4">
+      <header className="flex items-center justify-between border-b border-border pb-4">
         <div>
-          <h2 className="text-xl font-headline font-semibold text-primary"># budget-planning</h2>
-          <p className="text-sm text-muted-foreground">3 team members active</p>
+          <h2 className="text-xl font-headline font-bold text-accent"># budget-planning</h2>
+          <p className="text-sm text-muted-foreground italic">Secure line active</p>
         </div>
         <Button 
           variant="outline" 
           size="sm" 
-          className="gap-2 border-primary text-primary hover:bg-primary/5"
+          className="gap-2 border-primary text-accent hover:bg-primary/10 shadow-sm"
           onClick={handleSummarize}
           disabled={isSummarizing}
         >
-          {isSummarizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+          {isSummarizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-accent" />}
           AI Summary
         </Button>
       </header>
 
       {summary && (
-        <Alert className="bg-accent/10 border-accent/30 mb-4 animate-in fade-in slide-in-from-top-2">
+        <Alert className="bg-primary/10 border-primary/40 mb-4 animate-breathing">
           <Sparkles className="w-4 h-4 text-accent" />
-          <AlertTitle className="font-headline text-accent font-bold">Thread Summary</AlertTitle>
-          <AlertDescription className="text-sm italic">
+          <AlertTitle className="font-headline text-accent font-bold">Process Intelligence Summary</AlertTitle>
+          <AlertDescription className="text-sm text-foreground/90 font-medium leading-relaxed">
             {summary}
           </AlertDescription>
-          <Button variant="ghost" size="sm" className="mt-2 h-7 p-0 text-xs underline" onClick={() => setSummary(null)}>Dismiss</Button>
+          <Button variant="ghost" size="sm" className="mt-2 h-7 p-0 text-xs text-accent underline hover:bg-transparent" onClick={() => setSummary(null)}>Acknowledge & Dismiss</Button>
         </Alert>
       )}
 
-      <ScrollArea className="flex-1 pr-4">
+      <ScrollArea className="flex-1 pr-4 min-h-[400px]">
         <div className="flex flex-col gap-6 py-4">
           {messages.map((msg) => (
             <div key={msg.id} className={`flex gap-3 ${msg.isSelf ? 'flex-row-reverse' : 'flex-row'}`}>
               {!msg.isSelf && (
-                <Avatar className="w-8 h-8 border border-accent/20">
+                <Avatar className="w-8 h-8 border border-primary/20">
                   <AvatarImage src={`https://picsum.photos/seed/${msg.sender}/200/200`} />
-                  <AvatarFallback>{msg.sender[0]}</AvatarFallback>
+                  <AvatarFallback className="bg-muted text-accent">{msg.sender[0]}</AvatarFallback>
                 </Avatar>
               )}
               <div className={`flex flex-col max-w-[80%] ${msg.isSelf ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs font-semibold text-muted-foreground">{msg.sender}</span>
-                  <span className="text-[10px] text-muted-foreground">{msg.time}</span>
+                  <span className="text-xs font-bold text-muted-foreground">{msg.sender}</span>
+                  <span className="text-[10px] text-muted-foreground opacity-60">{msg.time}</span>
                 </div>
-                <div className={`p-3 rounded-2xl text-sm shadow-sm ${
+                <div className={`p-4 rounded-xl text-sm shadow-lg ${
                   msg.isSelf 
-                  ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                  : 'bg-white border rounded-tl-none'
+                  ? 'copper-gradient text-white rounded-tr-none' 
+                  : 'bg-card border border-border rounded-tl-none text-foreground'
                 }`}>
                   {msg.content}
                 </div>
@@ -113,15 +113,15 @@ export function MessagingModule() {
         </div>
       </ScrollArea>
 
-      <footer className="flex gap-2 pt-4 border-t items-center bg-background/50 backdrop-blur-sm pb-2">
+      <footer className="flex gap-2 pt-4 border-t border-border items-center bg-background/50 backdrop-blur-sm pb-2">
         <Input 
-          placeholder="Type a secure message..." 
-          className="flex-1 bg-white border-accent/20" 
+          placeholder="Enter secure message..." 
+          className="flex-1 bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-accent" 
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
         />
-        <Button className="bg-primary hover:bg-primary/90" size="icon" onClick={handleSend}>
+        <Button className="copper-gradient hover:opacity-90 shadow-md" size="icon" onClick={handleSend}>
           <Send className="w-4 h-4" />
         </Button>
       </footer>
