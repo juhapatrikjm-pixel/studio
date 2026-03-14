@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
 import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
@@ -12,9 +12,20 @@ import { MisaModule } from "@/components/modules/misa"
 import { SuppliersModule } from "@/components/modules/suppliers"
 import { OrdersModule } from "@/components/modules/orders"
 import { Button } from "@/components/ui/button"
+import { format } from "date-fns"
+import { fi } from "date-fns/locale"
 
 export default function Home() {
   const [activeModule, setActiveModule] = useState<'info' | 'misa' | 'suppliers' | 'orders' | 'messaging' | 'cloud' | 'directory' | 'admin'>('info')
+  const [currentTime, setCurrentTime] = useState<Date | null>(null)
+
+  useEffect(() => {
+    setCurrentTime(new Date())
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const renderModule = () => {
     switch(activeModule) {
@@ -93,7 +104,7 @@ export default function Home() {
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0">
           <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10 px-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1">
               <SidebarTrigger className="md:hidden text-muted-foreground" />
               <div className="hidden sm:flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-lg border border-border/50 shadow-inner">
                 <Search className="w-4 h-4 text-muted-foreground" />
@@ -103,7 +114,18 @@ export default function Home() {
                 />
               </div>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Kello ja päivämäärä keskellä */}
+            <div className="flex flex-col items-center justify-center flex-1 text-center">
+              <div className="text-accent font-headline font-bold text-xl leading-none tracking-widest tabular-nums">
+                {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
+              </div>
+              <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">
+                {currentTime ? format(currentTime, 'EEEE d. MMMM yyyy', { locale: fi }) : 'Ladataan...'}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-1 justify-end">
               <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5">
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background shadow-[0_0_8px_rgba(184,115,51,0.6)]" />
