@@ -21,16 +21,16 @@ import { fi } from "date-fns/locale"
 type ModuleId = 'info' | 'misa' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'admin'
 
 const menuItems = [
-  { id: 'info', icon: LayoutDashboard, label: 'Info' },
+  { id: 'info', icon: LayoutDashboard, label: 'Ohjauspaneeli' },
   { id: 'misa', icon: ClipboardList, label: 'MISA' },
   { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
   { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
   { id: 'maintenance', icon: Wrench, label: 'Laitteet & Huolto' },
   { id: 'archive', icon: Archive, label: 'Arkisto' },
-  { id: 'messaging', icon: MessageSquare, label: 'Messaging' },
-  { id: 'cloud', icon: Cloud, label: 'Cloud Data' },
+  { id: 'messaging', icon: MessageSquare, label: 'Viestintä' },
+  { id: 'cloud', icon: Cloud, label: 'Pilvidata' },
   { id: 'directory', icon: Users, label: 'Yhteystiedot' },
-  { id: 'admin', icon: ShieldCheck, label: 'Administration' },
+  { id: 'admin', icon: ShieldCheck, label: 'Hallinta' },
 ] as const
 
 function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId, setActiveModule: (id: ModuleId) => void }) {
@@ -83,7 +83,7 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
           </div>
           <div className="flex flex-col">
             <span className="text-xs font-bold text-foreground">John Smith</span>
-            <span className="text-[10px] text-muted-foreground">Lead Engineer</span>
+            <span className="text-[10px] text-muted-foreground">Pääinsinööri</span>
           </div>
           <Settings className="w-4 h-4 ml-auto text-muted-foreground hover:text-accent cursor-pointer transition-colors" />
         </div>
@@ -132,7 +132,7 @@ export default function Home() {
               <div className="hidden sm:flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-lg border border-border/50 shadow-inner">
                 <Search className="w-4 h-4 text-muted-foreground" />
                 <input 
-                  placeholder="Universal Search..." 
+                  placeholder="Yleishaku..." 
                   className="bg-transparent border-none text-xs focus:outline-none w-32 md:w-64 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
@@ -154,7 +154,7 @@ export default function Home() {
               </Button>
               <div className="h-6 w-[1px] bg-border mx-2" />
               <Button size="sm" className="hidden sm:flex copper-gradient text-white hover:opacity-90 rounded-lg font-bold shadow-lg">
-                New Project
+                Uusi projekti
               </Button>
             </div>
           </header>

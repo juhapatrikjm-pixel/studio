@@ -17,11 +17,11 @@ type Contact = {
 
 export function DirectoryModule() {
   const contacts: Contact[] = [
-    { id: "1", name: "Sarah Miller", role: "Design Lead", status: 'online', avatarSeed: "sarah" },
-    { id: "2", name: "David Chen", role: "Senior Developer", status: 'busy', avatarSeed: "david" },
-    { id: "3", name: "Alice Thompson", role: "Project Manager", status: 'online', avatarSeed: "alice" },
-    { id: "4", name: "Mark Wilson", role: "DevOps Engineer", status: 'offline', avatarSeed: "mark" },
-    { id: "5", name: "Emily Brown", role: "Product Owner", status: 'online', avatarSeed: "emily" },
+    { id: "1", name: "Sarah Miller", role: "Suunnittelujohtaja", status: 'online', avatarSeed: "sarah" },
+    { id: "2", name: "David Chen", role: "Vanhempi kehittäjä", status: 'busy', avatarSeed: "david" },
+    { id: "3", name: "Alice Thompson", role: "Projektipäällikkö", status: 'online', avatarSeed: "alice" },
+    { id: "4", name: "Mark Wilson", role: "DevOps-insinööri", status: 'offline', avatarSeed: "mark" },
+    { id: "5", name: "Emily Brown", role: "Tuoteomistaja", status: 'online', avatarSeed: "emily" },
   ]
 
   const statusColor = (status: string) => {
@@ -40,13 +40,13 @@ export function DirectoryModule() {
           <p className="text-muted-foreground">Hallitse tiimisi yhteystietoja ja ota yhteyttä välittömästi.</p>
         </div>
         <Button className="bg-primary hover:bg-primary/90 gap-2">
-          <UserPlus className="w-4 h-4" /> Add Team Member
+          <UserPlus className="w-4 h-4" /> Lisää tiimin jäsen
         </Button>
       </header>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search by name or role..." className="pl-10 bg-white border-accent/20" />
+        <Input placeholder="Etsi nimellä tai roolilla..." className="pl-10 bg-white border-accent/20" />
       </div>
 
       <div className="space-y-3">

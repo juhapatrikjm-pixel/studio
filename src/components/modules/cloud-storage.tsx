@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -17,11 +18,11 @@ type FileItem = {
 
 export function CloudStorageModule() {
   const [files] = useState<FileItem[]>([
-    { id: "1", name: "Project_Proposal_V2.pdf", type: 'doc', size: "2.4 MB", modified: "2 hours ago" },
-    { id: "2", name: "Team_Sync_Photo.jpg", type: 'image', size: "4.1 MB", modified: "1 day ago" },
-    { id: "3", name: "Budget_Forecast_2024.xlsx", type: 'doc', size: "1.2 MB", modified: "3 days ago" },
-    { id: "4", name: "API_Configuration.json", type: 'data', size: "12 KB", modified: "1 week ago" },
-    { id: "5", name: "Market_Research_Analysis.pdf", type: 'doc', size: "5.5 MB", modified: "2 weeks ago" },
+    { id: "1", name: "Projektiesitys_V2.pdf", type: 'doc', size: "2.4 MB", modified: "2 tuntia sitten" },
+    { id: "2", name: "Tiimikuva.jpg", type: 'image', size: "4.1 MB", modified: "1 päivä sitten" },
+    { id: "3", name: "Budjettiennuste_2024.xlsx", type: 'doc', size: "1.2 MB", modified: "3 päivää sitten" },
+    { id: "4", name: "API_konfiguraatio.json", type: 'data', size: "12 KB", modified: "1 viikko sitten" },
+    { id: "5", name: "Markkinatutkimus_analyysi.pdf", type: 'doc', size: "5.5 MB", modified: "2 viikkoa sitten" },
   ])
 
   const getIcon = (type: string) => {
@@ -37,17 +38,17 @@ export function CloudStorageModule() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-headline font-bold text-primary">Cloud Storage</h2>
-          <p className="text-muted-foreground">Securely shared professional documents.</p>
+          <h2 className="text-3xl font-headline font-bold text-primary">Pilvitallennus</h2>
+          <p className="text-muted-foreground">Turvallisesti jaetut dokumentit.</p>
         </div>
         <Button className="bg-accent hover:bg-accent/90 gap-2">
-          <Upload className="w-4 h-4" /> Upload File
+          <Upload className="w-4 h-4" /> Lataa tiedosto
         </Button>
       </header>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Search shared files..." className="pl-10 bg-white border-accent/20" />
+        <Input placeholder="Etsi jaettuja tiedostoja..." className="pl-10 bg-white border-accent/20" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -70,8 +71,8 @@ export function CloudStorageModule() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem className="gap-2"><Download className="w-4 h-4" /> Download</DropdownMenuItem>
-                  <DropdownMenuItem className="gap-2 text-destructive"><Trash2 className="w-4 h-4" /> Delete</DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2"><Download className="w-4 h-4" /> Lataa</DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 text-destructive"><Trash2 className="w-4 h-4" /> Poista</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </CardContent>

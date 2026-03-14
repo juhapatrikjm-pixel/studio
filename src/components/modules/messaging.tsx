@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -19,11 +20,11 @@ type Message = {
 
 export function MessagingModule() {
   const [messages, setMessages] = useState<Message[]>([
-    { id: "1", sender: "Alice", content: "Hey team, did we finalize the Q4 budget proposal?", time: "09:00 AM" },
-    { id: "2", sender: "Bob", content: "Not yet, Sarah is still checking the hardware costs for the new hires.", time: "09:05 AM" },
-    { id: "3", sender: "Sarah", content: "I've updated the sheet. Hardware costs are 12% higher than expected due to shipping delays.", time: "09:12 AM" },
-    { id: "4", sender: "Alice", content: "Got it. We should adjust the operations buffer then.", time: "09:15 AM" },
-    { id: "5", sender: "Sarah", content: "Agreed. I will send the final draft by EOD.", time: "09:20 AM" },
+    { id: "1", sender: "Alice", content: "Hei tiimi, saimmeko Q4 budjettiesityksen valmiiksi?", time: "09:00" },
+    { id: "2", sender: "Bob", content: "Ei vielä, Sarah tarkistaa vielä uusien työntekijöiden laitteistokuluja.", time: "09:05" },
+    { id: "3", sender: "Sarah", content: "Päivitin taulukon. Laitteistokulut ovat 12 % odotettua korkeammat toimitusviiveiden vuoksi.", time: "09:12" },
+    { id: "4", sender: "Alice", content: "Selvä. Meidän pitäisi sitten säätää operatiivista puskuria.", time: "09:15" },
+    { id: "5", sender: "Sarah", content: "Samaa mieltä. Lähetän lopullisen luonnoksen päivän loppuun mennessä.", time: "09:20" },
   ])
   const [input, setInput] = useState("")
   const [isSummarizing, setIsSummarizing] = useState(false)
@@ -33,7 +34,7 @@ export function MessagingModule() {
     if (!input.trim()) return
     const newMessage: Message = {
       id: Date.now().toString(),
-      sender: "You",
+      sender: "Sinä",
       content: input,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isSelf: true
@@ -49,7 +50,7 @@ export function MessagingModule() {
       const result = await summarizeTeamDiscussion({ discussionText })
       setSummary(result.summary)
     } catch (error) {
-      console.error("AI Summary error:", error)
+      console.error("AI-yhteenvedon virhe:", error)
     } finally {
       setIsSummarizing(false)
     }
@@ -59,8 +60,8 @@ export function MessagingModule() {
     <div className="flex flex-col h-full gap-4 max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-500">
       <header className="flex items-center justify-between border-b border-border pb-4">
         <div>
-          <h2 className="text-xl font-headline font-bold text-accent"># budget-planning</h2>
-          <p className="text-sm text-muted-foreground italic">Secure line active</p>
+          <h2 className="text-xl font-headline font-bold text-accent"># budjetti-suunnittelu</h2>
+          <p className="text-sm text-muted-foreground italic">Suojattu yhteys aktiivinen</p>
         </div>
         <Button 
           variant="outline" 
@@ -70,18 +71,18 @@ export function MessagingModule() {
           disabled={isSummarizing}
         >
           {isSummarizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-accent" />}
-          AI Summary
+          AI-yhteenveto
         </Button>
       </header>
 
       {summary && (
         <Alert className="bg-primary/10 border-primary/40 mb-4 animate-breathing">
           <Sparkles className="w-4 h-4 text-accent" />
-          <AlertTitle className="font-headline text-accent font-bold">Process Intelligence Summary</AlertTitle>
+          <AlertTitle className="font-headline text-accent font-bold">Prosessianalyysin yhteenveto</AlertTitle>
           <AlertDescription className="text-sm text-foreground/90 font-medium leading-relaxed">
             {summary}
           </AlertDescription>
-          <Button variant="ghost" size="sm" className="mt-2 h-7 p-0 text-xs text-accent underline hover:bg-transparent" onClick={() => setSummary(null)}>Acknowledge & Dismiss</Button>
+          <Button variant="ghost" size="sm" className="mt-2 h-7 p-0 text-xs text-accent underline hover:bg-transparent" onClick={() => setSummary(null)}>Kuittaa ja poista</Button>
         </Alert>
       )}
 
@@ -115,7 +116,7 @@ export function MessagingModule() {
 
       <footer className="flex gap-2 pt-4 border-t border-border items-center bg-background/50 backdrop-blur-sm pb-2">
         <Input 
-          placeholder="Enter secure message..." 
+          placeholder="Kirjoita suojattu viesti..." 
           className="flex-1 bg-card border-border text-foreground placeholder:text-muted-foreground focus:border-accent" 
           value={input}
           onChange={(e) => setInput(e.target.value)}

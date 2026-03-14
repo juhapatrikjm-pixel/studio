@@ -4,8 +4,8 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'WorkHub - Professional Team Collaboration',
-  description: 'Modular workspace for modern professional teams.',
+  title: 'WorkHub - Ammattimainen tiimiyhteistyö',
+  description: 'Modulaarinen työtila nykyaikaisille ammattilaistiimeille.',
 };
 
 export default function RootLayout({
@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="fi">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
