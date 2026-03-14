@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -15,16 +15,18 @@ import { OrdersModule } from "@/components/modules/orders"
 import { ArchiveModule } from "@/components/modules/archive"
 import { MaintenanceModule } from "@/components/modules/maintenance"
 import { OmavalvontaModule } from "@/components/modules/omavalvonta"
+import { RecipesModule } from "@/components/modules/recipes"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 
-type ModuleId = 'info' | 'omavalvonta' | 'misa' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'admin'
+type ModuleId = 'info' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'admin'
 
 const menuItems = [
   { id: 'info', icon: LayoutDashboard, label: 'Ohjauspaneeli' },
   { id: 'omavalvonta', icon: ShieldAlert, label: 'Omavalvonta' },
   { id: 'misa', icon: ClipboardList, label: 'MISA' },
+  { id: 'recipes', icon: ChefHat, label: 'Reseptiikka' },
   { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
   { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
   { id: 'maintenance', icon: Wrench, label: 'Laitteet & Huolto' },
@@ -111,6 +113,7 @@ export default function Home() {
       case 'info': return <WorkspaceModule />
       case 'omavalvonta': return <OmavalvontaModule />
       case 'misa': return <MisaModule />
+      case 'recipes': return <RecipesModule />
       case 'suppliers': return <SuppliersModule />
       case 'orders': return <OrdersModule onNavigateToSuppliers={() => setActiveModule('suppliers')} />
       case 'maintenance': return <MaintenanceModule />
