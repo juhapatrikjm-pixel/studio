@@ -20,7 +20,9 @@ import {
   PieChart,
   Clock,
   CalendarDays,
-  CalendarRange
+  CalendarRange,
+  History as HistoryIcon,
+  CheckCircle2
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp } from "firebase/firestore"
@@ -78,8 +80,6 @@ export function TulosModule() {
 
   const monthlyStats = useMemo(() => {
     const now = new Date()
-    // Jos on sekä päivä- että kuukausikirjauksia, pitää olla tarkkana summien kanssa.
-    // Tässä yksinkertaistetaan: lasketaan kaikki saman kuukauden kirjaukset yhteen.
     const currentMonthRecords = records.filter(r => {
       const d = r.entryType === 'monthly' ? parseISO(r.date + "-01") : parseISO(r.date)
       return isSameMonth(d, now)
@@ -140,14 +140,15 @@ export function TulosModule() {
           title: "Tiedot tallennettu",
           description: `${entryType === 'daily' ? 'Päivän' : 'Kuukauden'} luvut tallennettu onnistuneesti.`,
         })
-        setFormData({
-          ...formData,
+        // Nollataan vain luvut, pidetään päivämäärä/kuukausi samana jos haluaa täyttää lisää
+        setFormData(prev => ({
+          ...prev,
           revenue: "",
           foodCost: "",
           workHours: "",
           otherExpenses: "",
           comment: ""
-        })
+        }))
       })
   }
 
@@ -180,7 +181,7 @@ export function TulosModule() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col gap-1">
         <h2 className="text-3xl font-headline font-bold text-accent">Tulos & Seuranta</h2>
-        <p className="text-muted-foreground">Seuraa ravintolasi taloutta ja kannattavuutta.</p>
+        <p className="text-muted-foreground">Seuraa ravintolasi taloutta ja kannattavuutta. Voit täyttää tietoja myös takautuvasti.</p>
       </header>
 
       {/* KPI Kortit */}
@@ -238,6 +239,7 @@ export function TulosModule() {
                 <Calculator className="w-5 h-5 text-accent" />
                 Kirjaa luvut
               </CardTitle>
+              <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Valitse päivämäärä täyttääksesi takautuvasti</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Tabs value={entryType} onValueChange={(v: any) => setEntryType(v)} className="w-full">
@@ -251,27 +253,33 @@ export function TulosModule() {
                 </TabsList>
                 
                 <div className="space-y-4">
-                  {entryType === 'daily' ? (
-                    <div className="space-y-2">
-                      <Label className="text-xs uppercase font-bold text-muted-foreground">Päivämäärä</Label>
-                      <Input 
-                        type="date" 
-                        value={formData.date}
-                        onChange={(e) => setFormData({...formData, date: e.target.value})}
-                        className="bg-muted/30 border-border"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <Label className="text-xs uppercase font-bold text-muted-foreground">Kuukausi</Label>
-                      <Input 
-                        type="month" 
-                        value={formData.month}
-                        onChange={(e) => setFormData({...formData, month: e.target.value})}
-                        className="bg-muted/30 border-border"
-                      />
-                    </div>
-                  )}
+                  <div className="p-3 bg-muted/20 rounded-lg border border-border/50">
+                    {entryType === 'daily' ? (
+                      <div className="space-y-2">
+                        <Label className="text-xs uppercase font-bold text-accent flex items-center gap-2">
+                          <CalendarIcon className="w-3 h-3" /> Valitse päivä
+                        </Label>
+                        <Input 
+                          type="date" 
+                          value={formData.date}
+                          onChange={(e) => setFormData({...formData, date: e.target.value})}
+                          className="bg-background border-border font-bold text-accent"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label className="text-xs uppercase font-bold text-accent flex items-center gap-2">
+                          <CalendarRange className="w-3 h-3" /> Valitse kuukausi
+                        </Label>
+                        <Input 
+                          type="month" 
+                          value={formData.month}
+                          onChange={(e) => setFormData({...formData, month: e.target.value})}
+                          className="bg-background border-border font-bold text-accent"
+                        />
+                      </div>
+                    )}
+                  </div>
 
                   <div className="space-y-2">
                     <Label className="text-xs uppercase font-bold text-muted-foreground">Myynti (ALV 0%)</Label>
@@ -365,8 +373,13 @@ export function TulosModule() {
           </Card>
 
           <Card className="bg-card border-border shadow-xl">
-            <CardHeader>
-              <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Viimeisimmät merkinnät</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <HistoryIcon className="w-4 h-4" /> Historia
+                </CardTitle>
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Viimeisimmät 8 merkintää</div>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
