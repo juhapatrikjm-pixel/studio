@@ -74,6 +74,18 @@
         "code": { "type": "string" }
       }
     },
+    "MaintenanceNote": {
+      "title": "MaintenanceNote",
+      "description": "Huoltoilmoitukset ja muistiinpanot",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "resolved"] }
+      },
+      "required": ["text"]
+    },
     "MaintenanceContact": {
       "title": "MaintenanceContact",
       "description": "Huoltoliikkeiden yhteystiedot",
@@ -185,6 +197,10 @@
     "/equipment/{equipId}": {
       "schema": "Equipment",
       "description": "Laitteet"
+    },
+    "/maintenanceNotes/{noteId}": {
+      "schema": "MaintenanceNote",
+      "description": "Huoltoilmoitukset"
     },
     "/archiveFolders/{folderId}": {
       "schema": "ArchiveFolder",
