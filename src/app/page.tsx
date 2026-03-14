@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -13,17 +13,19 @@ import { MisaModule } from "@/components/modules/misa"
 import { SuppliersModule } from "@/components/modules/suppliers"
 import { OrdersModule } from "@/components/modules/orders"
 import { ArchiveModule } from "@/components/modules/archive"
+import { MaintenanceModule } from "@/components/modules/maintenance"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 
-type ModuleId = 'info' | 'misa' | 'suppliers' | 'orders' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'admin'
+type ModuleId = 'info' | 'misa' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'admin'
 
 const menuItems = [
   { id: 'info', icon: LayoutDashboard, label: 'Info' },
   { id: 'misa', icon: ClipboardList, label: 'MISA' },
   { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
   { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
+  { id: 'maintenance', icon: Wrench, label: 'Laitteet & Huolto' },
   { id: 'archive', icon: Archive, label: 'Arkisto' },
   { id: 'messaging', icon: MessageSquare, label: 'Messaging' },
   { id: 'cloud', icon: Cloud, label: 'Cloud Data' },
@@ -108,6 +110,7 @@ export default function Home() {
       case 'misa': return <MisaModule />
       case 'suppliers': return <SuppliersModule />
       case 'orders': return <OrdersModule onNavigateToSuppliers={() => setActiveModule('suppliers')} />
+      case 'maintenance': return <MaintenanceModule />
       case 'archive': return <ArchiveModule />
       case 'messaging': return <MessagingModule />
       case 'cloud': return <CloudStorageModule />
