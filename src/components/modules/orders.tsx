@@ -5,13 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { ShoppingBag, Calendar as CalendarIcon, Truck, AlertCircle, ArrowRight, Plus, Package } from "lucide-react"
+import { ShoppingBag, Calendar as CalendarIcon, Truck, AlertCircle, ArrowRight, Plus, Package, Bell, Clock, Trash2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addDays } from "date-fns"
 import { fi } from "date-fns/locale"
 import { cn } from "@/lib/utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
 
 type Order = {
   id: string
@@ -21,6 +23,14 @@ type Order = {
   orderDate: Date
   arrivalDate: Date
   status: 'pending' | 'shipped' | 'arrived'
+}
+
+type Reminder = {
+  id: string
+  date: Date
+  time: string
+  content: string
+  hasAlert: boolean
 }
 
 type Supplier = {
@@ -50,26 +60,32 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
       orderDate: new Date(), 
       arrivalDate: addDays(new Date(), 2),
       status: 'pending'
-    },
-    { 
-      id: "o2", 
-      supplierId: "2", 
-      supplierName: "Kalatukku Sjöman", 
-      color: "#0ea5e9", 
-      orderDate: new Date(), 
-      arrivalDate: addDays(new Date(), 2),
-      status: 'pending'
+    }
+  ])
+
+  const [reminders, setReminders] = useState<Reminder[]>([
+    {
+      id: "r1",
+      date: addDays(new Date(), 1),
+      time: "12:00",
+      content: "Kalatilaus",
+      hasAlert: true
     }
   ])
 
   const [puuteItems] = useState([
     { id: "p1", text: "Kupari-puhdistusaine", priority: 'high' },
     { id: "p2", text: "Chili-öljy loppu", priority: 'medium' },
-    { id: "p3", text: "Valkoviinietikka (5L)", priority: 'low' },
   ])
 
+  // Tilauslomakkeen tila
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>("")
   const [arrivalDate, setArrivalDate] = useState<Date>(addDays(new Date(), 1))
+
+  // Muistutuslomakkeen tila
+  const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null)
+  const [newReminder, setNewReminder] = useState({ content: "", time: "08:00", hasAlert: true })
 
   const handleMakeOrder = () => {
     if (!selectedSupplierId) return
@@ -88,6 +104,22 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     setOrders([...orders, newOrder])
   }
 
+  const handleAddReminder = () => {
+    if (!selectedDay || !newReminder.content.trim()) return
+    const reminder: Reminder = {
+      id: Math.random().toString(36).substr(2, 9),
+      date: selectedDay,
+      ...newReminder
+    }
+    setReminders([...reminders, reminder])
+    setIsReminderDialogOpen(false)
+    setNewReminder({ content: "", time: "08:00", hasAlert: true })
+  }
+
+  const removeReminder = (id: string) => {
+    setReminders(reminders.filter(r => r.id !== id))
+  }
+
   // Kalenterin logiikka
   const monthStart = startOfMonth(new Date())
   const monthEnd = endOfMonth(new Date())
@@ -97,12 +129,16 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     return orders.filter(o => isSameDay(o.arrivalDate, day))
   }
 
+  const getRemindersForDay = (day: Date) => {
+    return reminders.filter(r => isSameDay(r.date, day))
+  }
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-headline font-bold text-accent">Tilausten hallinta</h2>
-          <p className="text-muted-foreground">Seuraa saapuvia kuormia ja tee uusia tilauksia.</p>
+          <p className="text-muted-foreground">Seuraa saapuvia kuormia ja aseta muistutuksia.</p>
         </div>
         <Button 
           variant="outline" 
@@ -145,11 +181,6 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Tilauspäivä (tänään)</Label>
-                <Input disabled value={format(new Date(), 'dd.MM.yyyy')} className="bg-muted/20 border-border opacity-50" />
-              </div>
-
-              <div className="space-y-2">
                 <Label>Toivottu saapuminen</Label>
                 <Popover>
                   <PopoverTrigger asChild>
@@ -188,7 +219,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                   <div key={item.id} className="flex items-center gap-3 p-2 rounded bg-white/5 border border-border/50 text-xs">
                     <span className={cn(
                       "w-1.5 h-1.5 rounded-full shrink-0",
-                      item.priority === 'high' ? "bg-red-500" : item.priority === 'medium' ? "bg-amber-500" : "bg-blue-500"
+                      item.priority === 'high' ? "bg-red-500" : "bg-amber-500"
                     )} />
                     <span className="flex-1 font-medium">{item.text}</span>
                   </div>
@@ -205,12 +236,8 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
               <div>
                 <CardTitle className="font-headline text-xl text-foreground">Toimituskalenteri</CardTitle>
                 <CardDescription className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest">
-                  {format(new Date(), 'MMMM yyyy', { locale: fi })}
+                  {format(new Date(), 'MMMM yyyy', { locale: fi })} • Klikkaa päivää asettaaksesi muistutuksen
                 </CardDescription>
-              </div>
-              <div className="flex gap-2 text-[10px] font-bold">
-                <div className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-accent" /> Tilaus</div>
-                <div className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-green-500" /> Toimitus</div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -224,9 +251,10 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
               <div className="grid grid-cols-7 auto-rows-fr">
                 {calendarDays.map((day, i) => {
                   const dayOrders = getOrdersForDay(day)
+                  const dayReminders = getRemindersForDay(day)
                   const hasOrders = dayOrders.length > 0
+                  const hasReminders = dayReminders.length > 0
                   
-                  // Rakennetaan liukuväri jos useampi toimittaja
                   const backgroundStyle = dayOrders.length > 1 
                     ? { background: `linear-gradient(135deg, ${dayOrders.map(o => o.color).join(', ')})` }
                     : dayOrders.length === 1 
@@ -236,18 +264,27 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                   return (
                     <div 
                       key={day.toISOString()} 
+                      onClick={() => {
+                        setSelectedDay(day);
+                        setIsReminderDialogOpen(true);
+                      }}
                       className={cn(
-                        "min-h-[100px] border-r border-b border-border p-2 transition-colors relative group",
+                        "min-h-[100px] border-r border-b border-border p-2 transition-colors relative group cursor-pointer",
                         i % 7 === 6 ? "border-r-0" : "",
-                        !isSameDay(day, new Date()) && "hover:bg-white/5"
+                        !isSameDay(day, new Date()) ? "hover:bg-white/5" : "bg-primary/5"
                       )}
                     >
-                      <span className={cn(
-                        "text-xs font-bold",
-                        isSameDay(day, new Date()) ? "text-accent" : "text-muted-foreground"
-                      )}>
-                        {format(day, 'd')}
-                      </span>
+                      <div className="flex justify-between items-start">
+                        <span className={cn(
+                          "text-xs font-bold",
+                          isSameDay(day, new Date()) ? "text-accent" : "text-muted-foreground"
+                        )}>
+                          {format(day, 'd')}
+                        </span>
+                        {hasReminders && (
+                          <Bell className="w-3 h-3 text-accent animate-pulse" />
+                        )}
+                      </div>
                       
                       {hasOrders && (
                         <div 
@@ -260,15 +297,19 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                               {dayOrders[0].supplierName}
                             </div>
                           ) : (
-                            <div className="flex items-center justify-between">
-                              <div className="flex -space-x-1">
-                                {dayOrders.slice(0, 3).map(o => (
-                                  <div key={o.id} className="w-3 h-3 rounded-full border border-white/20" style={{ backgroundColor: o.color }} />
-                                ))}
-                              </div>
-                              <span>{dayOrders.length} kuormaa</span>
-                            </div>
+                            <span>{dayOrders.length} kuormaa</span>
                           )}
+                        </div>
+                      )}
+
+                      {hasReminders && (
+                        <div className="mt-1 space-y-1">
+                          {dayReminders.map(r => (
+                            <div key={r.id} className="bg-accent/20 border border-accent/30 text-[8px] text-accent p-0.5 rounded flex items-center gap-1">
+                              <Clock className="w-2 h-2" />
+                              <span className="truncate">{r.time} {r.content}</span>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -280,10 +321,71 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
         </div>
       </div>
 
+      {/* Muistutus Dialog */}
+      <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
+        <DialogContent className="bg-card border-border text-foreground">
+          <DialogHeader>
+            <DialogTitle className="font-headline text-accent">
+              Aseta muistutus: {selectedDay ? format(selectedDay, 'd.M.yyyy') : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Mitä tilataan / Huomioitavaa</Label>
+              <Input 
+                placeholder="esim. Kalat, Vihannekset..." 
+                value={newReminder.content}
+                onChange={(e) => setNewReminder({...newReminder, content: e.target.value})}
+                className="bg-muted/50 border-border"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Kellonaika</Label>
+                <Input 
+                  type="time" 
+                  value={newReminder.time}
+                  onChange={(e) => setNewReminder({...newReminder, time: e.target.value})}
+                  className="bg-muted/50 border-border"
+                />
+              </div>
+              <div className="flex items-center justify-between pt-8">
+                <Label className="cursor-pointer" htmlFor="alert-switch">Hälytys käytössä</Label>
+                <Switch 
+                  id="alert-switch"
+                  checked={newReminder.hasAlert}
+                  onCheckedChange={(checked) => setNewReminder({...newReminder, hasAlert: checked})}
+                />
+              </div>
+            </div>
+
+            {selectedDay && getRemindersForDay(selectedDay).length > 0 && (
+              <div className="pt-4 border-t border-border">
+                <Label className="text-[10px] uppercase text-muted-foreground font-bold">Päivän muistutukset</Label>
+                <div className="space-y-2 mt-2">
+                  {getRemindersForDay(selectedDay).map(r => (
+                    <div key={r.id} className="flex items-center justify-between bg-white/5 p-2 rounded text-xs border border-border">
+                      <span>{r.time} - {r.content}</span>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeReminder(r.id)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsReminderDialogOpen(false)} className="border-border">Peruuta</Button>
+            <Button onClick={handleAddReminder} className="copper-gradient text-white">Tallenna muistutus</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Viimeisimmät tilaukset lista */}
       <Card className="bg-card border-border shadow-xl">
         <CardHeader>
-          <CardTitle className="text-lg font-headline">Viimeisimmät tapahtumat</CardTitle>
+          <CardTitle className="text-lg font-headline">Viimeisimmät tilaukset</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
