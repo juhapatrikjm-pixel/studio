@@ -32,9 +32,14 @@ type SMRecord = {
 }
 
 export function OmavalvontaStatusHeader({ record }: { record: SMRecord | null }) {
-  const daysSince = record?.date 
-    ? differenceInDays(new Date(), (record.date as Timestamp).toDate()) 
-    : 999
+  // Tarkistetaan onko päivämäärä olemassa (serverTimestamp voi olla hetken null)
+  const recordDate = record?.date instanceof Timestamp ? record.date.toDate() : null
+  
+  // Lasketaan päivät vain jos päivämäärä on tiedossa. 
+  // Jos record on olemassa mutta päivämäärä puuttuu, oletetaan se tuoreeksi (0).
+  const daysSince = recordDate 
+    ? differenceInDays(new Date(), recordDate) 
+    : (record ? 0 : 999)
   
   const isCritical = daysSince >= 7
   const isOk = record?.status && daysSince === 0
@@ -58,7 +63,11 @@ export function OmavalvontaStatusHeader({ record }: { record: SMRecord | null })
               {isCritical ? "HUOMIO: Omavalvonta vanhentunut" : "Omavalvonta ajantasalla"}
             </h3>
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">
-              {record ? `Viimeisin kirjaus: ${format((record.date as Timestamp).toDate(), 'd.M.yyyy')} - ${record.completedBy}` : "Ei aiempia kirjauksia"}
+              {recordDate 
+                ? `Viimeisin kirjaus: ${format(recordDate, 'd.M.yyyy')} - ${record?.completedBy}` 
+                : record 
+                  ? "Päivitetään..." 
+                  : "Ei aiempia kirjauksia"}
             </p>
           </div>
         </div>
@@ -93,8 +102,8 @@ export function OmavalvontaModule() {
   const [newTaskType, setNewTaskType] = useState<'fridge' | 'task'>('fridge')
 
   useEffect(() => {
-    if (latestRecord) {
-      const date = (latestRecord.date as Timestamp).toDate()
+    if (latestRecord && latestRecord.date instanceof Timestamp) {
+      const date = latestRecord.date.toDate()
       if (differenceInDays(new Date(), date) === 0) {
         setIsCompletedToday(latestRecord.status)
         setCurrentValues(latestRecord.values || {})
