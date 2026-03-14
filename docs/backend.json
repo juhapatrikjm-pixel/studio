@@ -112,7 +112,19 @@
       "description": "Sovelluksen yleiset asetukset",
       "type": "object",
       "properties": {
-        "targetMargin": { "type": "number" }
+        "targetMargin": { "type": "number" },
+        "cheerMessages": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "ShiftInfo": {
+      "title": "ShiftInfo",
+      "description": "Päivittäiset vuorotiedot ja muistiot",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "bulletPoints": { "type": "array", "items": { "type": "string" } },
+        "freeText": { "type": "string" },
+        "acknowledgedBy": { "type": "array", "items": { "type": "string" } }
       }
     }
   },
@@ -151,6 +163,10 @@
     "/settings/global": {
       "schema": "AppSetting",
       "description": "Yleiset asetukset"
+    },
+    "/shiftInfos/{dateId}": {
+      "schema": "ShiftInfo",
+      "description": "Päiväkohtaiset vuorotiedot"
     }
   }
 }
