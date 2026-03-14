@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,8 @@ import {
   CheckCircle2,
   Mail,
   History,
-  Trash2
+  Trash2,
+  Upload
 } from "lucide-react"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
@@ -29,6 +30,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export function ProfileModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   
   // Käytetään tässä demo-tarkoituksessa kiinteää ID:tä, 
   // oikeassa sovelluksessa tämä tulisi useUser() koukulta.
@@ -95,6 +97,17 @@ export function ProfileModule() {
           description: "Tallennetut tiedot on tyhjennetty.",
         })
       })
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, logoUrl: reader.result as string }))
+      }
+      reader.readAsDataURL(file)
+    }
   }
 
   const handleShare = () => {
@@ -214,22 +227,44 @@ Y-tunnus: ${formData.businessId}
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Logon URL</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    value={formData.logoUrl}
-                    onChange={(e) => setFormData({...formData, logoUrl: e.target.value})}
-                    placeholder="https://..."
-                    className="bg-muted/30 border-border flex-1"
+                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Yrityksen logo</Label>
+                <div className="flex gap-2 items-center">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange}
                   />
-                  <div className="w-10 h-10 rounded border border-border flex items-center justify-center bg-muted/50 overflow-hidden">
+                  <Button 
+                    variant="outline" 
+                    className="bg-muted/30 border-border flex-1 gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4" /> 
+                    {formData.logoUrl ? "Vaihda logo" : "Lataa galleriasta"}
+                  </Button>
+                  
+                  <div className="w-12 h-12 rounded border border-border flex items-center justify-center bg-muted/50 overflow-hidden shrink-0">
                     {formData.logoUrl ? (
                       <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                     ) : (
                       <ImageIcon className="w-4 h-4 text-muted-foreground" />
                     )}
                   </div>
+                  
+                  {formData.logoUrl && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => setFormData(prev => ({ ...prev, logoUrl: "" }))}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
+                <p className="text-[9px] text-muted-foreground italic mt-1">Valitse logo puhelimesi kuvista tai tiedostoista.</p>
               </div>
 
               <Button onClick={handleSave} className="w-full copper-gradient text-white font-bold h-12 gap-2 mt-4 shadow-lg">
@@ -271,7 +306,7 @@ Y-tunnus: ${formData.businessId}
                       )}
                     </div>
                     {formData.logoUrl ? (
-                      <img src={formData.logoUrl} alt="Logo" className="w-12 h-12 object-contain" />
+                      <img src={formData.logoUrl} alt="Logo" className="w-12 h-12 object-contain rounded" />
                     ) : (
                       <div className="w-12 h-12 rounded-lg copper-gradient flex items-center justify-center shadow-lg">
                         <span className="text-white font-bold text-xl">{formData.companyName?.[0] || "W"}</span>
