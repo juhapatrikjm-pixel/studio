@@ -187,10 +187,6 @@ export default function Home() {
                 <Bell className="w-5 h-5" />
                 <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background shadow-[0_0_8px_rgba(184,115,51,0.6)]" />
               </Button>
-              <div className="h-6 w-[1px] bg-border mx-2" />
-              <Button size="sm" className="hidden sm:flex copper-gradient text-white hover:opacity-90 rounded-lg font-bold shadow-lg">
-                Uusi projekti
-              </Button>
             </div>
           </header>
 
