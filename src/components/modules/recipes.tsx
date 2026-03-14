@@ -538,6 +538,29 @@ export function RecipesModule() {
                     ))}
                   </CardContent>
                 </Card>
+
+                {/* Laitteet Annokselle (Siirretty tänne) */}
+                <Card className="bg-card border-border shadow-xl">
+                  <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Viimeistelylaitteet</CardTitle>
+                    <Select onValueChange={(val) => { const equip = globalEquipment.find(e => e.id === val); if (equip) setDishEquip([...dishEquip, { id: Date.now().toString(), equipmentId: equip.id, name: equip.name, temp: "", time: "", info: "" }]) }}>
+                      <SelectTrigger className="w-[200px] h-8 text-xs bg-muted/30 border-border"><SelectValue placeholder="Lisää laite..." /></SelectTrigger>
+                      <SelectContent>{globalEquipment.map((e: any) => ( <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem> ))}</SelectContent>
+                    </Select>
+                  </CardHeader>
+                  <CardContent className="pt-6 space-y-4">
+                    {dishEquip.map((re) => (
+                      <div key={re.id} className="p-3 rounded-lg border border-border bg-white/5 space-y-3 group relative">
+                        <div className="flex justify-between items-center"><h4 className="text-[10px] font-bold text-accent uppercase">{re.name}</h4><Button variant="ghost" size="icon" onClick={() => setDishEquip(dishEquip.filter(r => r.id !== re.id))} className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5" /></Button></div>
+                        <div className="grid grid-cols-2 gap-2"><Input placeholder="Lämpö °C" value={re.temp} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, temp: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" /><Input placeholder="Aika" value={re.time} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, time: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" /></div>
+                        <Input placeholder="Lisätiedot..." value={re.info} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, info: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" />
+                      </div>
+                    ))}
+                    {dishEquip.length === 0 && (
+                      <p className="text-xs text-muted-foreground italic text-center py-4">Ei valittuja laitteita.</p>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
 
               <div className="space-y-6">
@@ -568,24 +591,6 @@ export function RecipesModule() {
                         <span className="text-xs font-bold">{targetMargin} %</span>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Laitteet Annokselle */}
-                <Card className="bg-card border-border shadow-xl">
-                  <CardHeader className="flex flex-row items-center justify-between border-b border-border/50"><CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Viimeistelylaitteet</CardTitle></CardHeader>
-                  <CardContent className="pt-6 space-y-4">
-                    <Select onValueChange={(val) => { const equip = globalEquipment.find(e => e.id === val); if (equip) setDishEquip([...dishEquip, { id: Date.now().toString(), equipmentId: equip.id, name: equip.name, temp: "", time: "", info: "" }]) }}>
-                      <SelectTrigger className="h-9 text-xs bg-muted/30 border-border"><SelectValue placeholder="Lisää laite..." /></SelectTrigger>
-                      <SelectContent>{globalEquipment.map((e: any) => ( <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem> ))}</SelectContent>
-                    </Select>
-                    {dishEquip.map((re) => (
-                      <div key={re.id} className="p-3 rounded-lg border border-border bg-white/5 space-y-3 group relative">
-                        <div className="flex justify-between items-center"><h4 className="text-[10px] font-bold text-accent uppercase">{re.name}</h4><Button variant="ghost" size="icon" onClick={() => setDishEquip(dishEquip.filter(r => r.id !== re.id))} className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5" /></Button></div>
-                        <div className="grid grid-cols-2 gap-2"><Input placeholder="°C" value={re.temp} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, temp: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" /><Input placeholder="min" value={re.time} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, time: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" /></div>
-                        <Input placeholder="Info..." value={re.info} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, info: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" />
-                      </div>
-                    ))}
                   </CardContent>
                 </Card>
               </div>
