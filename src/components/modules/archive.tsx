@@ -1,12 +1,10 @@
-
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { FolderPlus, Folder, FileText, FileImage, FileCode, Plus, Trash2, Search, Upload, ChevronRight, MoreVertical, Archive } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -26,6 +24,7 @@ type ArchiveFolder = {
 }
 
 export function ArchiveModule() {
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [folders, setFolders] = useState<ArchiveFolder[]>([
     { id: "f1", name: "Klassikot", parentId: null },
     { id: "f2", name: "Kevät 2024", parentId: null },
@@ -61,6 +60,29 @@ export function ArchiveModule() {
     setItems(items.filter(i => i.id !== id))
   }
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Määritetään tiedostotyyppi päätteen perusteella simulointia varten
+    let fileType: 'pdf' | 'doc' | 'image' = 'pdf'
+    if (file.type.includes('image')) fileType = 'image'
+    if (file.type.includes('word') || file.name.endsWith('.doc') || file.name.endsWith('.docx')) fileType = 'doc'
+
+    const newItem: ArchiveItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: file.name,
+      type: 'file',
+      fileType: fileType,
+      parentId: currentFolderId
+    }
+
+    setItems([...items, newItem])
+    
+    // Nollataan input jotta sama tiedosto voidaan ladata uudelleen tarvittaessa
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
   const filteredFolders = folders.filter(f => f.parentId === currentFolderId)
   const filteredItems = items.filter(i => {
     const matchesFolder = i.parentId === currentFolderId
@@ -81,6 +103,15 @@ export function ArchiveModule() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
+      {/* Piilotettu tiedostosyöte */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        onChange={handleFileSelect}
+        accept=".pdf,.doc,.docx,image/*"
+      />
+
       <header className="flex flex-col gap-1">
         <h2 className="text-3xl font-headline font-bold text-accent">Arkisto</h2>
         <p className="text-muted-foreground">Reseptit, annoskortit ja ladatut tiedostot yhdessä paikassa.</p>
@@ -176,7 +207,11 @@ export function ArchiveModule() {
                     <Input placeholder="Etsi..." className="pl-8 h-9 text-xs bg-muted/30 border-border w-32 md:w-48" />
                   </div>
                   {activeTab === "uploads" && (
-                    <Button size="sm" className="copper-gradient text-white gap-2 font-bold">
+                    <Button 
+                      size="sm" 
+                      className="copper-gradient text-white gap-2 font-bold"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
                       <Upload className="w-4 h-4" /> Lataa
                     </Button>
                   )}
