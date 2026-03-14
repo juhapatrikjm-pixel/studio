@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -62,7 +61,7 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
             <span className="text-white font-headline font-bold text-xl">W</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-headline font-bold text-lg text-primary leading-tight">WorkHub</span>
+            <span className="font-headline font-bold text-lg copper-text-glow leading-tight">Wisemisa Bistro</span>
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Industrial Edition</span>
           </div>
         </div>

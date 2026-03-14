@@ -4,8 +4,8 @@ import { FirebaseClientProvider } from '@/firebase';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'WorkHub - Ammattimainen tiimiyhteistyö',
-  description: 'Modulaarinen työtila nykyaikaisille ammattilaistiimeille.',
+  title: 'Wisemisa Bistro - Ammattimainen keittiöhallinta',
+  description: 'Modulaarinen työtila ja talouden seuranta nykyaikaisille ravintoloille.',
 };
 
 export default function RootLayout({

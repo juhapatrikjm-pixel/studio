@@ -66,6 +66,13 @@
   background: linear-gradient(135deg, #b87333 0%, #e3a857 50%, #8b4513 100%);
 }
 
+.copper-text-glow {
+  background: linear-gradient(135deg, #b87333 0%, #e3a857 50%, #8b4513 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 8px rgba(184, 115, 51, 0.6));
+}
+
 .steel-detail {
   background: linear-gradient(135deg, #71717a 0%, #d4d4d8 50%, #52525b 100%);
 }
