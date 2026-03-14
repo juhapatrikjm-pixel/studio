@@ -16,10 +16,9 @@ import {
   Save, 
   ArrowLeft, 
   Scale, 
-  Euro, 
   Timer, 
   Thermometer,
-  ListOrdered
+  Folder
 } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, doc, setDoc } from "firebase/firestore"
@@ -30,9 +29,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 type Ingredient = {
   id: string
   name: string
-  weight: number // kg
-  price: number // €/kg
-  waste: number // %
+  weight: number
+  price: number
+  waste: number
 }
 
 type Step = {
@@ -52,15 +51,18 @@ type RecipeEquipment = {
 export function RecipesModule() {
   const firestore = useFirestore()
   const { data: globalEquipment = [] } = useCollection<any>(firestore ? collection(firestore, 'equipment') : null)
+  const { data: folders = [] } = useCollection<any>(firestore ? collection(firestore, 'archiveFolders') : null)
 
   const [isCreating, setIsCreating] = useState(false)
   const [recipeName, setRecipeName] = useState("")
   const [portions, setPortions] = useState(1)
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("root")
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [steps, setSteps] = useState<Step[]>([])
   const [recipeEquip, setRecipeEquip] = useState<RecipeEquipment[]>([])
 
-  // Laskennat
+  const recipeFolders = folders.filter(f => f.category === 'recipes')
+
   const calculations = useMemo(() => {
     let totalGrossWeight = 0
     let totalNetWeight = 0
@@ -92,51 +94,6 @@ export function RecipesModule() {
     }
   }, [ingredients, portions])
 
-  const addIngredient = () => {
-    setIngredients([...ingredients, { id: Date.now().toString(), name: "", weight: 0, price: 0, waste: 0 }])
-  }
-
-  const updateIngredient = (id: string, field: keyof Ingredient, value: any) => {
-    setIngredients(ingredients.map(ing => ing.id === id ? { ...ing, [field]: value } : ing))
-  }
-
-  const removeIngredient = (id: string) => {
-    setIngredients(ingredients.filter(ing => ing.id !== id))
-  }
-
-  const addStep = () => {
-    setSteps([...steps, { id: Date.now().toString(), text: "" }])
-  }
-
-  const updateStep = (id: string, text: string) => {
-    setSteps(steps.map(s => s.id === id ? { ...s, text } : s))
-  }
-
-  const removeStep = (id: string) => {
-    setSteps(steps.filter(s => s.id !== id))
-  }
-
-  const addEquipmentToRecipe = (equipId: string) => {
-    const equip = globalEquipment.find(e => e.id === equipId)
-    if (!equip) return
-    setRecipeEquip([...recipeEquip, { 
-      id: Date.now().toString(), 
-      equipmentId: equip.id, 
-      name: equip.name, 
-      temp: "", 
-      time: "", 
-      info: "" 
-    }])
-  }
-
-  const updateRecipeEquip = (id: string, field: keyof RecipeEquipment, value: string) => {
-    setRecipeEquip(recipeEquip.map(re => re.id === id ? { ...re, [field]: value } : re))
-  }
-
-  const removeRecipeEquip = (id: string) => {
-    setRecipeEquip(recipeEquip.filter(re => re.id !== id))
-  }
-
   const handleSave = () => {
     if (!recipeName || !firestore) return
     const id = Date.now().toString()
@@ -146,6 +103,7 @@ export function RecipesModule() {
       id,
       name: recipeName,
       portions,
+      folderId: selectedFolderId === "root" ? null : selectedFolderId,
       ingredients,
       steps,
       equipment: recipeEquip,
@@ -168,6 +126,7 @@ export function RecipesModule() {
   const resetForm = () => {
     setRecipeName("")
     setPortions(1)
+    setSelectedFolderId("root")
     setIngredients([])
     setSteps([])
     setRecipeEquip([])
@@ -190,42 +149,57 @@ export function RecipesModule() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-8">
-            {/* Perustiedot */}
             <Card className="bg-card border-border shadow-xl">
               <CardHeader>
-                <CardTitle className="text-lg font-headline">Perustiedot</CardTitle>
+                <CardTitle className="text-lg font-headline">Perustiedot & Arkistointi</CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Reseptin nimi</Label>
-                  <Input 
-                    placeholder="Esim. Talon kastike..." 
-                    value={recipeName}
-                    onChange={(e) => setRecipeName(e.target.value)}
-                    className="bg-muted/30 border-border"
-                  />
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Reseptin nimi</Label>
+                    <Input 
+                      placeholder="Esim. Talon kastike..." 
+                      value={recipeName}
+                      onChange={(e) => setRecipeName(e.target.value)}
+                      className="bg-muted/30 border-border"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Annosmäärä (kpl/hlö)</Label>
+                    <Input 
+                      type="number" 
+                      value={portions}
+                      onChange={(e) => setPortions(Number(e.target.value))}
+                      className="bg-muted/30 border-border"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Annosmäärä (kpl/hlö)</Label>
-                  <Input 
-                    type="number" 
-                    value={portions}
-                    onChange={(e) => setPortions(Number(e.target.value))}
-                    className="bg-muted/30 border-border"
-                  />
+                  <Label className="flex items-center gap-2">
+                    <Folder className="w-3.5 h-3.5 text-accent" /> Valitse arkistokansio
+                  </Label>
+                  <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
+                    <SelectTrigger className="bg-muted/30 border-border">
+                      <SelectValue placeholder="Valitse kansio..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="root">Juuritaso (Ei kansiota)</SelectItem>
+                      {recipeFolders.map(f => (
+                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Raaka-aineet */}
             <Card className="bg-card border-border shadow-xl overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 copper-gradient opacity-50" />
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-lg font-headline">Raaka-aineet</CardTitle>
-                  <CardDescription className="text-[10px] uppercase font-bold">Hinnat per kg/litra</CardDescription>
                 </div>
-                <Button onClick={addIngredient} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent">
+                <Button onClick={() => setIngredients([...ingredients, { id: Date.now().toString(), name: "", weight: 0, price: 0, waste: 0 }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent">
                   <Plus className="w-4 h-4" /> Lisää raaka-aine
                 </Button>
               </CardHeader>
@@ -234,63 +208,38 @@ export function RecipesModule() {
                   <div key={ing.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg border border-border bg-white/5 group">
                     <div className="md:col-span-4 space-y-1">
                       <Label className="text-[10px] uppercase text-muted-foreground">Nimi</Label>
-                      <Input 
-                        placeholder="Raaka-aine..." 
-                        value={ing.name}
-                        onChange={(e) => updateIngredient(ing.id, 'name', e.target.value)}
-                        className="h-8 text-xs bg-muted/20"
-                      />
+                      <Input value={ing.name} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, name: e.target.value} : i))} className="h-8 text-xs bg-muted/20" />
                     </div>
                     <div className="md:col-span-2 space-y-1">
                       <Label className="text-[10px] uppercase text-muted-foreground">Paino (kg)</Label>
-                      <Input 
-                        type="number" 
-                        step="0.01"
-                        value={ing.weight}
-                        onChange={(e) => updateIngredient(ing.id, 'weight', Number(e.target.value))}
-                        className="h-8 text-xs bg-muted/20"
-                      />
+                      <Input type="number" step="0.01" value={ing.weight} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, weight: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
                     </div>
                     <div className="md:col-span-2 space-y-1">
                       <Label className="text-[10px] uppercase text-muted-foreground">Hinta (€/kg)</Label>
-                      <Input 
-                        type="number" 
-                        step="0.01"
-                        value={ing.price}
-                        onChange={(e) => updateIngredient(ing.id, 'price', Number(e.target.value))}
-                        className="h-8 text-xs bg-muted/20"
-                      />
+                      <Input type="number" step="0.01" value={ing.price} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, price: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
                     </div>
                     <div className="md:col-span-2 space-y-1">
                       <Label className="text-[10px] uppercase text-muted-foreground">Hävikki (%)</Label>
-                      <Input 
-                        type="number" 
-                        value={ing.waste}
-                        onChange={(e) => updateIngredient(ing.id, 'waste', Number(e.target.value))}
-                        className="h-8 text-xs bg-muted/20"
-                      />
+                      <Input type="number" value={ing.waste} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, waste: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
                     </div>
                     <div className="md:col-span-2 flex justify-end">
-                      <Button variant="ghost" size="icon" onClick={() => removeIngredient(ing.id)} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" onClick={() => setIngredients(ingredients.filter(i => i.id !== ing.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
                 ))}
-                {ingredients.length === 0 && (
-                  <div className="py-10 text-center border-2 border-dashed border-border rounded-xl text-muted-foreground italic text-sm">
-                    Ei raaka-aineita lisättynä.
-                  </div>
-                )}
               </CardContent>
             </Card>
 
-            {/* Laitteet */}
             <Card className="bg-card border-border shadow-xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg font-headline">Laitteet</CardTitle>
                 <div className="w-48">
-                  <Select onValueChange={addEquipmentToRecipe}>
+                  <Select onValueChange={(val) => {
+                    const equip = globalEquipment.find(e => e.id === val)
+                    if (equip) setRecipeEquip([...recipeEquip, { id: Date.now().toString(), equipmentId: equip.id, name: equip.name, temp: "", time: "", info: "" }])
+                  }}>
                     <SelectTrigger className="h-8 text-xs bg-muted/30 border-border">
                       <SelectValue placeholder="Valitse laite..." />
                     </SelectTrigger>
@@ -307,69 +256,33 @@ export function RecipesModule() {
                   <div key={re.id} className="p-4 rounded-lg border border-border bg-white/5 space-y-3 group relative">
                     <div className="flex justify-between items-center">
                       <h4 className="text-sm font-bold text-accent">{re.name}</h4>
-                      <Button variant="ghost" size="icon" onClick={() => removeRecipeEquip(re.id)} className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100">
+                      <Button variant="ghost" size="icon" onClick={() => setRecipeEquip(recipeEquip.filter(r => r.id !== re.id))} className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-                          <Thermometer className="w-3 h-3" /> Lämpötila
-                        </Label>
-                        <Input 
-                          placeholder="°C" 
-                          value={re.temp}
-                          onChange={(e) => updateRecipeEquip(re.id, 'temp', e.target.value)}
-                          className="h-8 text-xs bg-muted/20"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
-                          <Timer className="w-3 h-3" /> Aika
-                        </Label>
-                        <Input 
-                          placeholder="min / h" 
-                          value={re.time}
-                          onChange={(e) => updateRecipeEquip(re.id, 'time', e.target.value)}
-                          className="h-8 text-xs bg-muted/20"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase text-muted-foreground">Lisätieto</Label>
-                        <Input 
-                          placeholder="Esim. Esilämmitys..." 
-                          value={re.info}
-                          onChange={(e) => updateRecipeEquip(re.id, 'info', e.target.value)}
-                          className="h-8 text-xs bg-muted/20"
-                        />
-                      </div>
+                      <Input placeholder="°C" value={re.temp} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, temp: e.target.value} : r))} className="h-8 text-xs bg-muted/20" />
+                      <Input placeholder="min / h" value={re.time} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, time: e.target.value} : r))} className="h-8 text-xs bg-muted/20" />
+                      <Input placeholder="Lisätieto..." value={re.info} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, info: e.target.value} : r))} className="h-8 text-xs bg-muted/20" />
                     </div>
                   </div>
                 ))}
               </CardContent>
             </Card>
 
-            {/* Ohjeet */}
             <Card className="bg-card border-border shadow-xl">
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-lg font-headline">Valmistusohje</CardTitle>
-                <Button onClick={addStep} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent">
+                <Button onClick={() => setSteps([...steps, { id: Date.now().toString(), text: "" }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent">
                   <Plus className="w-4 h-4" /> Lisää vaihe
                 </Button>
               </CardHeader>
               <CardContent className="space-y-3">
                 {steps.map((step, index) => (
                   <div key={step.id} className="flex gap-4 items-start group">
-                    <div className="w-6 h-6 rounded-full copper-gradient text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-1">
-                      {index + 1}
-                    </div>
-                    <Input 
-                      placeholder="Kirjoita ohje..." 
-                      value={step.text}
-                      onChange={(e) => updateStep(step.id, e.target.value)}
-                      className="bg-muted/20 border-border text-sm"
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => removeStep(step.id)} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 shrink-0">
+                    <div className="w-6 h-6 rounded-full copper-gradient text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-1">{index + 1}</div>
+                    <Input placeholder="Kirjoita ohje..." value={step.text} onChange={(e) => setSteps(steps.map(s => s.id === step.id ? {...s, text: e.target.value} : s))} className="bg-muted/20 border-border text-sm" />
+                    <Button variant="ghost" size="icon" onClick={() => setSteps(steps.filter(s => s.id !== step.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 shrink-0">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
@@ -378,7 +291,6 @@ export function RecipesModule() {
             </Card>
           </div>
 
-          {/* Sivupalkki - Laskelmat */}
           <div className="space-y-6">
             <Card className="bg-card border-border shadow-2xl sticky top-24 overflow-hidden">
               <div className="absolute top-0 right-0 w-1 h-full copper-gradient" />
@@ -390,36 +302,17 @@ export function RecipesModule() {
               <CardContent className="p-6 space-y-6">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                    <span className="text-xs text-muted-foreground uppercase font-bold">Kokonaispaino (Brutto)</span>
-                    <span className="font-mono font-bold">{calculations.totalGrossWeight.toFixed(3)} kg</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b border-border/50">
                     <span className="text-xs text-muted-foreground uppercase font-bold">Kokonaispaino (Netto)</span>
                     <span className="font-mono font-bold text-accent">{calculations.totalNetWeight.toFixed(3)} kg</span>
                   </div>
                   <div className="flex justify-between items-center pb-2 border-b border-border/50 text-destructive">
-                    <span className="text-xs uppercase font-bold">Hävikin osuus (Paino)</span>
+                    <span className="text-xs uppercase font-bold">Hävikin osuus</span>
                     <span className="font-mono font-bold">-{calculations.totalWasteWeight.toFixed(3)} kg</span>
                   </div>
                 </div>
-
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                    <span className="text-xs text-muted-foreground uppercase font-bold">Kokonaiskustannus</span>
-                    <span className="font-mono font-bold">{calculations.totalCost.toFixed(2)} €</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b border-border/50 text-destructive">
-                    <span className="text-xs uppercase font-bold">Hävikin hinta</span>
-                    <span className="font-mono font-bold">-{calculations.totalWasteCost.toFixed(2)} €</span>
-                  </div>
-                </div>
-
                 <div className="pt-4 space-y-4 bg-accent/5 p-4 rounded-xl border border-accent/10">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs text-accent uppercase font-black">Yksi annos ({portions} kpl)</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs text-muted-foreground font-bold">Paino:</span>
+                    <span className="text-xs text-muted-foreground font-bold">Yksi annos:</span>
                     <span className="font-headline font-bold text-lg">{calculations.portionWeight.toFixed(3)} kg</span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -441,41 +334,22 @@ export function RecipesModule() {
         <h2 className="text-3xl font-headline font-bold text-accent">Reseptiikka</h2>
         <p className="text-muted-foreground">Luo ja hallitse keittiön reseptejä sekä annoskortteja.</p>
       </header>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Reseptit -osio */}
-        <Card 
-          onClick={() => setIsCreating(true)}
-          className="bg-card border-border shadow-xl relative overflow-hidden group hover:border-primary/40 transition-all cursor-pointer"
-        >
+        <Card onClick={() => setIsCreating(true)} className="bg-card border-border shadow-xl relative overflow-hidden group hover:border-primary/40 transition-all cursor-pointer">
           <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-50" />
           <CardHeader>
             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 border border-primary/20">
               <ChefHat className="w-7 h-7 text-accent" />
             </div>
             <CardTitle className="text-2xl font-headline">Aloita Resepti</CardTitle>
-            <CardDescription className="text-sm">
-              Luo yksittäinen komponentti, raaka-aine tai valmistusohje.
-            </CardDescription>
+            <CardDescription className="text-sm">Luo yksittäinen komponentti ja arkistoi se kansioon.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full copper-gradient text-white font-bold gap-2">
               <Plus className="w-4 h-4" /> Aloita resepti
             </Button>
-            
-            <div className="mt-8 pt-6 border-t border-border/50">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">
-                <ScrollText className="w-3.5 h-3.5" /> Ohjeistus
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Reseptieditori laskee automaattisesti raaka-aineiden painot, kustannukset ja hävikin vaikutuksen.
-                Voit liittää reseptiin laitteita ja vaiheittaiset ohjeet.
-              </p>
-            </div>
           </CardContent>
         </Card>
-
-        {/* Annokset -osio */}
         <Card className="bg-card border-border shadow-xl relative overflow-hidden group hover:border-primary/40 transition-all cursor-pointer">
           <div className="absolute top-0 right-0 w-1 h-full steel-detail opacity-50" />
           <CardHeader>
@@ -483,44 +357,15 @@ export function RecipesModule() {
               <CookingPot className="w-7 h-7 text-accent" />
             </div>
             <CardTitle className="text-2xl font-headline">Uusi Annos</CardTitle>
-            <CardDescription className="text-sm">
-              Kokoa useista resepteistä kokonainen annos tai menu-kokonaisuus.
-            </CardDescription>
+            <CardDescription className="text-sm">Kokoa useista resepteistä kokonainen annos.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button className="w-full steel-detail text-background font-bold gap-2">
               <Plus className="w-4 h-4" /> Kokoa annos
             </Button>
-
-            <div className="mt-8 pt-6 border-t border-border/50">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">
-                <Utensils className="w-3.5 h-3.5" /> Viimeisimmät annokset
-              </div>
-              <div className="space-y-2 opacity-50 italic text-xs text-center py-4 border border-dashed border-border rounded-lg">
-                Tulossa pian: Annosten kokoonpano.
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Alapaneeli */}
-      <Card className="bg-muted/30 border-border border-dashed">
-        <CardContent className="p-6 flex flex-col md:flex-row items-center gap-6 justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-full bg-accent/10 border border-accent/20">
-              <ScrollText className="w-6 h-6 text-accent" />
-            </div>
-            <div>
-              <h4 className="font-bold">Automatisoitu arkistointi</h4>
-              <p className="text-xs text-muted-foreground">Kaikki tallentamasi reseptit löytyvät automaattisesti myös Arkisto-osiosta.</p>
-            </div>
-          </div>
-          <Button variant="outline" className="text-xs border-accent/30 text-accent hover:bg-accent/10">
-            Lue käyttöohje
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   )
 }

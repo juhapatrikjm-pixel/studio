@@ -68,26 +68,30 @@
         "email": { "type": "string" }
       }
     },
-    "SelfMonitoringTask": {
-      "title": "SelfMonitoringTask",
-      "description": "Omavalvontatehtävät ja kylmiöt",
+    "ArchiveFolder": {
+      "title": "ArchiveFolder",
+      "description": "Arkiston kansiorakenne",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
         "name": { "type": "string" },
-        "type": { "type": "string", "enum": ["fridge", "task"] },
-        "description": { "type": "string" }
-      }
+        "category": { "type": "string", "enum": ["recipes", "dishes", "uploads"] },
+        "parentId": { "type": "string" }
+      },
+      "required": ["name", "category"]
     },
-    "SelfMonitoringRecord": {
-      "title": "SelfMonitoringRecord",
-      "description": "Kirjatut omavalvontasuoritukset",
+    "Recipe": {
+      "title": "Recipe",
+      "description": "Keittiön reseptit",
       "type": "object",
       "properties": {
-        "date": { "type": "string", "format": "date-time" },
-        "completedBy": { "type": "string" },
-        "status": { "type": "boolean" },
-        "values": { "type": "object" }
+        "name": { "type": "string" },
+        "portions": { "type": "number" },
+        "folderId": { "type": "string" },
+        "ingredients": { "type": "array" },
+        "steps": { "type": "array" },
+        "equipment": { "type": "array" },
+        "calculations": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
       }
     }
   },
@@ -97,31 +101,27 @@
   "firestore": {
     "/misaLists/{listId}": {
       "schema": "MisaList",
-      "description": "Kaikki prep-listat"
+      "description": "Prep-listat"
     },
     "/suppliers/{supplierId}": {
       "schema": "Supplier",
-      "description": "Toimittajarekisteri"
+      "description": "Toimittajat"
     },
     "/orders/{orderId}": {
       "schema": "Order",
-      "description": "Tilaushistoria ja tulevat kuormat"
+      "description": "Tilaukset"
     },
     "/equipment/{equipId}": {
       "schema": "Equipment",
-      "description": "Laiteluettelo"
+      "description": "Laitteet"
     },
-    "/maintenanceContacts/{contactId}": {
-      "schema": "MaintenanceContact",
-      "description": "Huollon yhteystiedot"
+    "/archiveFolders/{folderId}": {
+      "schema": "ArchiveFolder",
+      "description": "Arkistokansiot"
     },
-    "/selfMonitoringTasks/{taskId}": {
-      "schema": "SelfMonitoringTask",
-      "description": "Määritellyt omavalvontatehtävät"
-    },
-    "/selfMonitoringRecords/{recordId}": {
-      "schema": "SelfMonitoringRecord",
-      "description": "Päivittäiset kirjaukset"
+    "/recipes/{recipeId}": {
+      "schema": "Recipe",
+      "description": "Reseptit"
     }
   }
 }
