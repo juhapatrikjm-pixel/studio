@@ -1,7 +1,7 @@
-
 import type {Metadata} from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase';
+import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: 'WorkHub - Ammattimainen tiimiyhteistyö',
@@ -24,6 +24,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           {children}
         </FirebaseClientProvider>
+        <Toaster />
       </body>
     </html>
   );

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -26,7 +25,7 @@ import { collection, doc, setDoc } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -105,8 +104,17 @@ export function RecipesModule() {
     }
   }, [ingredients, portions])
 
+  const resetForm = () => {
+    setRecipeName("")
+    setPortions(1)
+    setSelectedFolderId("root")
+    setIngredients([])
+    setSteps([])
+    setRecipeEquip([])
+  }
+
   const handleSave = () => {
-    if (!recipeName || !firestore) {
+    if (!recipeName.trim()) {
       toast({
         variant: "destructive",
         title: "Puuttuvia tietoja",
@@ -115,11 +123,13 @@ export function RecipesModule() {
       return
     }
 
-    const recipesColRef = collection(firestore, 'recipes')
-    const recipeRef = doc(recipesColRef)
+    if (!firestore) return
+
+    const recipeId = Math.random().toString(36).substr(2, 9)
+    const recipeRef = doc(firestore, 'recipes', recipeId)
     
     const recipeData = {
-      id: recipeRef.id,
+      id: recipeId,
       name: recipeName,
       portions: Number(portions),
       folderId: selectedFolderId === "root" ? null : selectedFolderId,
@@ -130,6 +140,7 @@ export function RecipesModule() {
       createdAt: new Date().toISOString()
     }
 
+    // Tallennus ilman awaitia, catch hoitaa virheet
     setDoc(recipeRef, recipeData)
       .then(() => {
         toast({
@@ -146,15 +157,6 @@ export function RecipesModule() {
           requestResourceData: recipeData
         }))
       })
-  }
-
-  const resetForm = () => {
-    setRecipeName("")
-    setPortions(1)
-    setSelectedFolderId("root")
-    setIngredients([])
-    setSteps([])
-    setRecipeEquip([])
   }
 
   return (
@@ -203,21 +205,17 @@ export function RecipesModule() {
           <DialogHeader className="p-6 border-b border-border bg-card">
             <div className="flex items-center justify-between w-full">
               <DialogTitle className="text-2xl font-headline text-accent">Uusi resepti</DialogTitle>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="icon" onClick={() => setIsCreating(false)}>
-                  <X className="w-5 h-5" />
-                </Button>
-                <Button onClick={handleSave} className="copper-gradient text-white font-bold shadow-lg gap-2">
-                  <Save className="w-4 h-4" /> Tallenna resepti
-                </Button>
-              </div>
+              <Button variant="ghost" size="icon" onClick={() => setIsCreating(false)}>
+                <X className="w-5 h-5" />
+              </Button>
             </div>
-            <DialogDescription>Täytä reseptin tiedot ja laskelmat päivittyvät automaattisesti.</DialogDescription>
+            <DialogDescription>Täytä reseptin tiedot. Laskelmat päivittyvät automaattisesti.</DialogDescription>
           </DialogHeader>
 
           <ScrollArea className="flex-1 p-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
               <div className="lg:col-span-2 space-y-8">
+                {/* Perustiedot */}
                 <Card className="bg-card border-border shadow-xl">
                   <CardHeader>
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Perustiedot</CardTitle>
@@ -262,6 +260,7 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
+                {/* Raaka-aineet */}
                 <Card className="bg-card border-border shadow-xl">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Raaka-aineet</CardTitle>
@@ -298,6 +297,7 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
+                {/* Vaiheet */}
                 <Card className="bg-card border-border shadow-xl">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Vaiheet</CardTitle>
@@ -319,8 +319,9 @@ export function RecipesModule() {
                 </Card>
               </div>
 
+              {/* Laskelmat ja Laitteet */}
               <div className="space-y-6">
-                <Card className="bg-card border-border shadow-2xl overflow-hidden">
+                <Card className="bg-card border-border shadow-2xl overflow-hidden sticky top-0">
                   <div className="absolute top-0 right-0 w-1 h-full copper-gradient" />
                   <CardHeader className="bg-primary/5 border-b border-border">
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-accent flex items-center gap-2">
@@ -348,12 +349,10 @@ export function RecipesModule() {
                         <span className="font-headline font-bold text-2xl text-accent">{calculations.portionCost.toFixed(2)} €</span>
                       </div>
                     </div>
-                    <Button onClick={handleSave} className="w-full copper-gradient text-white font-bold h-12 shadow-xl mt-4">
-                      Tallenna resepti
-                    </Button>
                   </CardContent>
                 </Card>
 
+                {/* Laitteet */}
                 <Card className="bg-card border-border shadow-xl">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
                     <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Laitteet</CardTitle>
@@ -384,6 +383,7 @@ export function RecipesModule() {
                           <Input placeholder="°C" value={re.temp} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, temp: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" />
                           <Input placeholder="min/h" value={re.time} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, time: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" />
                         </div>
+                        <Input placeholder="Lisätiedot..." value={re.info} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, info: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" />
                       </div>
                     ))}
                   </CardContent>
@@ -391,6 +391,13 @@ export function RecipesModule() {
               </div>
             </div>
           </ScrollArea>
+
+          <DialogFooter className="p-6 border-t border-border bg-card">
+            <Button variant="outline" onClick={() => setIsCreating(false)}>Peruuta</Button>
+            <Button onClick={handleSave} className="copper-gradient text-white font-bold gap-2">
+              <Save className="w-4 h-4" /> Tallenna resepti
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
