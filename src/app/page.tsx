@@ -2,20 +2,22 @@
 
 import { useState } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
 import { DirectoryModule } from "@/components/modules/directory"
 import { AdminModule } from "@/components/modules/admin"
+import { MisaModule } from "@/components/modules/misa"
 import { Button } from "@/components/ui/button"
 
 export default function Home() {
-  const [activeModule, setActiveModule] = useState<'workspace' | 'messaging' | 'cloud' | 'directory' | 'admin'>('workspace')
+  const [activeModule, setActiveModule] = useState<'info' | 'misa' | 'messaging' | 'cloud' | 'directory' | 'admin'>('info')
 
   const renderModule = () => {
     switch(activeModule) {
-      case 'workspace': return <WorkspaceModule />
+      case 'info': return <WorkspaceModule />
+      case 'misa': return <MisaModule />
       case 'messaging': return <MessagingModule />
       case 'cloud': return <CloudStorageModule />
       case 'directory': return <DirectoryModule />
@@ -25,7 +27,8 @@ export default function Home() {
   }
 
   const menuItems = [
-    { id: 'workspace', icon: LayoutDashboard, label: 'Workspace' },
+    { id: 'info', icon: LayoutDashboard, label: 'Info' },
+    { id: 'misa', icon: ClipboardList, label: 'MISA' },
     { id: 'messaging', icon: MessageSquare, label: 'Messaging' },
     { id: 'cloud', icon: Cloud, label: 'Cloud Data' },
     { id: 'directory', icon: Users, label: 'Directory' },
