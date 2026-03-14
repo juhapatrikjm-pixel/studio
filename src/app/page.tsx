@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -12,17 +12,19 @@ import { AdminModule } from "@/components/modules/admin"
 import { MisaModule } from "@/components/modules/misa"
 import { SuppliersModule } from "@/components/modules/suppliers"
 import { OrdersModule } from "@/components/modules/orders"
+import { ArchiveModule } from "@/components/modules/archive"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 
-type ModuleId = 'info' | 'misa' | 'suppliers' | 'orders' | 'messaging' | 'cloud' | 'directory' | 'admin'
+type ModuleId = 'info' | 'misa' | 'suppliers' | 'orders' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'admin'
 
 const menuItems = [
   { id: 'info', icon: LayoutDashboard, label: 'Info' },
   { id: 'misa', icon: ClipboardList, label: 'MISA' },
   { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
   { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
+  { id: 'archive', icon: Archive, label: 'Arkisto' },
   { id: 'messaging', icon: MessageSquare, label: 'Messaging' },
   { id: 'cloud', icon: Cloud, label: 'Cloud Data' },
   { id: 'directory', icon: Users, label: 'Directory' },
@@ -34,7 +36,6 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
 
   const handleModuleChange = (id: ModuleId) => {
     setActiveModule(id)
-    // Suljetaan sivupalkki automaattisesti valinnan jälkeen
     setOpen(false)
     setOpenMobile(false)
   }
@@ -107,6 +108,7 @@ export default function Home() {
       case 'misa': return <MisaModule />
       case 'suppliers': return <SuppliersModule />
       case 'orders': return <OrdersModule onNavigateToSuppliers={() => setActiveModule('suppliers')} />
+      case 'archive': return <ArchiveModule />
       case 'messaging': return <MessagingModule />
       case 'cloud': return <CloudStorageModule />
       case 'directory': return <DirectoryModule />
@@ -133,7 +135,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Kello ja päivämäärä keskellä */}
             <div className="flex flex-col items-center justify-center flex-1 text-center">
               <div className="text-accent font-headline font-bold text-xl leading-none tracking-widest tabular-nums">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
