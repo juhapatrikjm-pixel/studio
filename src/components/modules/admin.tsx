@@ -1,27 +1,85 @@
 
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
-import { Shield, UserCog, Settings, Lock } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Shield, UserCog, Settings, Lock, Percent } from "lucide-react"
+import { useFirestore, useDoc } from "@/firebase"
+import { doc, setDoc } from "firebase/firestore"
+import { useToast } from "@/hooks/use-toast"
 
 export function AdminModule() {
+  const firestore = useFirestore()
+  const { toast } = useToast()
+  const settingsRef = firestore ? doc(firestore, 'settings', 'global') : null
+  const { data: settings } = useDoc<any>(settingsRef)
+
+  const [targetMargin, setTargetMargin] = useState(75)
+
+  useEffect(() => {
+    if (settings?.targetMargin) {
+      setTargetMargin(settings.targetMargin)
+    }
+  }, [settings])
+
+  const saveSettings = () => {
+    if (!firestore) return
+    const ref = doc(firestore, 'settings', 'global')
+    setDoc(ref, { targetMargin: Number(targetMargin) }, { merge: true })
+      .then(() => {
+        toast({
+          title: "Asetukset tallennettu",
+          description: "Tavoitekatteeksi on asetettu " + targetMargin + " %",
+        })
+      })
+  }
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500">
       <header>
         <h2 className="text-3xl font-headline font-bold text-primary">Hallinta</h2>
-        <p className="text-muted-foreground">Hallitse tiimejä, käyttöoikeuksia ja suojausasetuksia.</p>
+        <p className="text-muted-foreground">Hallitse tiimejä, käyttöoikeuksia ja sovelluksen asetuksia.</p>
       </header>
 
-      <Tabs defaultValue="teams" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-6 bg-white border border-accent/10">
-          <TabsTrigger value="teams" className="gap-2"><UserCog className="w-4 h-4" /> Tiimin asetukset</TabsTrigger>
-          <TabsTrigger value="roles" className="gap-2"><Shield className="w-4 h-4" /> Käyttöoikeudet</TabsTrigger>
+      <Tabs defaultValue="settings" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-6 bg-white border border-accent/10">
+          <TabsTrigger value="settings" className="gap-2"><Settings className="w-4 h-4" /> Yleiset</TabsTrigger>
+          <TabsTrigger value="teams" className="gap-2"><UserCog className="w-4 h-4" /> Tiimi</TabsTrigger>
+          <TabsTrigger value="roles" className="gap-2"><Shield className="w-4 h-4" /> Oikeudet</TabsTrigger>
           <TabsTrigger value="security" className="gap-2"><Lock className="w-4 h-4" /> Suojaus</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline">Sovelluksen asetukset</CardTitle>
+              <CardDescription>Määritä koko järjestelmän kattavia parametreja.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2 max-w-sm">
+                <Label className="flex items-center gap-2">
+                  <Percent className="w-4 h-4 text-accent" />
+                  Reseptiikan tavoitekatetuotto (%)
+                </Label>
+                <div className="flex gap-2">
+                  <Input 
+                    type="number" 
+                    value={targetMargin} 
+                    onChange={(e) => setTargetMargin(Number(e.target.value))}
+                    className="bg-muted/30"
+                  />
+                  <Button onClick={saveSettings} className="copper-gradient">Tallenna</Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold">Tätä arvoa käytetään annosten hinnoittelun visuaalisessa seurannassa.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="teams">
           <Card>
@@ -44,7 +102,6 @@ export function AdminModule() {
                 </div>
                 <Switch defaultChecked />
               </div>
-              <Button className="w-full sm:w-auto bg-primary">Tallenna muutokset</Button>
             </CardContent>
           </Card>
         </TabsContent>
@@ -88,13 +145,6 @@ export function AdminModule() {
                   <p className="text-sm text-muted-foreground">Ylläpitäjät voivat tyhjentää sovellusdatan varastetuilta laitteilta.</p>
                 </div>
                 <Switch />
-              </div>
-              <div className="flex items-center justify-between border-b pb-4">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Tietojen säilytyskäytäntö</Label>
-                  <p className="text-sm text-muted-foreground">Säilytä viestit ja tiedostot 2 vuotta (HIPAA/GDPR).</p>
-                </div>
-                <Switch defaultChecked />
               </div>
             </CardContent>
           </Card>

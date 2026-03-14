@@ -93,6 +93,27 @@
         "calculations": { "type": "object" },
         "createdAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "Dish": {
+      "title": "Dish",
+      "description": "Koostetut annokset",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "sellingPrice": { "type": "number" },
+        "recipes": { "type": "array" },
+        "totalCost": { "type": "number" },
+        "margin": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "AppSetting": {
+      "title": "AppSetting",
+      "description": "Sovelluksen yleiset asetukset",
+      "type": "object",
+      "properties": {
+        "targetMargin": { "type": "number" }
+      }
     }
   },
   "auth": {
@@ -122,6 +143,14 @@
     "/recipes/{recipeId}": {
       "schema": "Recipe",
       "description": "Reseptit"
+    },
+    "/dishes/{dishId}": {
+      "schema": "Dish",
+      "description": "Annokset"
+    },
+    "/settings/global": {
+      "schema": "AppSetting",
+      "description": "Yleiset asetukset"
     }
   }
 }
