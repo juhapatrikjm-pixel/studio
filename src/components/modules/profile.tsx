@@ -17,10 +17,11 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   Mail,
-  History
+  History,
+  Trash2
 } from "lucide-react"
 import { useFirestore, useDoc } from "@/firebase"
-import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -71,6 +72,27 @@ export function ProfileModule() {
         toast({
           title: "Profiili tallennettu",
           description: "Tietosi on päivitetty ja käyntikortti on valmis.",
+        })
+      })
+  }
+
+  const handleDelete = () => {
+    if (!profileRef) return
+    deleteDoc(profileRef)
+      .then(() => {
+        setFormData({
+          companyName: "",
+          userName: "",
+          title: "",
+          workPhone: "",
+          personalPhone: "",
+          address: "",
+          businessId: "",
+          logoUrl: ""
+        })
+        toast({
+          title: "Profiili poistettu",
+          description: "Tallennetut tiedot on tyhjennetty.",
         })
       })
   }
@@ -310,7 +332,15 @@ Y-tunnus: ${formData.businessId}
         </div>
         
         {profile ? (
-          <Card className="bg-card border-border shadow-xl">
+          <Card className="bg-card border-border shadow-xl relative group">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="absolute top-2 right-2 h-8 w-8 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={handleDelete}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
             <CardContent className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-1">
