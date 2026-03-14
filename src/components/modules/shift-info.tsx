@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Plus, Trash2, Smile, Sparkles, Save, Info, CheckCircle } from "lucide-react"
-import { useFirestore, useDoc } from "@/firebase"
-import { doc, setDoc } from "firebase/firestore"
+import { Plus, Trash2, Smile, Sparkles, Save, Info, History, Calendar as CalendarIcon, ChevronRight } from "lucide-react"
+import { useFirestore, useDoc, useCollection } from "@/firebase"
+import { doc, setDoc, collection, query, orderBy, limit } from "firebase/firestore"
 import { format } from "date-fns"
+import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const DEFAULT_CHEERS = [
   "Kokki on keittiön kuningas! 👑",
@@ -65,12 +67,18 @@ export function ShiftInfoModule() {
   const infoRef = useMemo(() => (firestore ? doc(firestore, 'shiftInfos', dateId) : null), [firestore, dateId])
   const { data: shiftInfo } = useDoc<any>(infoRef)
   
+  const historyQuery = useMemo(() => {
+    if (!firestore) return null
+    return query(collection(firestore, 'shiftInfos'), orderBy('date', 'desc'), limit(10))
+  }, [firestore])
+  const { data: history = [] } = useCollection<any>(historyQuery)
+
   const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
   const { data: settings } = useDoc<any>(settingsRef)
 
   const [points, setPoints] = useState<string[]>([])
   const [freeText, setFreeText] = useState("")
-  const [cheer, setCheer] = useState("Paina hymynaamaa tsempin saamiseksi! 😊")
+  const [cheer, setCheer] = useState("Paina hymiötä tsempin saamiseksi! 😊")
 
   useEffect(() => {
     if (shiftInfo) {
@@ -87,7 +95,13 @@ export function ShiftInfoModule() {
       freeText: freeText,
       acknowledgedBy: shiftInfo?.acknowledgedBy || []
     }, { merge: true }).then(() => {
-      toast({ title: "Vuoro-info tallennettu", description: "Tiedot päivitetty pilveen." })
+      toast({ 
+        title: "Vuoro-info tallennettu", 
+        description: `Päivän ${format(new Date(), 'd.M.yyyy')} tiedot on tallennettu ja arkistoitu.`,
+      })
+      // Tyhjennetään kentät tallennuksen jälkeen
+      setPoints([])
+      setFreeText("")
     })
   }
 
@@ -106,7 +120,7 @@ export function ShiftInfoModule() {
   }
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
+    <div className="flex flex-col gap-8 animate-in fade-in duration-500 pb-20">
       <header className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
           <h2 className="text-3xl font-headline font-bold text-accent">Vuoro-info</h2>
@@ -130,10 +144,11 @@ export function ShiftInfoModule() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="bg-card border-border shadow-xl">
+        <Card className="bg-card border-border shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-30" />
           <CardHeader>
-            <CardTitle className="text-lg font-headline flex items-center gap-2">
-              <Info className="w-5 h-5 text-accent" />
+            <CardTitle className="text-lg font-headline flex items-center gap-2 text-accent">
+              <Info className="w-5 h-5" />
               Päivän nostot
             </CardTitle>
             <CardDescription className="text-[10px] uppercase font-bold tracking-widest">
@@ -143,7 +158,7 @@ export function ShiftInfoModule() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               {points.map((p, i) => (
-                <div key={i} className="flex gap-2 group">
+                <div key={i} className="flex gap-2 group animate-in slide-in-from-left-2 duration-300">
                   <Input 
                     value={p} 
                     onChange={(e) => updatePoint(i, e.target.value)}
@@ -162,10 +177,11 @@ export function ShiftInfoModule() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card border-border shadow-xl">
+        <Card className="bg-card border-border shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-1 h-full steel-detail opacity-30" />
           <CardHeader>
-            <CardTitle className="text-lg font-headline flex items-center gap-2">
-              <Plus className="w-5 h-5 text-accent" />
+            <CardTitle className="text-lg font-headline flex items-center gap-2 text-accent">
+              <Plus className="w-5 h-5" />
               Vapaa muistio
             </CardTitle>
             <CardDescription className="text-[10px] uppercase font-bold tracking-widest">
@@ -184,9 +200,53 @@ export function ShiftInfoModule() {
       </div>
 
       <div className="flex justify-center pt-4">
-        <Button onClick={saveInfo} size="lg" className="copper-gradient text-white font-bold w-full max-w-md h-12 shadow-lg">
-          <Save className="w-5 h-5 mr-2" /> Tallenna vuoro-info
+        <Button onClick={saveInfo} size="lg" className="copper-gradient text-white font-bold w-full max-w-md h-12 shadow-lg gap-2">
+          <Save className="w-5 h-5" /> Tallenna ja arkistoi vuoro-info
         </Button>
+      </div>
+
+      {/* HISTORIA-OSIO */}
+      <div className="space-y-4 pt-10 border-t border-border/50">
+        <div className="flex items-center gap-2 text-muted-foreground mb-4">
+          <History className="w-5 h-5" />
+          <h3 className="font-headline font-bold uppercase tracking-widest text-sm">Arkistoidut vuoro-infot</h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {history.filter(h => h.date !== dateId).map((entry) => (
+            <Card key={entry.id} className="bg-card border-border hover:border-accent/40 transition-all group">
+              <CardHeader className="p-4 pb-2">
+                <CardTitle className="text-sm font-headline text-accent flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4" />
+                  {entry.date ? format(new Date(entry.date), 'EEEE d.M.yyyy', { locale: fi }) : entry.id}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="space-y-2">
+                  {entry.bulletPoints?.slice(0, 2).map((p: string, idx: number) => p && (
+                    <div key={idx} className="flex items-center gap-2 text-[10px] text-muted-foreground truncate">
+                      <ChevronRight className="w-3 h-3 text-accent" />
+                      {p}
+                    </div>
+                  ))}
+                  {entry.freeText && (
+                    <p className="text-[10px] text-muted-foreground italic line-clamp-2 border-l border-accent/20 pl-2 mt-2">
+                      {entry.freeText}
+                    </p>
+                  )}
+                  {(!entry.bulletPoints?.length && !entry.freeText) && (
+                    <p className="text-[10px] text-muted-foreground italic">Ei tallennettuja merkintöjä.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+          {history.length <= 1 && (
+            <div className="col-span-full py-10 text-center border-2 border-dashed border-border rounded-xl text-muted-foreground italic">
+              Ei aiempia arkistoituja vuoro-infoja.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
