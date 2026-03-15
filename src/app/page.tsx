@@ -4,19 +4,19 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth, useUser, useFirestore } from "@/firebase"
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from "firebase/auth"
+import { GoogleAuthProvider, signInWithPopup, signInAnonymously, getRedirectResult } from "firebase/auth"
 import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { LogIn, AlertCircle, Globe } from "lucide-react"
+import { LogIn, AlertCircle, Globe, Zap, ShieldCheck } from "lucide-react"
 
 export default function LoginPage() {
   const { user, loading: authLoading } = useUser()
   const auth = useAuth()
   const firestore = useFirestore()
   const router = useRouter()
-  const [isProcessing, setIsProcessing] = useState(true)
+  const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<{ title: string, desc: string } | null>(null)
   const [currentDomain, setCurrentDomain] = useState("")
 
@@ -27,46 +27,59 @@ export default function LoginPage() {
   }, [])
 
   useEffect(() => {
-    if (!auth || !firestore) return
-
-    const checkRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth)
-        if (result?.user) {
-          const u = result.user
-          // Tallennetaan profiili taustalla vikasietoisesti
-          setDoc(doc(firestore, 'userProfiles', u.uid), {
-            userName: u.displayName,
-            email: u.email,
-            updatedAt: serverTimestamp()
-          }, { merge: true }).catch(() => console.warn("Firestore sync deferred."))
-          router.push('/dashboard')
-        } else if (user) {
-          router.push('/dashboard')
-        }
-      } catch (err: any) {
-        console.error("Auth redirect error:", err)
-        setError({ 
-          title: "Kirjautumisvirhe", 
-          desc: err.code === 'auth/unauthorized-domain' 
-            ? "Domainia ei ole valtuutettu Firebase-konsolissa." 
-            : err.message 
-        })
-      } finally {
-        setIsProcessing(false)
-      }
+    if (user && !authLoading) {
+      router.push('/dashboard')
     }
-
-    checkRedirect()
-  }, [auth, firestore, user, router])
+  }, [user, authLoading, router])
 
   const handleLogin = async () => {
-    if (!auth) return
+    if (!auth || !firestore) return
+    setIsProcessing(true)
+    setError(null)
+    
     const provider = new GoogleAuthProvider()
     try {
-      await signInWithRedirect(auth, provider)
+      const result = await signInWithPopup(auth, provider)
+      if (result.user) {
+        // Taustapäivitys profiilille
+        const u = result.user
+        setDoc(doc(firestore, 'userProfiles', u.uid), {
+          userName: u.displayName,
+          email: u.email,
+          updatedAt: serverTimestamp()
+        }, { merge: true }).catch(() => console.warn("Firestore sync deferred."))
+        router.push('/dashboard')
+      }
     } catch (err: any) {
-      setError({ title: "Virhe", desc: "Kirjautumisen aloittaminen epäonnistui." })
+      console.error("Auth error:", err)
+      if (err.code === 'auth/popup-blocked') {
+        setError({ 
+          title: "Selain esti ikkunan", 
+          desc: "Salli ponnahdusikkunat tai kokeile Demo-tilaa alta." 
+        })
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError({ 
+          title: "Domain valtuuttamatta", 
+          desc: `Lisää ${currentDomain} Firebase-konsolin valtuutettuihin domaineihin.` 
+        })
+      } else {
+        setError({ title: "Kirjautumisvirhe", desc: err.message })
+      }
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleDemoLogin = async () => {
+    if (!auth) return
+    setIsProcessing(true)
+    try {
+      await signInAnonymously(auth)
+      router.push('/dashboard')
+    } catch (err: any) {
+      setError({ title: "Demo-virhe", desc: "Demo-tilaan pääsy epäonnistui." })
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -74,7 +87,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
         <div className="w-16 h-16 rounded-2xl copper-gradient animate-pulse shadow-2xl" />
-        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground opacity-40">Tarkistetaan istuntoa...</span>
+        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground opacity-40">Käsitellään istuntoa...</span>
       </div>
     )
   }
@@ -105,16 +118,26 @@ export default function LoginPage() {
             </Alert>
           )}
           
-          <div className="w-full space-y-4">
+          <div className="w-full space-y-3">
             <Button onClick={handleLogin} className="w-full h-14 copper-gradient text-white font-black uppercase tracking-widest text-xs shadow-2xl metal-shine-overlay">
               <LogIn className="w-5 h-5 mr-3" /> KIRJAUDU GOOGLELLA
+            </Button>
+            
+            <div className="relative flex items-center py-2">
+              <div className="flex-grow border-t border-white/5"></div>
+              <span className="flex-shrink mx-4 text-[10px] font-black text-muted-foreground/40 uppercase">tai</span>
+              <div className="flex-grow border-t border-white/5"></div>
+            </div>
+
+            <Button onClick={handleDemoLogin} variant="outline" className="w-full h-12 border-white/10 hover:bg-white/5 text-muted-foreground font-black uppercase tracking-widest text-[10px]">
+              <Zap className="w-4 h-4 mr-2 text-accent" /> KOKEILE DEMO-TILASSA
             </Button>
           </div>
           
           <div className="pt-6 flex flex-col items-center gap-4 bg-black/20 p-6 rounded-xl border border-white/5 w-full">
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-accent" />
-              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">VALTUUTA TÄMÄ OSOITE:</span>
+              <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">VALTUUTETTU DOMAIN:</span>
             </div>
             <code className="text-xs font-mono bg-black/40 p-3 rounded border border-white/10 text-accent w-full break-all select-all">{currentDomain}</code>
             <p className="text-[8px] text-muted-foreground/60 uppercase font-bold italic">Firebase Console &rarr; Auth &rarr; Settings &rarr; Domains</p>

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Info, ChefHat, CookingPot, Wrench, Send, Trash2, CheckCircle, Zap, Users, Cloud } from "lucide-react"
 import { OmavalvontaStatusHeader } from "./omavalvonta"
-import { useFirestore, useCollection } from "@/firebase"
+import { useFirestore, useCollection, useUser } from "@/firebase"
 import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
 import { format, formatDistanceToNow } from "date-fns"
 import { fi } from "date-fns/locale"
@@ -16,7 +16,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function WorkspaceModule() {
   const firestore = useFirestore()
-  const currentUser = "Käyttäjä"
+  const { user } = useUser()
+  const currentUser = user?.displayName || (user?.isAnonymous ? "Demo-käyttäjä" : "Käyttäjä")
 
   const [todayDate, setTodayDate] = useState<string | null>(null)
 
@@ -234,7 +235,7 @@ export function WorkspaceModule() {
                 <div className="text-2xl font-black text-foreground leading-none">84%</div>
                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
               </CardContent>
-            </Card>
+            </div>
           </div>
         </div>
       </div>
