@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -25,10 +25,12 @@ import { OnboardingModule } from "@/components/modules/onboarding"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
-import { useFirestore, useDoc } from "@/firebase"
-import { doc } from "firebase/firestore"
+import { useFirestore, useDoc, useUser, useAuth } from "@/firebase"
+import { doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth"
 import { cn } from "@/lib/utils"
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel"
+import { Card, CardContent } from "@/components/ui/card"
 
 export type ModuleId = 'info' | 'shift-info' | 'tulos' | 'waste' | 'onboarding' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
@@ -53,13 +55,18 @@ export const BASE_MENU_ITEMS = [
   { id: 'admin', icon: ShieldCheck, label: 'Hallinta' },
 ] as const
 
-function AppSidebar({ activeModule, setActiveModule, menuItems }: { activeModule: ModuleId, setActiveModule: (id: ModuleId) => void, menuItems: typeof BASE_MENU_ITEMS }) {
+function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { activeModule: ModuleId, setActiveModule: (id: ModuleId) => void, menuItems: typeof BASE_MENU_ITEMS, user: any }) {
   const { setOpen, setOpenMobile } = useSidebar()
+  const auth = useAuth()
 
   const handleModuleChange = (id: ModuleId) => {
     setActiveModule(id)
     setOpen(false)
     setOpenMobile(false)
+  }
+
+  const handleSignOut = () => {
+    if (auth) signOut(auth)
   }
 
   return (
@@ -72,10 +79,6 @@ function AppSidebar({ activeModule, setActiveModule, menuItems }: { activeModule
           <div className="flex flex-col">
             <span className="font-headline font-black text-xl copper-text-glow leading-none">Wisemisa</span>
             <span className="font-headline font-bold text-lg text-muted-foreground leading-none">Bistro</span>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
-              <span className="text-[9px] uppercase tracking-[0.2em] text-accent/80 font-bold">Industrial</span>
-            </div>
           </div>
         </div>
       </SidebarHeader>
@@ -104,17 +107,22 @@ function AppSidebar({ activeModule, setActiveModule, menuItems }: { activeModule
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <div className="p-6 border-t border-white/5 mt-auto bg-black/20">
+      <div className="p-6 border-t border-white/5 mt-auto bg-black/20 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg steel-detail flex items-center justify-center text-black font-black text-sm shadow-md metal-shine-overlay">
-            JS
+          <div className="w-10 h-10 rounded-lg steel-detail flex items-center justify-center text-black font-black text-sm shadow-md metal-shine-overlay overflow-hidden">
+            {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : (user.displayName?.[0] || user.email?.[0])}
           </div>
-          <div className="flex flex-col">
-            <span className="text-xs font-black text-foreground">John Smith</span>
-            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Keittiömestari</span>
+          <div className="flex flex-col overflow-hidden">
+            <span className="text-xs font-black text-foreground truncate">{user.displayName || 'Käyttäjä'}</span>
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold truncate">{user.email}</span>
           </div>
-          <Button variant="ghost" size="icon" className="ml-auto text-muted-foreground hover:text-accent hover:bg-transparent" onClick={() => setActiveModule('profile')}>
-            <Settings className="w-4 h-4" />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" className="flex-1 text-[10px] font-black uppercase text-muted-foreground hover:text-accent hover:bg-white/5" onClick={() => setActiveModule('profile')}>
+            <Settings className="w-3.5 h-3.5 mr-2" /> Asetukset
+          </Button>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-white/5" onClick={handleSignOut} title="Kirjaudu ulos">
+            <LogOut className="w-3.5 h-3.5" />
           </Button>
         </div>
       </div>
@@ -122,30 +130,66 @@ function AppSidebar({ activeModule, setActiveModule, menuItems }: { activeModule
   )
 }
 
-function BackgroundWatermark() {
+function LoginPage() {
+  const auth = useAuth()
   const firestore = useFirestore()
-  const userId = "demo-user-123"
-  const profileRef = useMemo(() => (firestore ? doc(firestore, 'userProfiles', userId) : null), [firestore])
-  const { data: profile } = useDoc<any>(profileRef)
 
-  if (!profile?.logoUrl) return null
+  const handleLogin = async () => {
+    if (!auth || !firestore) return
+    const provider = new GoogleAuthProvider()
+    try {
+      const result = await signInWithPopup(auth, provider)
+      // Tallenna tai päivitä profiili kirjautumisen yhteydessä
+      const user = result.user
+      const userRef = doc(firestore, 'userProfiles', user.uid)
+      setDoc(userRef, {
+        userName: user.displayName,
+        email: user.email,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+    } catch (error) {
+      console.error("Login failed", error)
+    }
+  }
 
   return (
-    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden opacity-[0.08] transition-all duration-1000 grayscale contrast-150">
-      <img 
-        src={profile.logoUrl} 
-        alt="Background Watermark" 
-        className="w-[60%] max-w-[800px] object-contain animate-pulse"
-        style={{ animationDuration: '15s', filter: 'blur(2px) drop-shadow(0 0 40px rgba(184,115,51,0.3))' }}
-      />
+    <div className="min-h-screen w-full bg-background flex items-center justify-center p-6 brushed-metal relative overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none opacity-10">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent blur-[120px] rounded-full" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-primary blur-[120px] rounded-full" />
+      </div>
+
+      <Card className="industrial-card max-w-md w-full relative z-10 overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
+        <CardContent className="p-12 flex flex-col items-center text-center gap-8">
+          <div className="w-20 h-20 rounded-2xl copper-gradient flex items-center justify-center shadow-[0_0_40px_rgba(184,115,51,0.4)] metal-shine-overlay">
+            <span className="text-white font-headline font-black text-4xl drop-shadow-xl">W</span>
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-4xl font-headline font-black copper-text-glow uppercase tracking-tighter">Wisemisa Bistro</h1>
+            <p className="text-muted-foreground font-medium text-sm">Industrial Kitchen Intelligence Platform</p>
+          </div>
+          
+          <div className="w-full space-y-4">
+            <Button 
+              onClick={handleLogin} 
+              className="w-full h-14 copper-gradient text-white font-black uppercase tracking-widest text-xs shadow-2xl metal-shine-overlay group"
+            >
+              <LogIn className="w-5 h-5 mr-3 group-hover:translate-x-1 transition-transform" />
+              Kirjaudu Google-tunnuksilla
+            </Button>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest opacity-40">Suojattu yhteys Wisemisa Cloudiin</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
 
 export default function Home() {
+  const { user, loading } = useUser()
   const firestore = useFirestore()
-  const userId = "demo-user-123"
-  const profileRef = useMemo(() => (firestore ? doc(firestore, 'userProfiles', userId) : null), [firestore])
+  const profileRef = useMemo(() => (firestore && user ? doc(firestore, 'userProfiles', user.uid) : null), [firestore, user])
   const { data: profile } = useDoc<any>(profileRef)
 
   const [activeModule, setActiveModule] = useState<ModuleId>('info')
@@ -160,21 +204,17 @@ export default function Home() {
     return () => clearInterval(timer)
   }, [])
 
-  // Käyttäjän oma moduulijärjestys
   const sortedMenuItems = useMemo(() => {
     if (!profile?.moduleOrder || profile.moduleOrder.length === 0) return BASE_MENU_ITEMS
 
     const order = profile.moduleOrder as string[]
     const items = [...BASE_MENU_ITEMS]
-    
-    // Varmistetaan että 'info' on aina ensimmäinen
     const infoItem = items.find(i => i.id === 'info')!
     const otherItems = items.filter(i => i.id !== 'info')
 
     const sortedOthers = otherItems.sort((a, b) => {
       const idxA = order.indexOf(a.id)
       const idxB = order.indexOf(b.id)
-      
       if (idxA === -1 && idxB === -1) return 0
       if (idxA === -1) return 1
       if (idxB === -1) return -1
@@ -184,16 +224,12 @@ export default function Home() {
     return [infoItem, ...sortedOthers]
   }, [profile?.moduleOrder])
 
-  // Päivitä karuselli kun aktiivinen moduuli vaihtuu sivupalkista
   useEffect(() => {
     if (!api) return
     const index = sortedMenuItems.findIndex(item => item.id === activeModule)
-    if (index !== -1) {
-      api.scrollTo(index)
-    }
+    if (index !== -1) api.scrollTo(index)
   }, [activeModule, api, sortedMenuItems])
 
-  // Päivitä aktiivinen moduuli kun karusellia pyyhkäistään
   useEffect(() => {
     if (!api) return
     const onSelect = () => {
@@ -204,6 +240,14 @@ export default function Home() {
     api.on("select", onSelect)
     return () => { api.off("select", onSelect) }
   }, [api, sortedMenuItems])
+
+  if (loading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="w-12 h-12 rounded-xl copper-gradient animate-pulse shadow-2xl" />
+    </div>
+  )
+
+  if (!user) return <LoginPage />
 
   const renderModule = (id: ModuleId) => {
     switch(id) {
@@ -232,9 +276,7 @@ export default function Home() {
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground relative brushed-metal">
-        <BackgroundWatermark />
-        
-        <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} />
+        <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} user={user} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
           <header className="h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
@@ -243,10 +285,10 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-lg md:text-xl leading-none tracking-wider tabular-nums copper-text-glow truncate">
+              <div className="text-accent font-headline font-black text-xl leading-none tracking-wider tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
-              <div className="text-[8px] md:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] md:tracking-[0.3em] mt-1.5 opacity-80 truncate w-full">
+              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-1.5 opacity-80 truncate w-full">
                 {currentTime ? format(currentTime, 'EEEE d. MMMM yyyy', { locale: fi }) : 'Alustetaan...'}
               </div>
             </div>

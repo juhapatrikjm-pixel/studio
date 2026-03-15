@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
@@ -15,17 +16,18 @@ import {
   Image as ImageIcon,
   Upload
 } from "lucide-react"
-import { useFirestore, useDoc } from "@/firebase"
+import { useFirestore, useDoc, useUser } from "@/firebase"
 import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 
 export function ProfileModule() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const userId = "demo-user-123"
-  const profileRef = useMemo(() => (firestore ? doc(firestore, 'userProfiles', userId) : null), [firestore])
+  const userId = user?.uid || "unknown"
+  const profileRef = useMemo(() => (firestore ? doc(firestore, 'userProfiles', userId) : null), [firestore, userId])
   const { data: profile } = useDoc<any>(profileRef)
 
   const [formData, setFormData] = useState({
@@ -43,16 +45,16 @@ export function ProfileModule() {
     if (profile) {
       setFormData({
         companyName: profile.companyName || "",
-        userName: profile.userName || "",
+        userName: profile.userName || user?.displayName || "",
         title: profile.title || "",
         workPhone: profile.workPhone || "",
         personalPhone: profile.personalPhone || "",
         address: profile.address || "",
         businessId: profile.businessId || "",
-        logoUrl: profile.logoUrl || ""
+        logoUrl: profile.logoUrl || user?.photoURL || ""
       })
     }
-  }, [profile])
+  }, [profile, user])
 
   const handleSave = () => {
     if (!profileRef) return
@@ -64,27 +66,6 @@ export function ProfileModule() {
         toast({
           title: "Profiili tallennettu",
           description: "Tietosi on päivitetty järjestelmään.",
-        })
-      })
-  }
-
-  const handleDelete = () => {
-    if (!profileRef) return
-    deleteDoc(profileRef)
-      .then(() => {
-        setFormData({
-          companyName: "",
-          userName: "",
-          title: "",
-          workPhone: "",
-          personalPhone: "",
-          address: "",
-          businessId: "",
-          logoUrl: ""
-        })
-        toast({
-          title: "Profiili poistettu",
-          description: "Tallennetut tiedot on tyhjennetty.",
         })
       })
   }
@@ -194,50 +175,15 @@ Y-tunnus: ${formData.businessId}
               </div>
 
               <div className="space-y-1">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Osoite</Label>
-                <Input 
-                  value={formData.address}
-                  onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  placeholder="Katuosoite, kaupunki"
-                  className="bg-muted/30 border-border"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-[10px] uppercase font-bold text-muted-foreground">Y-tunnus</Label>
-                <Input 
-                  value={formData.businessId}
-                  onChange={(e) => setFormData({...formData, businessId: e.target.value})}
-                  placeholder="1234567-8"
-                  className="bg-muted/30 border-border"
-                />
-              </div>
-
-              <div className="space-y-1">
                 <Label className="text-[10px] uppercase font-bold text-muted-foreground">Yrityksen logo</Label>
                 <div className="flex gap-2 items-center">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    ref={fileInputRef} 
-                    onChange={handleFileChange}
-                  />
-                  <Button 
-                    variant="outline" 
-                    className="bg-muted/30 border-border flex-1 gap-2"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
+                  <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={handleFileChange} />
+                  <Button variant="outline" className="bg-muted/30 border-border flex-1 gap-2" onClick={() => fileInputRef.current?.click()}>
                     <Upload className="w-4 h-4" /> 
                     {formData.logoUrl ? "Vaihda logo" : "Lataa galleriasta"}
                   </Button>
-                  
                   <div className="w-12 h-12 rounded border border-border flex items-center justify-center bg-muted/50 overflow-hidden shrink-0">
-                    {formData.logoUrl ? (
-                      <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                    ) : (
-                      <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                    )}
+                    {formData.logoUrl ? <img src={formData.logoUrl} alt="Logo" className="w-full h-full object-contain" /> : <ImageIcon className="w-4 h-4 text-muted-foreground" />}
                   </div>
                 </div>
               </div>
@@ -249,7 +195,7 @@ Y-tunnus: ${formData.businessId}
           </Card>
         </div>
 
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-5">
           <Card className="bg-card border-border shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-1 h-full steel-detail opacity-30" />
             <CardHeader>
@@ -259,58 +205,32 @@ Y-tunnus: ${formData.businessId}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
-              <div className="w-full max-w-sm aspect-[1.6/1] rounded-2xl p-8 bg-gradient-to-br from-sidebar via-sidebar to-sidebar border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group/card transition-transform duration-500">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+              <div className="w-full max-w-sm aspect-[1.6/1] rounded-2xl p-8 bg-gradient-to-br from-sidebar via-sidebar to-sidebar border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group/card">
                 <div className="absolute top-0 left-0 w-full h-1 copper-gradient opacity-20" />
-                
                 <div className="h-full flex flex-col justify-between relative z-10">
                   <div className="flex justify-between items-start">
                     <div className="space-y-1">
-                      {formData.companyName && (
-                        <h3 className="text-xl font-headline font-bold text-accent tracking-tight">{formData.companyName}</h3>
-                      )}
-                      {formData.businessId && (
-                        <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-[0.2em]">{formData.businessId}</p>
-                      )}
+                      <h3 className="text-xl font-headline font-bold text-accent tracking-tight">{formData.companyName || "Keittiösi"}</h3>
+                      <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-[0.2em]">{formData.businessId}</p>
                     </div>
-                    {formData.logoUrl ? (
-                      <img src={formData.logoUrl} alt="Logo" className="w-12 h-12 object-contain rounded" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg copper-gradient flex items-center justify-center shadow-lg">
-                        <span className="text-white font-bold text-xl">{formData.companyName?.[0] || "W"}</span>
-                      </div>
-                    )}
+                    <div className="w-12 h-12 rounded-lg copper-gradient flex items-center justify-center shadow-lg">
+                      <span className="text-white font-bold text-xl">{formData.companyName?.[0] || "W"}</span>
+                    </div>
                   </div>
-
                   <div className="space-y-4">
-                    <div className="space-y-0.5">
-                      {formData.userName && (
-                        <p className="text-lg font-headline font-bold text-foreground leading-tight">{formData.userName}</p>
-                      )}
-                      {formData.title && (
-                        <p className="text-[10px] text-accent uppercase font-bold tracking-widest">{formData.title}</p>
-                      )}
+                    <div>
+                      <p className="text-lg font-headline font-bold text-foreground leading-tight">{formData.userName}</p>
+                      <p className="text-[10px] text-accent uppercase font-bold tracking-widest">{formData.title}</p>
                     </div>
-
                     <div className="space-y-1.5 pt-2 border-t border-white/5">
-                      {formData.workPhone && (
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <Phone className="w-2.5 h-2.5 text-accent/60" />
-                          <span>{formData.workPhone}</span>
-                        </div>
-                      )}
-                      {formData.address && (
-                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                          <MapPin className="w-2.5 h-2.5 text-accent/60" />
-                          <span>{formData.address}</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                        <Phone className="w-2.5 h-2.5 text-accent/60" />
+                        <span>{formData.workPhone}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-
               <Button onClick={handleShare} className="w-full steel-detail text-background font-bold h-10 gap-2 shadow-lg">
                 <Share2 className="w-4 h-4" /> Jaa käyntikortti
               </Button>
