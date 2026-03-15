@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, HelpCircle, Globe } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, HelpCircle, Globe, CheckCircle2 } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -152,33 +152,36 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
     try {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
+      
+      // Yritetään tallentaa profiili. Jos Firestore ei ole pystyssä, tämä epäonnistuu.
       const userRef = doc(firestore, 'userProfiles', user.uid)
       await setDoc(userRef, {
         userName: user.displayName,
         email: user.email,
         updatedAt: serverTimestamp()
       }, { merge: true })
+      
     } catch (err: any) {
       console.error("Login error:", err)
       if (err.code === 'auth/popup-closed-by-user') {
         setError({ 
-          title: "Kirjautumisikkuna suljettiin", 
-          desc: "Selain saattoi estää ponnahdusikkunan. Salli ponnahdusikkunat ja yritä uudelleen, tai käytä Demo-tilaa alta." 
-        })
-      } else if (err.code === 'auth/configuration-not-found') {
-        setError({ 
-          title: "Google-kirjautuminen puuttuu", 
-          desc: "Aktivoi 'Google' kirjautumistapa Firebase-konsolin Authentication-osiosta." 
+          title: "Ikkuna suljettiin", 
+          desc: "Selain saattoi estää ponnahdusikkunan. Salli ponnahdusikkunat Wisemisa-sivustolle selaimen asetuksista." 
         })
       } else if (err.code === 'auth/unauthorized-domain') {
         setError({ 
           title: "Domain ei valtuutettu", 
-          desc: `Lisää domain "${currentDomain}" Firebase-konsolin Authorized domains -listaan.` 
+          desc: `Lisää alla oleva osoite Firebase-konsoliin valtuutettujen domainien listalle.` 
+        })
+      } else if (err.message?.includes('permission') || err.code?.includes('permission')) {
+        setError({ 
+          title: "Firestore-virhe", 
+          desc: "Kirjautuminen onnistui, mutta tietokantayhteys hylättiin. Tarkista Firebase Firestore -säännöt." 
         })
       } else {
         setError({ 
-          title: "Kirjautumisvirhe", 
-          desc: err.message || "Tapahtui odottamaton virhe. Kokeile Demo-tilaa alta." 
+          title: "Virhe kirjautumisessa", 
+          desc: err.message || "Tapahtui odottamaton virhe. Tarkista Firebase-konsolin asetukset." 
         })
       }
     }
