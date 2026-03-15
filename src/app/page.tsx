@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, HelpCircle, Globe, CheckCircle2 } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, HelpCircle, Globe, CheckCircle2, Loader2 } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -26,7 +26,7 @@ import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useFirestore, useDoc, useUser, useAuth } from "@/firebase"
 import { doc, setDoc, serverTimestamp } from "firebase/firestore"
-import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth"
+import { signInWithRedirect, GoogleAuthProvider, signOut, getRedirectResult } from "firebase/auth"
 import { cn } from "@/lib/utils"
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel"
 import { Card, CardContent } from "@/components/ui/card"
@@ -78,31 +78,31 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
             <span className="text-white font-headline font-black text-sm drop-shadow-lg">W</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-headline font-black text-xs copper-text-glow leading-none">Wisemisa</span>
-            <span className="text-[6px] uppercase tracking-widest text-muted-foreground font-bold mt-0.5 opacity-60">Intelligence</span>
+            <span className="font-headline font-black text-[10px] copper-text-glow leading-none">Wisemisa</span>
+            <span className="text-[5px] uppercase tracking-widest text-muted-foreground font-bold mt-0.5 opacity-60">Intelligence</span>
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-1.5">
-        <SidebarMenu className="gap-0.5">
+      <SidebarContent className="px-1">
+        <SidebarMenu className="gap-0">
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.id}>
               <SidebarMenuButton 
                 isActive={activeModule === item.id}
                 onClick={() => handleModuleChange(item.id as ModuleId)}
                 className={cn(
-                  "h-7 px-2 rounded-lg transition-all duration-300 border border-transparent group",
+                  "h-6 px-2 rounded-lg transition-all duration-300 border border-transparent group",
                   activeModule === item.id 
                   ? "bg-primary/20 text-accent font-bold border-primary/40 shadow-[inset_0_0_10px_rgba(184,115,51,0.15)]" 
                   : "hover:bg-white/5 text-muted-foreground/80 hover:text-foreground"
                 )}
               >
                 <item.icon className={cn(
-                  "w-3 h-3 transition-colors",
+                  "w-2.5 h-2.5 transition-colors",
                   activeModule === item.id ? 'text-accent' : 'text-muted-foreground/60 group-hover:text-accent/80'
                 )} />
-                <span className="ml-2 font-bold text-[9px] uppercase tracking-tight">{item.label}</span>
-                {activeModule === item.id && <ChevronRight className="ml-auto w-2.5 h-2.5 text-accent animate-in slide-in-from-left-2" />}
+                <span className="ml-2 font-bold text-[8px] uppercase tracking-tight">{item.label}</span>
+                {activeModule === item.id && <ChevronRight className="ml-auto w-2 h-2 text-accent animate-in slide-in-from-left-2" />}
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
@@ -110,20 +110,20 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
       </SidebarContent>
       <div className="p-2 border-t border-white/5 mt-auto bg-black/20 space-y-1.5">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg steel-detail flex items-center justify-center text-black font-black text-[8px] shadow-md metal-shine-overlay overflow-hidden">
+          <div className="w-5 h-5 rounded-lg steel-detail flex items-center justify-center text-black font-black text-[7px] shadow-md metal-shine-overlay overflow-hidden">
             {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : (user.displayName?.[0] || user.email?.[0] || 'D')}
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="text-[8px] font-black text-foreground truncate">{user.displayName || 'Käyttäjä'}</span>
-            <span className="text-[5px] uppercase tracking-wider text-muted-foreground font-bold truncate opacity-50">{user.email || 'demo@wisemisa.fi'}</span>
+            <span className="text-[7px] font-black text-foreground truncate">{user.displayName || 'Käyttäjä'}</span>
+            <span className="text-[4px] uppercase tracking-wider text-muted-foreground font-bold truncate opacity-50">{user.email || 'demo@wisemisa.fi'}</span>
           </div>
         </div>
         <div className="flex gap-1">
-          <Button variant="ghost" size="sm" className="flex-1 text-[6px] font-black uppercase text-muted-foreground hover:text-accent hover:bg-white/5 h-5 px-1" onClick={() => setActiveModule('profile')}>
-            <Settings className="w-2 h-2 mr-1" /> ASETUKSET
+          <Button variant="ghost" size="sm" className="flex-1 text-[5px] font-black uppercase text-muted-foreground hover:text-accent hover:bg-white/5 h-4 px-1" onClick={() => setActiveModule('profile')}>
+            <Settings className="w-1.5 h-1.5 mr-1" /> ASETUKSET
           </Button>
-          <Button variant="ghost" size="icon" className="h-5 w-5 text-muted-foreground hover:text-destructive hover:bg-white/5" onClick={handleSignOut}>
-            <LogOut className="w-2 h-2" />
+          <Button variant="ghost" size="icon" className="h-4 w-4 text-muted-foreground hover:text-destructive hover:bg-white/5" onClick={handleSignOut}>
+            <LogOut className="w-1.5 h-1.5" />
           </Button>
         </div>
       </div>
@@ -135,6 +135,7 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
   const auth = useAuth()
   const firestore = useFirestore()
   const [error, setError] = useState<{ title: string, desc: string } | null>(null)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const [currentDomain, setCurrentDomain] = useState("")
 
   useEffect(() => {
@@ -143,46 +144,37 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (!auth || !firestore) return
+
+    getRedirectResult(auth).then(async (result) => {
+      if (result?.user) {
+        const user = result.user
+        const userRef = doc(firestore, 'userProfiles', user.uid)
+        await setDoc(userRef, {
+          userName: user.displayName,
+          email: user.email,
+          updatedAt: serverTimestamp()
+        }, { merge: true })
+      }
+    }).catch((err: any) => {
+      console.error("Redirect error:", err)
+      setError({ title: "Kirjautumisvirhe", desc: err.message || "Uudelleenohjaus epäonnistui." })
+    })
+  }, [auth, firestore])
+
   const handleLogin = async () => {
-    if (!auth || !firestore) {
-      setError({ title: "Yhteysvirhe", desc: "Firebase-yhteyttä ei voitu muodostaa. Tarkista API-avain tiedostossa config.ts." })
+    if (!auth) {
+      setError({ title: "Yhteysvirhe", desc: "Firebase-yhteyttä ei voitu muodostaa." })
       return
     }
     const provider = new GoogleAuthProvider()
+    setIsRedirecting(true)
     try {
-      const result = await signInWithPopup(auth, provider)
-      const user = result.user
-      
-      const userRef = doc(firestore, 'userProfiles', user.uid)
-      await setDoc(userRef, {
-        userName: user.displayName,
-        email: user.email,
-        updatedAt: serverTimestamp()
-      }, { merge: true })
-      
+      await signInWithRedirect(auth, provider)
     } catch (err: any) {
-      console.error("Login error:", err)
-      if (err.code === 'auth/popup-closed-by-user') {
-        setError({ 
-          title: "Ikkuna suljettiin", 
-          desc: "Selain saattoi estää ponnahdusikkunan. Salli ponnahdusikkunat Wisemisa-sivustolle selaimen asetuksista." 
-        })
-      } else if (err.code === 'auth/unauthorized-domain') {
-        setError({ 
-          title: "Domain ei valtuutettu", 
-          desc: `Lisää alla oleva osoite Firebase-konsoliin valtuutettujen domainien listalle.` 
-        })
-      } else if (err.message?.includes('permission') || err.code?.includes('permission')) {
-        setError({ 
-          title: "Firestore-virhe", 
-          desc: "Kirjautuminen onnistui, mutta tietokantayhteys hylättiin. Tarkista Firebase Firestore -säännöt." 
-        })
-      } else {
-        setError({ 
-          title: "Virhe kirjautumisessa", 
-          desc: err.message || "Tapahtui odottamaton virhe. Tarkista Firebase-konsolin asetukset." 
-        })
-      }
+      setIsRedirecting(false)
+      setError({ title: "Virhe", desc: err.message })
     }
   }
 
@@ -217,10 +209,11 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
           <div className="w-full space-y-2">
             <Button 
               onClick={handleLogin} 
+              disabled={isRedirecting}
               className="w-full h-10 copper-gradient text-white font-black uppercase tracking-widest text-[9px] shadow-2xl metal-shine-overlay group"
             >
-              <LogIn className="w-3.5 h-3.5 mr-2 group-hover:translate-x-1 transition-transform" />
-              KIRJAUDU GOOGLELLA
+              {isRedirecting ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <LogIn className="w-3.5 h-3.5 mr-2" />}
+              {isRedirecting ? "ODOTTAA..." : "KIRJAUDU GOOGLELLA"}
             </Button>
             
             <div className="relative py-1">
@@ -240,7 +233,7 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
           <div className="pt-2 flex flex-col items-center gap-2 bg-black/20 p-3 rounded-xl border border-white/5 w-full">
             <div className="flex items-center gap-2">
               <Globe className="w-2.5 h-2.5 text-accent" />
-              <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">Valtuuta tämä osoite:</span>
+              <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">VALTUUTA TÄMÄ OSOITE:</span>
             </div>
             <code className="text-[7px] font-mono bg-black/40 p-1.5 rounded border border-white/10 text-accent w-full break-all select-all">{currentDomain}</code>
             <p className="text-[6px] text-muted-foreground/60 uppercase font-bold italic">Firebase Console &rarr; Authentication &rarr; Settings</p>
