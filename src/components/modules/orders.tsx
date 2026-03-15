@@ -10,7 +10,7 @@ import { ShoppingBag, Calendar as CalendarIcon, Truck, AlertCircle, ArrowRight, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addDays } from "date-fns"
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addDays, startOfWeek, endOfWeek, isSameMonth } from "date-fns"
 import { fi } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -117,9 +117,12 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     deleteDoc(doc(firestore, 'orderReminders', id))
   }
 
-  const monthStart = startOfMonth(new Date())
-  const monthEnd = endOfMonth(new Date())
-  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd })
+  const currentMonth = new Date()
+  const monthStart = startOfMonth(currentMonth)
+  const monthEnd = endOfMonth(monthStart)
+  const calendarStart = startOfWeek(monthStart, { locale: fi })
+  const calendarEnd = endOfWeek(monthEnd, { locale: fi })
+  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
 
   const getOrdersForDay = (day: Date) => {
     return orders.filter(o => {
@@ -203,12 +206,12 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
               <div>
                 <CardTitle className="font-headline text-xl text-foreground">Toimituskalenteri</CardTitle>
                 <CardDescription className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest">
-                  {format(new Date(), 'MMMM yyyy', { locale: fi })} • Klikkaa päivää asettaaksesi muistutuksen
+                  {format(currentMonth, 'MMMM yyyy', { locale: fi })} • Klikkaa päivää asettaaksesi muistutuksen
                 </CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="grid grid-cols-7 border-b border-border">
+              <div className="grid grid-cols-7 border-b border-border bg-muted/20">
                 {['Ma', 'Ti', 'Ke', 'To', 'Pe', 'La', 'Su'].map(day => (
                   <div key={day} className="py-2 text-center text-[10px] font-bold text-muted-foreground uppercase border-r border-border last:border-0">{day}</div>
                 ))}
@@ -219,6 +222,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                   const dayReminders = getRemindersForDay(day)
                   const hasOrders = dayOrders.length > 0
                   const hasReminders = dayReminders.length > 0
+                  const isCurrentMonth = isSameMonth(day, currentMonth)
 
                   return (
                     <div 
@@ -227,7 +231,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                       className={cn(
                         "min-h-[100px] border-r border-b border-border p-2 transition-colors relative group cursor-pointer",
                         i % 7 === 6 ? "border-r-0" : "",
-                        !isSameDay(day, new Date()) ? "hover:bg-white/5" : "bg-primary/5"
+                        !isCurrentMonth ? "opacity-30 bg-muted/5" : (isSameDay(day, new Date()) ? "bg-primary/5" : "hover:bg-white/5")
                       )}
                     >
                       <div className="flex justify-between items-start">
