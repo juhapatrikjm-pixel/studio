@@ -1,10 +1,10 @@
 {
   "name": "Wisemisa Bistro",
   "short_name": "Wisemisa",
-  "description": "Ammattimainen keittiöhallinta ja talouden seuranta",
+  "description": "Ammattimainen keittiöhallinta ja talouden seuranta.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
+  "background_color": "#050505",
   "theme_color": "#b87333",
   "icons": [
     {
@@ -16,8 +16,7 @@
     {
       "src": "https://picsum.photos/seed/wisemisa/512/512",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }

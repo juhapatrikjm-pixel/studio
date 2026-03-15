@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -139,7 +138,6 @@ function LoginPage() {
     const provider = new GoogleAuthProvider()
     try {
       const result = await signInWithPopup(auth, provider)
-      // Tallenna tai päivitä profiili kirjautumisen yhteydessä
       const user = result.user
       const userRef = doc(firestore, 'userProfiles', user.uid)
       setDoc(userRef, {
@@ -161,13 +159,13 @@ function LoginPage() {
 
       <Card className="industrial-card max-w-md w-full relative z-10 overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
-        <CardContent className="p-12 flex flex-col items-center text-center gap-8">
+        <CardContent className="p-8 md:p-12 flex flex-col items-center text-center gap-8">
           <div className="w-20 h-20 rounded-2xl copper-gradient flex items-center justify-center shadow-[0_0_40px_rgba(184,115,51,0.4)] metal-shine-overlay">
             <span className="text-white font-headline font-black text-4xl drop-shadow-xl">W</span>
           </div>
           <div className="space-y-2">
-            <h1 className="text-4xl font-headline font-black copper-text-glow uppercase tracking-tighter">Wisemisa Bistro</h1>
-            <p className="text-muted-foreground font-medium text-sm">Industrial Kitchen Intelligence Platform</p>
+            <h1 className="text-3xl md:text-4xl font-headline font-black copper-text-glow uppercase tracking-tighter">Wisemisa Bistro</h1>
+            <p className="text-muted-foreground font-medium text-xs md:text-sm">Industrial Kitchen Intelligence Platform</p>
           </div>
           
           <div className="w-full space-y-4">
@@ -176,9 +174,9 @@ function LoginPage() {
               className="w-full h-14 copper-gradient text-white font-black uppercase tracking-widest text-xs shadow-2xl metal-shine-overlay group"
             >
               <LogIn className="w-5 h-5 mr-3 group-hover:translate-x-1 transition-transform" />
-              Kirjaudu Google-tunnuksilla
+              Kirjaudu sisään
             </Button>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest opacity-40">Suojattu yhteys Wisemisa Cloudiin</p>
+            <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-widest opacity-40">Suojattu yhteys Wisemisa Cloudiin</p>
           </div>
         </CardContent>
       </Card>
@@ -279,24 +277,24 @@ export default function Home() {
         <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} user={user} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
-          <header className="h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
-            <div className="flex items-center gap-6 flex-1">
+          <header className="h-16 md:h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
+            <div className="flex items-center gap-4 flex-1">
               <SidebarTrigger className="text-muted-foreground hover:text-accent transition-transform hover:scale-110" />
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-xl leading-none tracking-wider tabular-nums copper-text-glow truncate">
+              <div className="text-accent font-headline font-black text-lg md:text-xl leading-none tracking-tight tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
-              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-1.5 opacity-80 truncate w-full">
-                {currentTime ? format(currentTime, 'EEEE d. MMMM yyyy', { locale: fi }) : 'Alustetaan...'}
+              <div className="text-[8px] md:text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1 opacity-80 truncate w-full">
+                {currentTime ? format(currentTime, 'EEEE d.M.yyyy', { locale: fi }) : 'Alustetaan...'}
               </div>
             </div>
 
-            <div className="flex items-center gap-4 flex-1 justify-end">
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5 group">
-                <Bell className="w-5 h-5 group-hover:animate-bounce" />
-                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-background shadow-[0_0_12px_rgba(184,115,51,0.8)]" />
+            <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end">
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5 group h-9 w-9">
+                <Bell className="w-4 h-4 md:w-5 md:h-5 group-hover:animate-bounce" />
+                <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-[0_0_8px_rgba(184,115,51,0.8)]" />
               </Button>
             </div>
           </header>
@@ -314,8 +312,8 @@ export default function Home() {
               <CarouselContent className="h-full ml-0">
                 {sortedMenuItems.map((item) => (
                   <CarouselItem key={item.id} className="pl-0 h-full overflow-y-auto">
-                    <div className="p-6 md:p-12 max-w-[1600px] mx-auto w-full min-h-full">
-                      <div className="max-w-6xl mx-auto space-y-12 pb-20">
+                    <div className="p-4 md:p-12 max-w-[1600px] mx-auto w-full min-h-full">
+                      <div className="max-w-6xl mx-auto space-y-8 md:space-y-12 pb-20">
                         {renderModule(item.id as ModuleId)}
                       </div>
                     </div>
