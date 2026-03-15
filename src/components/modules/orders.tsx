@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -64,6 +64,12 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [newReminder, setNewReminder] = useState({ content: "", time: "08:00", hasAlert: true })
+  
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null)
+
+  useEffect(() => {
+    setCurrentMonth(new Date())
+  }, [])
 
   const handleMakeOrder = () => {
     if (!selectedSupplierId || !firestore) return
@@ -117,12 +123,14 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     deleteDoc(doc(firestore, 'orderReminders', id))
   }
 
-  const currentMonth = new Date()
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(monthStart)
-  const calendarStart = startOfWeek(monthStart, { locale: fi })
-  const calendarEnd = endOfWeek(monthEnd, { locale: fi })
-  const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+  const calendarDays = useMemo(() => {
+    if (!currentMonth) return []
+    const monthStart = startOfMonth(currentMonth)
+    const monthEnd = endOfMonth(monthStart)
+    const calendarStart = startOfWeek(monthStart, { locale: fi })
+    const calendarEnd = endOfWeek(monthEnd, { locale: fi })
+    return eachDayOfInterval({ start: calendarStart, end: calendarEnd })
+  }, [currentMonth])
 
   const getOrdersForDay = (day: Date) => {
     return orders.filter(o => {
@@ -137,6 +145,8 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
       return isSameDay(date, day)
     })
   }
+
+  if (!currentMonth) return null
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
@@ -185,7 +195,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start text-left font-normal bg-muted/50 border-border">
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {arrivalDate ? format(arrivalDate, 'dd.MM.yyyy') : <span>Valitse päivä</span>}
+                      {arrivalDate ? format(arrivalDate, 'dd.MM.yyyy', { locale: fi }) : <span>Valitse päivä</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-card border-border" align="start">
@@ -259,7 +269,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
 
       <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
         <DialogContent className="bg-card border-border text-foreground">
-          <DialogHeader><DialogTitle className="font-headline text-accent">Aseta muistutus: {selectedDay ? format(selectedDay, 'd.M.yyyy') : ''}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-headline text-accent">Aseta muistutus: {selectedDay ? format(selectedDay, 'd.M.yyyy', { locale: fi }) : ''}</DialogTitle></DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Mitä tilataan / Huomioitavaa</Label>

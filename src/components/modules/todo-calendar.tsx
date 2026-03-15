@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -55,7 +56,7 @@ export function TodoCalendarModule() {
   const { data: events = [] } = useCollection<CalendarEvent>(eventsRef)
   const { data: tasks = [] } = useCollection<TodoTask>(tasksQuery)
 
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+  const [currentMonth, setCurrentMonth] = useState<Date | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false)
   const [newTodo, setNewTodo] = useState("")
@@ -67,11 +68,18 @@ export function TodoCalendarModule() {
     color: EVENT_COLORS[0].hex 
   })
 
-  const monthStart = startOfMonth(currentMonth)
-  const monthEnd = endOfMonth(monthStart)
-  const startDate = startOfWeek(monthStart, { locale: fi })
-  const endDate = endOfWeek(monthEnd, { locale: fi })
-  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate })
+  useEffect(() => {
+    setCurrentMonth(new Date())
+  }, [])
+
+  const calendarDays = useMemo(() => {
+    if (!currentMonth) return []
+    const monthStart = startOfMonth(currentMonth)
+    const monthEnd = endOfMonth(monthStart)
+    const startDate = startOfWeek(monthStart, { locale: fi })
+    const endDate = endOfWeek(monthEnd, { locale: fi })
+    return eachDayOfInterval({ start: startDate, end: endDate })
+  }, [currentMonth])
 
   const handleAddTodo = () => {
     if (!newTodo.trim() || !firestore) return
@@ -142,7 +150,6 @@ export function TodoCalendarModule() {
   const getDayStyle = (day: Date) => {
     const dayEvents = getEventsForDay(day)
     if (dayEvents.length === 0) return null
-    if (dayEvents.length === 1) return { backgroundColor: dayEvents[0].color }
     
     const colors = Array.from(new Set(dayEvents.map(e => e.color)))
     if (colors.length === 1) return { backgroundColor: colors[0] }
@@ -152,6 +159,8 @@ export function TodoCalendarModule() {
     }
   }
 
+  if (!currentMonth) return null
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col gap-1">
@@ -160,7 +169,6 @@ export function TodoCalendarModule() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* TO DO LISTA */}
         <div className="lg:col-span-4 space-y-6">
           <Card className="bg-card border-border shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-50" />
@@ -207,7 +215,6 @@ export function TodoCalendarModule() {
           </Card>
         </div>
 
-        {/* SEINÄKALENTERI */}
         <div className="lg:col-span-8">
           <Card className="bg-card border-border shadow-2xl overflow-hidden h-fit">
             <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 bg-secondary/10">
@@ -221,13 +228,6 @@ export function TodoCalendarModule() {
                 <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
                   <ChevronRight className="w-5 h-5 text-accent" />
                 </Button>
-              </div>
-              <div className="hidden sm:flex items-center gap-2">
-                 <div className="flex gap-1">
-                   {EVENT_COLORS.map(c => (
-                     <div key={c.name} className={cn("w-2 h-2 rounded-full", c.value)} title={c.name} />
-                   ))}
-                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -276,7 +276,6 @@ export function TodoCalendarModule() {
                         ))}
                       </div>
 
-                      {/* Visuaalinen alareunan indikaattori */}
                       {dayEvents.length > 0 && (
                         <div 
                           className="absolute bottom-0 left-0 w-full h-1 opacity-50"
@@ -292,7 +291,6 @@ export function TodoCalendarModule() {
         </div>
       </div>
 
-      {/* TAPAHTUMA POPUP */}
       <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
         <DialogContent className="bg-card border-border text-foreground max-w-md">
           <DialogHeader>
@@ -366,7 +364,6 @@ export function TodoCalendarModule() {
             </div>
           </div>
 
-          {/* Listataan päivän olemassa olevat tapahtumat */}
           {selectedDate && getEventsForDay(selectedDate).length > 0 && (
             <div className="space-y-2 border-t border-border pt-4">
               <Label className="text-[10px] uppercase font-bold text-muted-foreground">Päivän muut merkinnät</Label>
