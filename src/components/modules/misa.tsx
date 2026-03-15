@@ -121,7 +121,8 @@ export function MisaModule() {
   }
 
   const handleShare = (list: MisaList) => {
-    const text = `${list.category.toUpperCase()}-LISTA: ${list.title}\n\n` + 
+    const categoryName = list.category === 'tukku' ? 'HAKU' : list.category.toUpperCase();
+    const text = `${categoryName}-LISTA: ${list.title}\n\n` + 
       list.items.map(i => `${i.completed ? '[x]' : '[ ]'} ${i.text}`).join('\n');
     
     if (navigator.share) {
@@ -136,7 +137,7 @@ export function MisaModule() {
 
   const tabConfigs = {
     prep: { label: "Prep-listat", icon: ClipboardList, color: "text-accent" },
-    tukku: { label: "Tukku-lista", icon: ShoppingCart, color: "text-blue-400" },
+    tukku: { label: "Haku lista", icon: ShoppingCart, color: "text-blue-400" },
     puute: { label: "Puute-lista", icon: AlertTriangle, color: "text-destructive" }
   };
 
@@ -144,18 +145,18 @@ export function MisaModule() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10 print:p-0">
       <header className="flex flex-col gap-1 no-print">
         <h2 className="text-3xl font-headline font-bold copper-text-glow">Keittiön Listat</h2>
-        <p className="text-muted-foreground">Hallitse valmisteluja, tukkutilauksia ja puutteita keskitetysti.</p>
+        <p className="text-muted-foreground font-medium">Hallitse valmisteluja, hakuja ja puutteita keskitetysti.</p>
       </header>
 
       <Tabs value={activeTab} onValueChange={(val: any) => { setActiveTab(val); setActiveListId(null); }} className="w-full">
         <TabsList className="grid w-full grid-cols-3 mb-8 bg-black/40 border border-white/5 p-1 no-print h-12">
-          <TabsTrigger value="prep" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent">
+          <TabsTrigger value="prep" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent transition-all">
             <ClipboardList className="w-4 h-4" /> Prep-listat
           </TabsTrigger>
-          <TabsTrigger value="tukku" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent">
-            <ShoppingCart className="w-4 h-4" /> Tukku-lista
+          <TabsTrigger value="tukku" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent transition-all">
+            <ShoppingCart className="w-4 h-4" /> Haku lista
           </TabsTrigger>
-          <TabsTrigger value="puute" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent">
+          <TabsTrigger value="puute" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent transition-all">
             <AlertTriangle className="w-4 h-4" /> Puute-lista
           </TabsTrigger>
         </TabsList>
@@ -178,9 +179,9 @@ export function MisaModule() {
                   placeholder="Uuden listan nimi..." 
                   value={newListTitle}
                   onChange={(e) => setNewListTitle(e.target.value)}
-                  className="bg-white/5 border-white/10 h-10 text-xs"
+                  className="bg-white/5 border-white/10 h-10 text-xs rounded-lg focus:border-accent/40"
                 />
-                <Button onClick={addMisaList} className="copper-gradient h-10 px-3 metal-shine-overlay">
+                <Button onClick={addMisaList} className="copper-gradient h-10 px-3 shadow-lg metal-shine-overlay">
                   <Plus className="w-4 h-4" />
                 </Button>
               </div>
@@ -209,7 +210,7 @@ export function MisaModule() {
                     </div>
                   ))}
                   {misaLists.length === 0 && (
-                    <p className="text-center py-10 text-[10px] uppercase font-black tracking-widest text-muted-foreground/30">Ei tallennettuja listoja</p>
+                    <p className="text-center py-10 text-[10px] uppercase font-black tracking-widest text-muted-foreground/30 italic">Ei tallennettuja listoja</p>
                   )}
                 </div>
               </ScrollArea>
@@ -225,26 +226,26 @@ export function MisaModule() {
                   <div className="flex-1">
                     {editingTitleId === activeList.id ? (
                       <div className="flex gap-2 max-w-sm">
-                        <Input value={tempTitle} onChange={(e) => setTempTitle(e.target.value)} className="h-8 bg-white/10" />
-                        <Button size="sm" onClick={() => updateListTitle(activeList.id)} className="copper-gradient h-8">OK</Button>
+                        <Input value={tempTitle} onChange={(e) => setTempTitle(e.target.value)} className="h-8 bg-white/10 text-sm font-bold border-accent/20" />
+                        <Button size="sm" onClick={() => updateListTitle(activeList.id)} className="copper-gradient h-8 text-[10px] font-black">OK</Button>
                       </div>
                     ) : (
                       <CardTitle className="font-headline text-2xl font-black flex items-center gap-3">
-                        <span className={cn("p-2 rounded-lg bg-black/40 border border-white/10 no-print", tabConfigs[activeTab].color)}>
+                        <span className={cn("p-2 rounded-lg bg-black/40 border border-white/10 no-print shadow-lg", tabConfigs[activeTab].color)}>
                           {activeTab === 'prep' && <ClipboardList className="w-5 h-5" />}
                           {activeTab === 'tukku' && <ShoppingCart className="w-5 h-5" />}
                           {activeTab === 'puute' && <AlertTriangle className="w-5 h-5" />}
                         </span>
-                        <span className="copper-text-glow">{activeList.title}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 no-print text-muted-foreground/40 hover:text-accent" onClick={() => { setEditingTitleId(activeList.id); setTempTitle(activeList.title); }}>
+                        <span className="copper-text-glow uppercase tracking-tight">{activeList.title}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 no-print text-muted-foreground/40 hover:text-accent transition-colors" onClick={() => { setEditingTitleId(activeList.id); setTempTitle(activeList.title); }}>
                           <Edit2 className="w-3 h-3" />
                         </Button>
                       </CardTitle>
                     )}
                   </div>
                   <div className="flex gap-2 no-print">
-                    <Button variant="outline" size="icon" className="border-white/10 text-muted-foreground hover:text-accent" onClick={() => handleShare(activeList)}><Share2 className="w-4 h-4" /></Button>
-                    <Button variant="outline" size="icon" className="border-white/10 text-muted-foreground hover:text-accent" onClick={handlePrint}><Printer className="w-4 h-4" /></Button>
+                    <Button variant="outline" size="icon" className="border-white/10 text-muted-foreground hover:text-accent shadow-sm" onClick={() => handleShare(activeList)} title="Jaa lista"><Share2 className="w-4 h-4" /></Button>
+                    <Button variant="outline" size="icon" className="border-white/10 text-muted-foreground hover:text-accent shadow-sm" onClick={handlePrint} title="Tulosta PDF"><Printer className="w-4 h-4" /></Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-6 pt-6">
@@ -254,12 +255,12 @@ export function MisaModule() {
                       value={newTaskText}
                       onChange={(e) => setNewTaskText(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && addTaskToList(activeList.id)}
-                      className="bg-white/5 border-white/10 h-12 text-sm rounded-xl focus:border-accent/40"
+                      className="bg-white/5 border-white/10 h-12 text-sm rounded-xl focus:border-accent/40 transition-all placeholder:text-muted-foreground/40"
                     />
-                    <Button onClick={() => addTaskToList(activeList.id)} className="copper-gradient h-12 px-6 metal-shine-overlay font-black text-xs uppercase tracking-widest">Lisää</Button>
+                    <Button onClick={() => addTaskToList(activeList.id)} className="copper-gradient h-12 px-6 shadow-xl metal-shine-overlay font-black text-xs uppercase tracking-widest">Lisää</Button>
                   </div>
                   <ScrollArea className="h-[500px] pr-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 pb-10">
                       {activeList.items?.map((item) => (
                         <div key={item.id} className="flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/5 shadow-inner hover:border-white/10 transition-all group print:border-black print:text-black">
                           <div className="flex items-center gap-4">
@@ -269,7 +270,7 @@ export function MisaModule() {
                               className="w-5 h-5 border-white/20 data-[state=checked]:bg-accent data-[state=checked]:border-accent no-print"
                             />
                             <span className={cn(
-                              "text-sm font-bold tracking-wide transition-all",
+                              "text-sm font-bold tracking-wide transition-all duration-300",
                               item.completed ? "line-through text-muted-foreground/40 opacity-50" : "text-foreground",
                               "print:text-black print:no-underline"
                             )}>
@@ -279,7 +280,7 @@ export function MisaModule() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="no-print h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 rounded-full" 
+                            className="no-print h-8 w-8 text-destructive/40 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 rounded-full transition-all" 
                             onClick={() => removeTaskFromList(activeList.id, item)}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -298,12 +299,12 @@ export function MisaModule() {
               </>
             ) : (
               <div className="p-20 text-center flex flex-col items-center gap-6 opacity-30">
-                <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shadow-inner">
                   <Plus className="w-10 h-10 text-accent" />
                 </div>
                 <div>
                   <h3 className="text-xl font-headline font-black uppercase tracking-widest mb-2">Ei valittua listaa</h3>
-                  <p className="text-xs text-muted-foreground">Luo uusi lista sivupalkista aloittaaksesi seurannan.</p>
+                  <p className="text-xs text-muted-foreground font-medium">Luo uusi lista sivupalkista aloittaaksesi seurannan.</p>
                 </div>
               </div>
             )}
