@@ -314,24 +314,24 @@ export default function Home() {
         <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} user={effectiveUser} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
-          <header className="h-12 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 flex items-center justify-between">
+          <header className="h-10 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1">
               <SidebarTrigger className="text-muted-foreground hover:text-accent h-7 w-7" />
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-xs leading-none tracking-widest tabular-nums copper-text-glow truncate">
+              <div className="text-accent font-headline font-black text-[11px] leading-none tracking-widest tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
-              <div className="text-[7px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-0.5 opacity-60 truncate w-full">
+              <div className="text-[6px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-0.5 opacity-60 truncate w-full">
                 {currentTime ? format(currentTime, 'EEEE d.M.yyyy', { locale: fi }) : '...'}
               </div>
             </div>
 
             <div className="flex items-center gap-2 flex-1 justify-end">
               <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent h-7 w-7">
-                <Bell className="w-3.5 h-3.5" />
-                <span className="absolute top-1.5 right-1.5 w-1 h-1 bg-accent rounded-full border border-background" />
+                <Bell className="w-3 h-3" />
+                <span className="absolute top-2 right-2 w-1 h-1 bg-accent rounded-full border border-background" />
               </Button>
             </div>
           </header>
@@ -341,8 +341,8 @@ export default function Home() {
               <CarouselContent className="h-full ml-0">
                 {sortedMenuItems.map((item) => (
                   <CarouselItem key={item.id} className="pl-0 h-full overflow-y-auto">
-                    <div className="p-4 md:p-6 max-w-[1600px] mx-auto w-full min-h-full">
-                      <div className="max-w-5xl mx-auto space-y-4 pb-20">
+                    <div className="p-3 md:p-6 max-w-[1600px] mx-auto w-full min-h-full">
+                      <div className="max-w-5xl mx-auto space-y-3 pb-20">
                         {renderModule(item.id as ModuleId)}
                       </div>
                     </div>
