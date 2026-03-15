@@ -185,13 +185,6 @@ export default function Home() {
           <header className="h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-8 flex items-center justify-between">
             <div className="flex items-center gap-6 flex-1">
               <SidebarTrigger className="text-muted-foreground hover:text-accent transition-transform hover:scale-110" />
-              <div className="hidden sm:flex items-center gap-3 bg-white/5 px-5 py-2.5 rounded-full border border-white/10 shadow-inner group transition-all hover:border-accent/40">
-                <Search className="w-4 h-4 text-muted-foreground group-focus-within:text-accent transition-colors" />
-                <input 
-                  placeholder="Hae järjestelmästä..." 
-                  className="bg-transparent border-none text-xs focus:outline-none w-48 md:w-80 text-foreground placeholder:text-muted-foreground/60"
-                />
-              </div>
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center">
