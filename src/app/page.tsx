@@ -9,7 +9,7 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { LogIn, Loader2, AlertCircle, Globe } from "lucide-react"
+import { LogIn, AlertCircle, Globe } from "lucide-react"
 
 export default function LoginPage() {
   const { user, loading: authLoading } = useUser()
@@ -26,7 +26,6 @@ export default function LoginPage() {
     }
   }, [])
 
-  // Käsitellään redirect-tulos heti alussa
   useEffect(() => {
     if (!auth || !firestore) return
 
@@ -35,15 +34,14 @@ export default function LoginPage() {
         const result = await getRedirectResult(auth)
         if (result?.user) {
           const u = result.user
-          // Tallennetaan profiili taustalla
+          // Tallennetaan profiili taustalla vikasietoisesti
           setDoc(doc(firestore, 'userProfiles', u.uid), {
             userName: u.displayName,
             email: u.email,
             updatedAt: serverTimestamp()
-          }, { merge: true }).catch(e => console.warn("Firestore sync deferred."))
+          }, { merge: true }).catch(() => console.warn("Firestore sync deferred."))
           router.push('/dashboard')
         } else if (user) {
-          // Jos ollaan jo kirjautuneena, mennään suoraan dashboardille
           router.push('/dashboard')
         }
       } catch (err: any) {
