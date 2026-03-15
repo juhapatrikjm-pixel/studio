@@ -67,7 +67,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
 
   const [supplierNameInput, setSupplierNameInput] = useState("")
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null)
-  const [arrivalDate, setArrivalDate] = useState<Date>(addDays(new Date(), 1))
+  const [arrivalDate, setArrivalDate] = useState<Date | undefined>(undefined)
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [newReminder, setNewReminder] = useState({ content: "", time: "08:00", hasAlert: true })
@@ -76,10 +76,11 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
 
   useEffect(() => {
     setCurrentMonth(new Date())
+    setArrivalDate(addDays(new Date(), 1))
   }, [])
 
   const handleMakeOrder = () => {
-    if (!supplierNameInput.trim() || !firestore) return
+    if (!supplierNameInput.trim() || !firestore || !arrivalDate) return
     
     const existingSupplier = suppliers.find(s => s.id === selectedSupplierId || s.name.toLowerCase() === supplierNameInput.toLowerCase())
     const color = existingSupplier?.color || "bg-[#71717a]"
@@ -100,7 +101,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     setDoc(docRef, orderData).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: docRef.path,
-        operation: 'create',
+        operation: 'write',
         requestResourceData: orderData
       }))
     })
@@ -132,7 +133,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     setDoc(docRef, reminderData).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: docRef.path,
-        operation: 'create',
+        operation: 'write',
         requestResourceData: reminderData
       }))
     })

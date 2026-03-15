@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Activity, LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, CheckCircle, Info, ChefHat, CookingPot, Wrench, Send, Trash2, Clock, Zap, Target } from "lucide-react"
@@ -16,12 +17,18 @@ import { cn } from "@/lib/utils"
 
 export function WorkspaceModule() {
   const firestore = useFirestore()
-  const todayDate = useMemo(() => format(new Date(), 'yyyy-MM-dd'), [])
   const currentUser = "John Smith"
+
+  // Use state for date to prevent hydration mismatch
+  const [todayDate, setTodayDate] = useState<string | null>(null)
+
+  useEffect(() => {
+    setTodayDate(format(new Date(), 'yyyy-MM-dd'))
+  }, [])
 
   // Haetaan päivän viimeisin vuoro-info
   const shiftInfoQuery = useMemo(() => {
-    if (!firestore) return null
+    if (!firestore || !todayDate) return null
     return query(
       collection(firestore, 'shiftInfos'), 
       where('date', '==', todayDate),
@@ -41,7 +48,7 @@ export function WorkspaceModule() {
   const { data: records = [] } = useCollection<any>(omavalvontaQuery)
   const latestRecord = records[0] || null
 
-  // Dynaamiset toimintalokit: Reseptit ja Annokset
+  // Dynaamiset toimintalokit
   const recipesQuery = useMemo(() => firestore ? query(collection(firestore, 'recipes'), orderBy('createdAt', 'desc'), limit(5)) : null, [firestore])
   const dishesQuery = useMemo(() => firestore ? query(collection(firestore, 'dishes'), orderBy('createdAt', 'desc'), limit(5)) : null, [firestore])
   
@@ -85,7 +92,6 @@ export function WorkspaceModule() {
     deleteDoc(doc(firestore, 'maintenanceNotes', id))
   }
 
-  // Yhdistetään ja järjestetään lokit
   const combinedLogs = useMemo(() => {
     const logs = [
       ...latestRecipes.map(r => ({
@@ -122,7 +128,6 @@ export function WorkspaceModule() {
       <OmavalvontaStatusHeader record={latestRecord} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Vasen sarake */}
         <div className="lg:col-span-8 space-y-8">
           {shiftInfo && !isRead && (shiftInfo.bulletPoints?.length > 0 || shiftInfo.freeText) && (
             <Card className="industrial-card animate-breathing overflow-hidden">
@@ -221,7 +226,6 @@ export function WorkspaceModule() {
           </Card>
         </div>
 
-        {/* Oikea sarake */}
         <div className="lg:col-span-4 space-y-8">
           <Card className="industrial-card">
             <CardHeader className="pb-4">
@@ -238,7 +242,7 @@ export function WorkspaceModule() {
                     <div className="flex-1">
                       <p className="text-sm font-black text-foreground leading-tight">{log.text}</p>
                       <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
-                        {formatDistanceToNow(new Date(log.time), { addSuffix: true, locale: fi })}
+                        {log.time ? formatDistanceToNow(new Date(log.time), { addSuffix: true, locale: fi }) : 'Äsken'}
                       </p>
                     </div>
                   </div>

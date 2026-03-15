@@ -32,11 +32,24 @@ type SMRecord = {
 }
 
 export function OmavalvontaStatusHeader({ record }: { record: SMRecord | null }) {
-  // Tarkistetaan onko päivämäärä olemassa (serverTimestamp voi olla hetken null)
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => setIsMounted(true), [])
+
+  if (!isMounted) return (
+    <Card className="w-full border-2 border-white/5 bg-white/5 mb-6">
+      <CardContent className="p-4 flex items-center justify-between opacity-50">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-muted animate-pulse" />
+          <div className="space-y-2">
+            <div className="h-4 w-48 bg-muted animate-pulse rounded" />
+            <div className="h-3 w-32 bg-muted animate-pulse rounded" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
   const recordDate = record?.date instanceof Timestamp ? record.date.toDate() : null
-  
-  // Lasketaan päivät vain jos päivämäärä on tiedossa. 
-  // Jos record on olemassa mutta päivämäärä puuttuu, oletetaan se tuoreeksi (0).
   const daysSince = recordDate 
     ? differenceInDays(new Date(), recordDate) 
     : (record ? 0 : 999)
@@ -133,7 +146,7 @@ export function OmavalvontaModule() {
     }).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: taskRef.path,
-        operation: 'create'
+        operation: 'write'
       }))
     })
     setNewTaskName("")
@@ -183,7 +196,6 @@ export function OmavalvontaModule() {
       <OmavalvontaStatusHeader record={latestRecord} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Tehtävien hallinta & Kuittaus */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="bg-card border-border shadow-xl">
             <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
@@ -255,7 +267,6 @@ export function OmavalvontaModule() {
           </Card>
         </div>
 
-        {/* Lisääminen */}
         <div className="space-y-6">
           <Card className="bg-card border-border shadow-xl">
             <CardHeader>

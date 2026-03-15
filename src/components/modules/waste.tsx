@@ -66,20 +66,32 @@ type MonthlyWaste = {
 export function WasteModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
-  const currentMonthId = format(new Date(), 'yyyy-MM')
+  
+  // Hydration-friendly month initialization
+  const [currentMonthId, setCurrentMonthId] = useState<string>("")
+  
+  useEffect(() => {
+    setCurrentMonthId(format(new Date(), 'yyyy-MM'))
+  }, [])
 
   // Firestore Refs
   const groupsRef = useMemo(() => (firestore ? collection(firestore, 'wasteGroups') : null), [firestore])
   const productsRef = useMemo(() => (firestore ? collection(firestore, 'wasteProducts') : null), [firestore])
-  const monthlyRef = useMemo(() => (firestore ? doc(firestore, 'monthlyWaste', currentMonthId) : null), [firestore, currentMonthId])
+  const monthlyRef = useMemo(() => (firestore && currentMonthId ? doc(firestore, 'monthlyWaste', currentMonthId) : null), [firestore, currentMonthId])
   const entriesRef = useMemo(() => (firestore ? collection(firestore, 'wasteEntries') : null), [firestore])
 
   const { data: groups = [] } = useCollection<WasteGroup>(groupsRef ? query(groupsRef, orderBy('index', 'asc')) : null)
   const { data: products = [] } = useCollection<WasteProduct>(productsRef)
   const { data: monthlyStats } = useDoc<MonthlyWaste>(monthlyRef)
-  const { data: entries = [] } = useCollection<WasteEntry>(entriesRef ? query(entriesRef, where('monthId', '==', currentMonthId), orderBy('date', 'desc'), limit(10)) : null)
+  
+  const entriesQuery = useMemo(() => {
+    if (!entriesRef || !currentMonthId) return null
+    return query(entriesRef, where('monthId', '==', currentMonthId), orderBy('date', 'desc'), limit(10))
+  }, [entriesRef, currentMonthId])
+  
+  const { data: entries = [] } = useCollection<WasteEntry>(entriesQuery)
 
-  // Navigation State: "Klik-Klik-Punnitse"
+  // Navigation State
   const [step, setStep] = useState<'group' | 'product' | 'weight' | 'confirm'>('group')
   const [activeType, setActiveType] = useState<'prep' | 'waste'>('waste')
   const [selectedGroup, setSelectedGroup] = useState<WasteGroup | null>(null)
@@ -94,7 +106,7 @@ export function WasteModule() {
   const [newProductName, setNewProductName] = useState("")
   const [newProductPrice, setNewProductPrice] = useState("")
 
-  // Pre-seed groups if none exist (8 groups)
+  // Pre-seed groups if none exist
   useEffect(() => {
     if (firestore && groups.length === 0) {
       const defaultGroups = [
@@ -130,7 +142,7 @@ export function WasteModule() {
   }
 
   const handleLogWaste = () => {
-    if (!selectedProduct || !weight || !firestore) return
+    if (!selectedProduct || !weight || !firestore || !currentMonthId) return
     
     const weightNum = Number(weight)
     const cost = weightNum * selectedProduct.pricePerKg
@@ -172,7 +184,6 @@ export function WasteModule() {
 
   const filteredProducts = products.filter(p => p.groupId === selectedGroup?.id)
 
-  // Management functions
   const saveGroupName = () => {
     if (!editingGroup || !newGroupName.trim() || !firestore) return
     setDoc(doc(firestore, 'wasteGroups', editingGroup.id), { name: newGroupName }, { merge: true })
@@ -199,6 +210,8 @@ export function WasteModule() {
     deleteDoc(doc(firestore, 'wasteProducts', id))
   }
 
+  if (!currentMonthId) return null;
+
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-20">
       <header className="flex items-center justify-between">
@@ -219,7 +232,6 @@ export function WasteModule() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Pääpaneeli: Kirjaus */}
         <div className="lg:col-span-8 space-y-6">
           <Card className="industrial-card overflow-hidden min-h-[650px] flex flex-col">
             <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
@@ -359,7 +371,6 @@ export function WasteModule() {
           </Card>
         </div>
 
-        {/* Oikea Paneeli: Raportit ja Historia */}
         <div className="lg:col-span-4 space-y-8">
           <Card className="industrial-card">
             <CardHeader className="bg-black/20 border-b border-white/5">
@@ -405,7 +416,6 @@ export function WasteModule() {
         </div>
       </div>
 
-      {/* Hallinta Dialogi */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="max-w-4xl bg-background border-border overflow-hidden flex flex-col p-0 h-[80vh]">
           <DialogHeader className="p-6 border-b border-white/5 bg-card">
@@ -415,7 +425,6 @@ export function WasteModule() {
           </DialogHeader>
           
           <div className="flex-1 flex overflow-hidden">
-            {/* Ryhmät sivupalkki */}
             <div className="w-64 border-r border-white/5 bg-black/20 overflow-y-auto">
               {groups.map((group) => (
                 <button
@@ -432,7 +441,6 @@ export function WasteModule() {
               ))}
             </div>
 
-            {/* Tuotehallinta sisältö */}
             <div className="flex-1 overflow-y-auto p-6">
               {editingGroup ? (
                 <div className="space-y-8 animate-in fade-in duration-300">

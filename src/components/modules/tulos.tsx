@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -65,14 +66,23 @@ export function TulosModule() {
 
   const [entryType, setEntryType] = useState<'daily' | 'monthly'>('daily')
   const [formData, setFormData] = useState({
-    date: format(new Date(), 'yyyy-MM-dd'),
-    month: format(new Date(), 'yyyy-MM'),
+    date: "",
+    month: "",
     revenue: "",
     foodCost: "",
     workHours: "",
     otherExpenses: "",
     comment: ""
   })
+
+  // Set initial dates after hydration
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      date: format(new Date(), 'yyyy-MM-dd'),
+      month: format(new Date(), 'yyyy-MM')
+    }))
+  }, [])
 
   const currentLaborCost = useMemo(() => {
     const hours = Number(formData.workHours) || 0
@@ -82,8 +92,12 @@ export function TulosModule() {
   const monthlyStats = useMemo(() => {
     const now = new Date()
     const currentMonthRecords = records.filter(r => {
-      const d = r.entryType === 'monthly' ? parseISO(r.date + "-01") : parseISO(r.date)
-      return isSameMonth(d, now)
+      try {
+        const d = r.entryType === 'monthly' ? parseISO(r.date + "-01") : parseISO(r.date)
+        return isSameMonth(d, now)
+      } catch (e) {
+        return false
+      }
     })
     
     const totals = currentMonthRecords.reduce((acc, curr) => ({
@@ -105,8 +119,13 @@ export function TulosModule() {
   const chartData = useMemo(() => {
     return records.slice(0, 10).reverse().map(r => {
       const profit = r.revenue - (r.foodCost || 0) - (r.laborCost || 0) - (r.otherExpenses || 0)
+      let label = r.date
+      try {
+        label = r.entryType === 'monthly' ? format(parseISO(r.date + "-01"), 'MMM', { locale: fi }) : format(parseISO(r.date), 'd.M.')
+      } catch (e) {}
+      
       return {
-        pvm: r.entryType === 'monthly' ? format(parseISO(r.date + "-01"), 'MMM', { locale: fi }) : format(parseISO(r.date), 'd.M.'),
+        pvm: label,
         myynti: r.revenue,
         tulos: profit
       }
@@ -117,6 +136,8 @@ export function TulosModule() {
     if (!firestore || !recordsRef || !formData.revenue) return
     
     const recordDate = entryType === 'daily' ? formData.date : formData.month
+    if (!recordDate) return
+
     const id = recordDate
     const docRef = doc(firestore, 'financialRecords', id)
     
@@ -188,7 +209,6 @@ export function TulosModule() {
         <p className="text-muted-foreground font-medium">Reaaliaikainen kannattavuus ja taloushallinta.</p>
       </header>
 
-      {/* KPI Kortit - Metalliset */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { label: "MYYNTI (KK)", val: `${monthlyStats.totals.revenue.toLocaleString('fi-FI')} €`, color: "copper-gradient" },
@@ -212,7 +232,6 @@ export function TulosModule() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Syöttö-osio */}
         <div className="lg:col-span-4 space-y-6">
           <Card className="industrial-card">
             <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
@@ -314,7 +333,6 @@ export function TulosModule() {
           </Card>
         </div>
 
-        {/* Historia ja Visualisointi */}
         <div className="lg:col-span-8 space-y-8">
           <Card className="industrial-card">
             <CardHeader className="pb-2">
@@ -363,7 +381,13 @@ export function TulosModule() {
                 {records.slice(0, 10).map(r => {
                   const { borderColor, statusColor, animateClass } = getRecordStyle(r)
                   const profit = r.revenue - (r.foodCost || 0) - (r.laborCost || 0) - (r.otherExpenses || 0)
-                  const recordDate = r.entryType === 'monthly' ? parseISO(r.date + "-01") : parseISO(r.date)
+                  let displayDate = r.date
+                  try {
+                    const recordDate = r.entryType === 'monthly' ? parseISO(r.date + "-01") : parseISO(r.date)
+                    displayDate = r.entryType === 'daily' 
+                      ? format(recordDate, 'EEEE d.M.', { locale: fi }) 
+                      : format(recordDate, 'MMMM yyyy', { locale: fi }).toUpperCase()
+                  } catch (e) {}
 
                   return (
                     <div 
@@ -377,12 +401,7 @@ export function TulosModule() {
                       <div className="flex items-center gap-4">
                         <div className={cn("w-1.5 h-12 rounded-full shadow-lg", statusColor)} />
                         <div>
-                          <p className="text-sm font-black text-foreground">
-                            {r.entryType === 'daily' 
-                              ? format(recordDate, 'EEEE d.M.', { locale: fi }) 
-                              : format(recordDate, 'MMMM yyyy', { locale: fi }).toUpperCase()
-                            }
-                          </p>
+                          <p className="text-sm font-black text-foreground">{displayDate}</p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{r.revenue.toLocaleString()} €</span>
                             <span className="w-1 h-1 rounded-full bg-white/20" />
