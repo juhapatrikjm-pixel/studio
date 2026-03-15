@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -22,6 +23,7 @@
       "type": "object",
       "properties": {
         "title": { "type": "string" },
+        "category": { "type": "string", "enum": ["prep", "tukku", "puute"] },
         "startDate": { "type": "string", "format": "date" },
         "endDate": { "type": "string", "format": "date" },
         "items": {
@@ -31,6 +33,7 @@
             "properties": {
               "id": { "type": "string" },
               "text": { "type": "string" },
+              "quantity": { "type": "string" },
               "completed": { "type": "boolean" }
             }
           }
@@ -64,6 +67,41 @@
         "status": { "type": "string", "enum": ["pending", "shipped", "arrived"] }
       }
     },
+    "WasteProduct": {
+      "title": "WasteProduct",
+      "description": "Hävikkiseurannassa käytettävät raaka-aineet",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "pricePerKg": { "type": "number" }
+      },
+      "required": ["name", "pricePerKg"]
+    },
+    "WasteEntry": {
+      "title": "WasteEntry",
+      "description": "Yksittäinen hävikkikirjaus",
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "weight": { "type": "number" },
+        "cost": { "type": "number" },
+        "type": { "type": "string", "enum": ["prep", "waste"] },
+        "monthId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" }
+      }
+    },
+    "MonthlyWaste": {
+      "title": "MonthlyWaste",
+      "description": "Kuukausittainen hävikkiyhteenveto",
+      "type": "object",
+      "properties": {
+        "monthId": { "type": "string" },
+        "monthName": { "type": "string" },
+        "totalWasteCost": { "type": "number" },
+        "totalPrepCost": { "type": "number" }
+      }
+    },
     "Equipment": {
       "title": "Equipment",
       "description": "Keittiön laitekanta",
@@ -85,27 +123,6 @@
       },
       "required": ["text"]
     },
-    "MaintenanceContact": {
-      "title": "MaintenanceContact",
-      "description": "Huoltoliikkeiden yhteystiedot",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "phone": { "type": "string" },
-        "email": { "type": "string" }
-      }
-    },
-    "ArchiveFolder": {
-      "title": "ArchiveFolder",
-      "description": "Arkiston kansiorakenne",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "category": { "type": "string", "enum": ["recipes", "dishes", "uploads"] },
-        "parentId": { "type": "string" }
-      },
-      "required": ["name", "category"]
-    },
     "Recipe": {
       "title": "Recipe",
       "description": "Keittiön reseptit",
@@ -113,47 +130,8 @@
       "properties": {
         "name": { "type": "string" },
         "portions": { "type": "number" },
-        "folderId": { "type": "string" },
         "ingredients": { "type": "array" },
-        "steps": { "type": "array" },
-        "equipment": { "type": "array" },
-        "calculations": { "type": "object" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "Dish": {
-      "title": "Dish",
-      "description": "Koostetut annokset",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "sellingPrice": { "type": "number" },
-        "recipes": { "type": "array" },
-        "totalCost": { "type": "number" },
-        "margin": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "AppSetting": {
-      "title": "AppSetting",
-      "description": "Sovelluksen yleiset asetukset",
-      "type": "object",
-      "properties": {
-        "targetMargin": { "type": "number" },
-        "hourlyRate": { "type": "number", "description": "Tuntipalkka kuluineen" },
-        "cheerMessages": { "type": "array", "items": { "type": "string" } }
-      }
-    },
-    "ShiftInfo": {
-      "title": "ShiftInfo",
-      "description": "Vuorokohtaiset merkinnät ja tiedotteet",
-      "type": "object",
-      "properties": {
-        "date": { "type": "string", "format": "date" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "bulletPoints": { "type": "array", "items": { "type": "string" } },
-        "freeText": { "type": "string" },
-        "acknowledgedBy": { "type": "array", "items": { "type": "string" } }
+        "steps": { "type": "array" }
       }
     },
     "FinancialRecord": {
@@ -164,11 +142,7 @@
         "date": { "type": "string", "format": "date" },
         "revenue": { "type": "number" },
         "foodCost": { "type": "number" },
-        "laborCost": { "type": "number" },
-        "workHours": { "type": "number" },
-        "otherExpenses": { "type": "number" },
-        "comment": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "laborCost": { "type": "number" }
       },
       "required": ["date", "revenue"]
     },
@@ -179,9 +153,6 @@
       "properties": {
         "title": { "type": "string" },
         "date": { "type": "string", "format": "date" },
-        "time": { "type": "string" },
-        "description": { "type": "string" },
-        "alert": { "type": "boolean" },
         "color": { "type": "string" }
       }
     },
@@ -191,8 +162,7 @@
       "type": "object",
       "properties": {
         "text": { "type": "string" },
-        "completed": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "completed": { "type": "boolean" }
       }
     }
   },
@@ -206,7 +176,7 @@
     },
     "/misaLists/{listId}": {
       "schema": "MisaList",
-      "description": "Prep-listat"
+      "description": "Keittiön listat"
     },
     "/suppliers/{supplierId}": {
       "schema": "Supplier",
@@ -216,6 +186,18 @@
       "schema": "Order",
       "description": "Tilaukset"
     },
+    "/wasteProducts/{productId}": {
+      "schema": "WasteProduct",
+      "description": "Hävikkiraaka-aineet"
+    },
+    "/wasteEntries/{entryId}": {
+      "schema": "WasteEntry",
+      "description": "Hävikkikirjaukset"
+    },
+    "/monthlyWaste/{monthId}": {
+      "schema": "MonthlyWaste",
+      "description": "Kuukausiyhteenvedot"
+    },
     "/equipment/{equipId}": {
       "schema": "Equipment",
       "description": "Laitteet"
@@ -223,10 +205,6 @@
     "/maintenanceNotes/{noteId}": {
       "schema": "MaintenanceNote",
       "description": "Huoltoilmoitukset"
-    },
-    "/archiveFolders/{folderId}": {
-      "schema": "ArchiveFolder",
-      "description": "Arkistokansiot"
     },
     "/recipes/{recipeId}": {
       "schema": "Recipe",
@@ -240,13 +218,9 @@
       "schema": "AppSetting",
       "description": "Yleiset asetukset"
     },
-    "/shiftInfos/{infoId}": {
-      "schema": "ShiftInfo",
-      "description": "Vuorokohtaiset merkinnät"
-    },
     "/financialRecords/{recordId}": {
       "schema": "FinancialRecord",
-      "description": "Päivittäiset talousmerkinnät"
+      "description": "Talousmerkinnät"
     },
     "/calendarEvents/{eventId}": {
       "schema": "CalendarEvent",
