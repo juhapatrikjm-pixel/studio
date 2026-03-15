@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -93,7 +92,7 @@ export function ShiftInfoModule() {
     addDoc(shiftInfosRef, infoData)
       .then(() => {
         toast({ 
-          title: "Vuoro-info tallennettu", 
+          title: "Info tallennettu", 
           description: "Merkintä on lisätty päivän historiaan ja tiedote näkyy ohjauspaneelissa.",
         })
         setPoints([])
@@ -137,7 +136,7 @@ export function ShiftInfoModule() {
     <div className="flex flex-col gap-8 animate-in fade-in duration-500 pb-20">
       <header className="flex items-center justify-between">
         <div className="flex flex-col gap-1">
-          <h2 className="text-3xl font-headline font-bold text-accent">Vuoro-info</h2>
+          <h2 className="text-3xl font-headline font-bold text-accent uppercase tracking-tighter">INFO</h2>
           <p className="text-muted-foreground">Päivän tärkeät merkinnät ja tiimitiedotus.</p>
         </div>
         <Button 
@@ -220,14 +219,14 @@ export function ShiftInfoModule() {
           disabled={!points.some(p => p.trim() !== "") && !freeText.trim()}
           className="copper-gradient text-white font-bold w-full max-w-md h-12 shadow-lg gap-2"
         >
-          <Save className="w-5 h-5" /> Tallenna ja arkistoi vuoro-info
+          <Save className="w-5 h-5" /> Tallenna ja arkistoi info
         </Button>
       </div>
 
       <div className="space-y-4 pt-10 border-t border-border/50">
         <div className="flex items-center gap-2 text-muted-foreground mb-4">
           <History className="w-5 h-5" />
-          <h3 className="font-headline font-bold uppercase tracking-widest text-sm">Viimeisimmät vuoro-infot</h3>
+          <h3 className="font-headline font-bold uppercase tracking-widest text-sm">Viimeisimmät infot</h3>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -244,7 +243,7 @@ export function ShiftInfoModule() {
                   className="h-6 w-6 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => deleteEntry(entry.id)}
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </Button>
               </CardHeader>
               <CardContent className="p-4 pt-0">
@@ -268,7 +267,7 @@ export function ShiftInfoModule() {
           ))}
           {history.length === 0 && (
             <div className="col-span-full py-10 text-center border-2 border-dashed border-border rounded-xl text-muted-foreground italic">
-              Ei aiempia arkistoituja vuoro-infoja.
+              Ei aiempia arkistoituja infoja.
             </div>
           )}
         </div>

@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 
 export const BASE_MENU_ITEMS = [
   { id: 'info', path: '/dashboard', icon: LayoutDashboard, label: 'Ohjaus' },
-  { id: 'shift-info', path: '/dashboard/shift-info', icon: Info, label: 'Vuoro' },
+  { id: 'shift-info', path: '/dashboard/shift-info', icon: Info, label: 'INFO' },
   { id: 'tulos', path: '/dashboard/tulos', icon: TrendingUp, label: 'Tulos' },
   { id: 'waste', path: '/dashboard/waste', icon: Trash2, label: 'Hävikki' },
   { id: 'onboarding', path: '/dashboard/onboarding', icon: GraduationCap, label: 'Perehdytys' },
