@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -75,7 +74,6 @@ export function TulosModule() {
     comment: ""
   })
 
-  // Set initial dates after hydration
   useEffect(() => {
     setFormData(prev => ({
       ...prev,
@@ -200,28 +198,28 @@ export function TulosModule() {
   }
 
   return (
-    <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-20">
-      <header className="flex flex-col gap-2">
-        <div className="flex items-center gap-3">
-          <Gem className="w-8 h-8 text-accent" />
-          <h2 className="text-4xl font-headline font-black copper-text-glow">Tulos & Seuranta</h2>
+    <div className="flex flex-col gap-6 animate-in fade-in duration-700 pb-20">
+      <header className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <Gem className="w-6 h-6 text-accent" />
+          <h2 className="text-2xl font-headline font-black copper-text-glow uppercase tracking-tighter">Tulos</h2>
         </div>
-        <p className="text-muted-foreground font-medium">Reaaliaikainen kannattavuus ja taloushallinta.</p>
+        <p className="text-muted-foreground text-[10px] uppercase font-bold tracking-widest opacity-60">Reaaliaikainen seuranta</p>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "MYYNTI (KK)", val: `${monthlyStats.totals.revenue.toLocaleString('fi-FI')} €`, color: "copper-gradient" },
-          { label: "RAAKA-AINEET %", val: `${monthlyStats.foodCostPerc.toFixed(1)} %`, color: "steel-detail" },
-          { label: "PALKAT %", val: `${monthlyStats.laborCostPerc.toFixed(1)} %`, color: "steel-detail" },
-          { label: "KATE-EUROUT", val: `${monthlyStats.profit.toLocaleString('fi-FI')} €`, color: "copper-gradient", highlight: true },
+          { label: "MYYNTI", val: `${monthlyStats.totals.revenue.toLocaleString('fi-FI')} €`, color: "copper-gradient" },
+          { label: "RAAKA-AINE %", val: `${monthlyStats.foodCostPerc.toFixed(1)} %`, color: "steel-detail" },
+          { label: "PALKKA %", val: `${monthlyStats.laborCostPerc.toFixed(1)} %`, color: "steel-detail" },
+          { label: "KATE", val: `${monthlyStats.profit.toLocaleString('fi-FI')} €`, color: "copper-gradient", highlight: true },
         ].map((kpi, i) => (
           <Card key={i} className="industrial-card group overflow-hidden border-none p-[1px] bg-gradient-to-br from-white/10 to-transparent">
-            <div className={cn("absolute top-0 left-0 w-full h-1 metal-shine-overlay", kpi.color)} />
-            <CardContent className="p-6 bg-card rounded-[calc(var(--radius)-1px)]">
-              <p className="text-[10px] uppercase font-black text-muted-foreground/60 tracking-[0.2em] mb-2">{kpi.label}</p>
+            <div className={cn("absolute top-0 left-0 w-full h-0.5 metal-shine-overlay", kpi.color)} />
+            <CardContent className="p-3 bg-card rounded-[calc(var(--radius)-1px)]">
+              <p className="text-[8px] uppercase font-black text-muted-foreground/60 tracking-[0.1em] mb-1">{kpi.label}</p>
               <div className={cn(
-                "text-2xl font-black tabular-nums tracking-tight",
+                "text-sm font-black tabular-nums tracking-tight",
                 kpi.highlight ? (monthlyStats.profit >= 0 ? "text-green-500" : "text-destructive") : "text-foreground"
               )}>
                 {kpi.val}
@@ -231,138 +229,84 @@ export function TulosModule() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 space-y-6">
           <Card className="industrial-card">
             <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
-            <CardHeader>
-              <CardTitle className="text-xl font-headline font-black text-accent flex items-center gap-3">
-                <Calculator className="w-6 h-6" /> Kirjaa Tulokset
+            <CardHeader className="p-4 pb-2">
+              <CardTitle className="text-sm font-headline font-black text-accent flex items-center gap-2 uppercase tracking-widest">
+                <Calculator className="w-4 h-4" /> KIRJAUS
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-4 space-y-4">
               <Tabs value={entryType} onValueChange={(v: any) => setEntryType(v)} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-black/40 border-white/5 p-1 h-12">
-                  <TabsTrigger value="daily" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent">
-                    <CalendarDays className="w-3.5 h-3.5" /> PÄIVÄ
-                  </TabsTrigger>
-                  <TabsTrigger value="monthly" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent">
-                    <CalendarRange className="w-3.5 h-3.5" /> KK
-                  </TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 mb-4 bg-black/40 border-white/5 p-1 h-9">
+                  <TabsTrigger value="daily" className="gap-1 font-black uppercase text-[8px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent">PÄIVÄ</TabsTrigger>
+                  <TabsTrigger value="monthly" className="gap-1 font-black uppercase text-[8px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent">KK</TabsTrigger>
                 </TabsList>
                 
-                <div className="space-y-5">
-                  <div className="p-5 bg-black/40 rounded-2xl border border-white/5 shadow-inner">
-                    {entryType === 'daily' ? (
-                      <div className="space-y-2">
-                        <Label className="text-[10px] uppercase font-black text-accent/80 tracking-widest">PÄIVÄMÄÄRÄ</Label>
-                        <Input 
-                          type="date" 
-                          value={formData.date}
-                          onChange={(e) => setFormData({...formData, date: e.target.value})}
-                          className="bg-transparent border-none p-0 text-lg font-black text-foreground h-auto focus-visible:ring-0"
-                        />
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Label className="text-[10px] uppercase font-black text-accent/80 tracking-widest">KUUKAUSI</Label>
-                        <Input 
-                          type="month" 
-                          value={formData.month}
-                          onChange={(e) => setFormData({...formData, month: e.target.value})}
-                          className="bg-transparent border-none p-0 text-lg font-black text-foreground h-auto focus-visible:ring-0"
-                        />
-                      </div>
-                    )}
+                <div className="space-y-4">
+                  <div className="p-3 bg-black/40 rounded-xl border border-white/5">
+                    <Label className="text-[8px] uppercase font-black text-accent/80 tracking-widest">AIKA</Label>
+                    <Input 
+                      type={entryType === 'daily' ? 'date' : 'month'} 
+                      value={entryType === 'daily' ? formData.date : formData.month}
+                      onChange={(e) => setFormData({...formData, [entryType === 'daily' ? 'date' : 'month']: e.target.value})}
+                      className="bg-transparent border-none p-0 text-sm font-black text-foreground h-7 focus-visible:ring-0"
+                    />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">MYYNTI (ALV 0%)</Label>
+                  <div className="space-y-1">
+                    <Label className="text-[8px] uppercase font-black text-muted-foreground tracking-widest">MYYNTI (ALV 0%)</Label>
                     <div className="relative group">
-                      <Euro className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-accent transition-colors" />
+                      <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                       <Input 
                         type="number" 
                         placeholder="0.00"
                         value={formData.revenue}
                         onChange={(e) => setFormData({...formData, revenue: e.target.value})}
-                        className="pl-12 bg-white/5 border-white/10 h-14 text-xl font-black rounded-xl focus:border-accent/40 transition-all"
+                        className="pl-9 bg-white/5 border-white/10 h-10 text-base font-black rounded-lg"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">RAAKA-AINEET</Label>
-                      <Input 
-                        type="number" 
-                        placeholder="€"
-                        value={formData.foodCost}
-                        onChange={(e) => setFormData({...formData, foodCost: e.target.value})}
-                        className="bg-white/5 border-white/10 h-12 font-bold rounded-xl"
-                      />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[8px] uppercase font-black text-muted-foreground tracking-widest">RAAKA-AIN. €</Label>
+                      <Input type="number" placeholder="€" value={formData.foodCost} onChange={(e) => setFormData({...formData, foodCost: e.target.value})} className="bg-white/5 border-white/10 h-9 text-xs font-bold" />
                     </div>
-                    <div className="space-y-2">
-                      <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">TUNNIT (H)</Label>
-                      <Input 
-                        type="number" 
-                        placeholder="0.0"
-                        value={formData.workHours}
-                        onChange={(e) => setFormData({...formData, workHours: e.target.value})}
-                        className="bg-white/5 border-white/10 h-12 font-bold rounded-xl"
-                      />
+                    <div className="space-y-1">
+                      <Label className="text-[8px] uppercase font-black text-muted-foreground tracking-widest">TUNNIT (H)</Label>
+                      <Input type="number" placeholder="0.0" value={formData.workHours} onChange={(e) => setFormData({...formData, workHours: e.target.value})} className="bg-white/5 border-white/10 h-9 text-xs font-bold" />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">MUUT KULUT</Label>
-                    <Input 
-                      type="number" 
-                      placeholder="Esim. vuokra, sähkö..."
-                      value={formData.otherExpenses}
-                      onChange={(e) => setFormData({...formData, otherExpenses: e.target.value})}
-                      className="bg-white/5 border-white/10 h-12 font-bold rounded-xl"
-                    />
                   </div>
                 </div>
               </Tabs>
 
-              <Button onClick={handleSave} className="w-full copper-gradient text-white font-black h-14 gap-3 mt-6 shadow-2xl metal-shine-overlay uppercase tracking-widest text-xs">
-                <Save className="w-5 h-5" /> TALLENNA TIEDOT
+              <Button onClick={handleSave} className="w-full copper-gradient text-white font-black h-10 gap-2 mt-2 uppercase tracking-widest text-[10px]">
+                <Save className="w-3.5 h-3.5" /> TALLENNA
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        <div className="lg:col-span-8 space-y-8">
+        <div className="lg:col-span-8 space-y-6">
           <Card className="industrial-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl font-headline font-black text-accent flex items-center gap-3">
-                <BarChart3 className="w-6 h-6" /> Kehityskäyrä
+            <CardHeader className="p-4 pb-0">
+              <CardTitle className="text-xs font-headline font-black text-accent flex items-center gap-2 uppercase tracking-widest">
+                <BarChart3 className="w-4 h-4" /> KEHITYS
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-[300px] w-full mt-6 bg-black/20 rounded-2xl p-6 border border-white/5 shadow-inner">
+            <CardContent className="p-4">
+              <div className="h-[200px] w-full bg-black/20 rounded-xl p-2 border border-white/5 shadow-inner">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                    <XAxis 
-                      dataKey="pvm" 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{fill: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 900}} 
-                    />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{fill: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 900}} 
-                    />
-                    <Tooltip 
-                      cursor={{fill: 'rgba(255,255,255,0.03)'}}
-                      contentStyle={{ backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px', fontSize: '10px', fontWeight: 'bold' }}
-                      itemStyle={{ color: '#fff' }}
-                    />
-                    <Bar dataKey="myynti" fill="#b87333" radius={[6, 6, 0, 0]} name="Myynti" barSize={20} />
-                    <Bar dataKey="tulos" fill="#71717a" radius={[6, 6, 0, 0]} name="Tulos" barSize={20} />
+                    <XAxis dataKey="pvm" axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)', fontSize: 8, fontWeight: 900}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)', fontSize: 8, fontWeight: 900}} />
+                    <Tooltip cursor={{fill: 'rgba(255,255,255,0.03)'}} contentStyle={{ backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '8px', fontWeight: 'bold' }} />
+                    <Bar dataKey="myynti" fill="#b87333" radius={[4, 4, 0, 0]} name="Myynti" barSize={12} />
+                    <Bar dataKey="tulos" fill="#71717a" radius={[4, 4, 0, 0]} name="Tulos" barSize={12} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -370,73 +314,42 @@ export function TulosModule() {
           </Card>
 
           <Card className="industrial-card">
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <CardTitle className="text-sm font-headline uppercase tracking-[0.3em] text-muted-foreground font-black flex items-center gap-2">
-                <HistoryIcon className="w-4 h-4" /> Historia
+            <CardHeader className="flex flex-row items-center justify-between p-4 pb-2">
+              <CardTitle className="text-[10px] font-headline uppercase tracking-[0.2em] text-muted-foreground font-black flex items-center gap-2">
+                <HistoryIcon className="w-3.5 h-3.5" /> HISTORIA
               </CardTitle>
-              <Badge variant="outline" className="text-[9px] uppercase font-black opacity-40">Viimeiset 10 kirjausta</Badge>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {records.slice(0, 10).map(r => {
-                  const { borderColor, statusColor, animateClass } = getRecordStyle(r)
+            <CardContent className="p-4 pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {records.slice(0, 6).map(r => {
+                  const { borderColor, statusColor } = getRecordStyle(r)
                   const profit = r.revenue - (r.foodCost || 0) - (r.laborCost || 0) - (r.otherExpenses || 0)
                   let displayDate = r.date
                   try {
                     const recordDate = r.entryType === 'monthly' ? parseISO(r.date + "-01") : parseISO(r.date)
-                    displayDate = r.entryType === 'daily' 
-                      ? format(recordDate, 'EEEE d.M.', { locale: fi }) 
-                      : format(recordDate, 'MMMM yyyy', { locale: fi }).toUpperCase()
+                    displayDate = r.entryType === 'daily' ? format(recordDate, 'd.M.', { locale: fi }) : format(recordDate, 'MMM yy', { locale: fi }).toUpperCase()
                   } catch (e) {}
 
                   return (
-                    <div 
-                      key={r.id} 
-                      className={cn(
-                        "flex items-center justify-between p-5 rounded-2xl bg-white/5 border shadow-inner group transition-all duration-700",
-                        borderColor,
-                        animateClass
-                      )}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={cn("w-1.5 h-12 rounded-full shadow-lg", statusColor)} />
+                    <div key={r.id} className={cn("flex items-center justify-between p-3 rounded-xl bg-white/5 border shadow-inner group", borderColor)}>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-1 h-8 rounded-full", statusColor)} />
                         <div>
-                          <p className="text-sm font-black text-foreground">{displayDate}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">{r.revenue.toLocaleString()} €</span>
-                            <span className="w-1 h-1 rounded-full bg-white/20" />
-                            <span className="text-[10px] text-muted-foreground/40 font-black uppercase tracking-widest">{r.workHours || 0}H</span>
-                          </div>
+                          <p className="text-[10px] font-black text-foreground">{displayDate}</p>
+                          <p className="text-[8px] text-muted-foreground font-black uppercase tracking-tighter">{r.revenue.toLocaleString()} €</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className={cn(
-                            "text-lg font-black tabular-nums drop-shadow-md",
-                            profit >= 0 ? "text-green-500" : "text-destructive"
-                          )}>
-                            {profit > 0 ? "+" : ""}{profit.toLocaleString()}€
-                          </div>
-                          <p className="text-[8px] uppercase font-black text-muted-foreground tracking-[0.2em]">KATE</p>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("text-sm font-black tabular-nums", profit >= 0 ? "text-green-500" : "text-destructive")}>
+                          {profit > 0 ? "+" : ""}{profit.toLocaleString()}€
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => deleteRecord(r.id)} 
-                          className="h-9 w-9 text-destructive/40 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all rounded-full"
-                        >
-                          <Trash2 className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" onClick={() => deleteRecord(r.id)} className="h-7 w-7 text-destructive/40 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all">
+                          <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
                     </div>
                   )
                 })}
-                {records.length === 0 && (
-                  <div className="col-span-full py-20 text-center flex flex-col items-center gap-4 opacity-30">
-                    <HistoryIcon className="w-12 h-12 text-muted-foreground" />
-                    <p className="text-xs uppercase font-black tracking-widest">Ei aiempia merkintöjä</p>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>

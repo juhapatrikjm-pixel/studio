@@ -277,13 +277,13 @@ export default function Home() {
         <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} user={user} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
-          <header className="h-14 md:h-16 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
+          <header className="h-14 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1">
-              <SidebarTrigger className="text-muted-foreground hover:text-accent transition-transform hover:scale-110" />
+              <SidebarTrigger className="text-muted-foreground hover:text-accent transition-transform hover:scale-110 h-8 w-8" />
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-sm md:text-lg leading-none tracking-wider tabular-nums copper-text-glow truncate">
+              <div className="text-accent font-headline font-black text-sm md:text-base leading-none tracking-wider tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
               <div className="text-[7px] md:text-[8px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-1 opacity-80 truncate w-full">
