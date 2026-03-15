@@ -135,6 +135,13 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
   const auth = useAuth()
   const firestore = useFirestore()
   const [error, setError] = useState<{ title: string, desc: string } | null>(null)
+  const [currentDomain, setCurrentDomain] = useState("")
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentDomain(window.location.hostname)
+    }
+  }, [])
 
   const handleLogin = async () => {
     if (!auth || !firestore) {
@@ -156,7 +163,7 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
       if (err.code === 'auth/popup-closed-by-user') {
         setError({ 
           title: "Kirjautumisikkuna suljettiin", 
-          desc: "Varmista, ettei selaimesi estä ponnahdusikkunoita (Pop-up blocker) ja yritä uudelleen." 
+          desc: "Varmista, ettei selaimesi estä ponnahdusikkunoita ja yritä uudelleen." 
         })
       } else if (err.code === 'auth/configuration-not-found') {
         setError({ 
@@ -166,7 +173,7 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
       } else if (err.code === 'auth/unauthorized-domain') {
         setError({ 
           title: "Domain ei valtuutettu", 
-          desc: "Lisää selaimen osoiterivillä näkyvä domain Firebase-konsolin Authorized domains -listaan." 
+          desc: `Lisää domain "${currentDomain}" Firebase-konsolin Authorized domains -listaan.` 
         })
       } else {
         setError({ 

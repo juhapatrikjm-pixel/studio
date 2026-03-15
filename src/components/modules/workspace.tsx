@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Activity, LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, CheckCircle, Info, ChefHat, CookingPot, Wrench, Send, Trash2, Clock, Zap, Target } from "lucide-react"
+import { Info, ChefHat, CookingPot, Wrench, Send, Trash2, CheckCircle, Zap, Users, Cloud } from "lucide-react"
 import { OmavalvontaStatusHeader } from "./omavalvonta"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
@@ -12,7 +12,6 @@ import { fi } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { cn } from "@/lib/utils"
 
 export function WorkspaceModule() {
   const firestore = useFirestore()
