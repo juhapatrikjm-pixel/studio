@@ -17,6 +17,21 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "Contact": {
+      "title": "Contact",
+      "description": "Tiimin ja yhteistyökumppaneiden yhteystiedot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "isTeamMember": { "type": "boolean" },
+        "invitedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "email"]
+    },
     "MisaList": {
       "title": "MisaList",
       "description": "Keittiön prep- ja valmistelulistat",
@@ -173,6 +188,10 @@
     "/userProfiles/{userId}": {
       "schema": "UserProfile",
       "description": "Käyttäjäprofiilit"
+    },
+    "/contacts/{contactId}": {
+      "schema": "Contact",
+      "description": "Yhteystiedot"
     },
     "/misaLists/{listId}": {
       "schema": "MisaList",
