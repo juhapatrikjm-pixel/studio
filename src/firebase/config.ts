@@ -3,6 +3,7 @@
 /**
  * @fileOverview Firebase-konfiguraatio Wisemisa Bistro -projektille.
  * Projekti ID: wisemisa-d2b98
+ * API Key päivitetty käyttäjän antamaan uuteen avaimeen.
  */
 
 export const firebaseConfig = {
