@@ -4,18 +4,26 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth, useUser, useFirestore } from "@/firebase"
-import { GoogleAuthProvider, signInWithPopup, signInAnonymously, getRedirectResult } from "firebase/auth"
+import { 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInAnonymously, 
+  getRedirectResult, 
+  setPersistence, 
+  browserLocalPersistence 
+} from "firebase/auth"
 import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { LogIn, AlertCircle, Globe, Zap, ShieldCheck } from "lucide-react"
+import { LogIn, AlertCircle, Globe, Zap, ShieldCheck, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
   const { user, loading: authLoading } = useUser()
   const auth = useAuth()
   const firestore = useFirestore()
   const router = useRouter()
+  
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<{ title: string, desc: string } | null>(null)
   const [currentDomain, setCurrentDomain] = useState("")
@@ -26,11 +34,41 @@ export default function LoginPage() {
     }
   }, [])
 
+  // Robust Auth Check
   useEffect(() => {
-    if (user && !authLoading) {
-      router.push('/dashboard')
+    if (!auth || !firestore) return
+
+    // Tarkistetaan onko käyttäjä jo kirjautunut tai palannut redirectistä
+    const checkAuth = async () => {
+      try {
+        const result = await getRedirectResult(auth)
+        if (result?.user) {
+          await syncProfile(result.user)
+          router.push('/dashboard')
+        } else if (user) {
+          router.push('/dashboard')
+        }
+      } catch (err: any) {
+        console.error("Redirect error:", err)
+        setError({ title: "Kirjautumisvirhe", desc: err.message })
+      }
     }
-  }, [user, authLoading, router])
+
+    checkAuth()
+  }, [user, auth, firestore, router])
+
+  const syncProfile = async (u: any) => {
+    if (!firestore) return
+    try {
+      await setDoc(doc(firestore, 'userProfiles', u.uid), {
+        userName: u.displayName || "Käyttäjä",
+        email: u.email,
+        updatedAt: serverTimestamp()
+      }, { merge: true })
+    } catch (e) {
+      console.warn("Firestore sync skipped:", e)
+    }
+  }
 
   const handleLogin = async () => {
     if (!auth || !firestore) return
@@ -39,15 +77,11 @@ export default function LoginPage() {
     
     const provider = new GoogleAuthProvider()
     try {
+      // Asetetaan pysyvyys ennen kirjautumista
+      await setPersistence(auth, browserLocalPersistence)
       const result = await signInWithPopup(auth, provider)
       if (result.user) {
-        // Taustapäivitys profiilille
-        const u = result.user
-        setDoc(doc(firestore, 'userProfiles', u.uid), {
-          userName: u.displayName,
-          email: u.email,
-          updatedAt: serverTimestamp()
-        }, { merge: true }).catch(() => console.warn("Firestore sync deferred."))
+        await syncProfile(result.user)
         router.push('/dashboard')
       }
     } catch (err: any) {
@@ -87,7 +121,10 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
         <div className="w-16 h-16 rounded-2xl copper-gradient animate-pulse shadow-2xl" />
-        <span className="text-xs font-black uppercase tracking-widest text-muted-foreground opacity-40">Käsitellään istuntoa...</span>
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-5 h-5 animate-spin text-accent" />
+          <span className="text-xs font-black uppercase tracking-widest text-muted-foreground opacity-40">Käsitellään istuntoa...</span>
+        </div>
       </div>
     )
   }
@@ -139,7 +176,7 @@ export default function LoginPage() {
               <Globe className="w-4 h-4 text-accent" />
               <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">VALTUUTETTU DOMAIN:</span>
             </div>
-            <code className="text-xs font-mono bg-black/40 p-3 rounded border border-white/10 text-accent w-full break-all select-all">{currentDomain}</code>
+            <code className="text-[10px] font-mono bg-black/40 p-3 rounded border border-white/10 text-accent w-full break-all select-all">{currentDomain}</code>
             <p className="text-[8px] text-muted-foreground/60 uppercase font-bold italic">Firebase Console &rarr; Auth &rarr; Settings &rarr; Domains</p>
           </div>
         </CardContent>
