@@ -146,7 +146,7 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
       const userRef = doc(firestore, 'userProfiles', user.uid)
-      setDoc(userRef, {
+      await setDoc(userRef, {
         userName: user.displayName,
         email: user.email,
         updatedAt: serverTimestamp()
