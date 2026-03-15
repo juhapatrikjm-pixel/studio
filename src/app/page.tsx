@@ -34,7 +34,7 @@ const menuItems = [
   { id: 'tulos', icon: TrendingUp, label: 'Tulosseuranta' },
   { id: 'todo-calendar', icon: CalendarDays, label: 'Kalenteri & To do' },
   { id: 'omavalvonta', icon: ShieldAlert, label: 'Omavalvonta' },
-  { id: 'misa', icon: ClipboardList, label: 'Prep-listat' },
+  { id: 'misa', icon: ClipboardList, label: 'Misa-lista' },
   { id: 'recipes', icon: ChefHat, label: 'Reseptiikka' },
   { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
   { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
