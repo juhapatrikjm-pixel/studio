@@ -153,7 +153,6 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
       const result = await signInWithPopup(auth, provider)
       const user = result.user
       
-      // Yritetään tallentaa profiili. Jos Firestore ei ole pystyssä, tämä epäonnistuu.
       const userRef = doc(firestore, 'userProfiles', user.uid)
       await setDoc(userRef, {
         userName: user.displayName,
@@ -371,8 +370,8 @@ export default function Home() {
               <CarouselContent className="h-full ml-0">
                 {sortedMenuItems.map((item) => (
                   <CarouselItem key={item.id} className="pl-0 h-full overflow-y-auto">
-                    <div className="p-1.5 md:p-2 max-w-[1600px] mx-auto w-full min-h-full">
-                      <div className="max-w-5xl mx-auto space-y-1.5 pb-16">
+                    <div className="p-1 md:p-1.5 max-w-[1600px] mx-auto w-full min-h-full">
+                      <div className="max-w-5xl mx-auto space-y-1 pb-16">
                         {renderModule(item.id as ModuleId)}
                       </div>
                     </div>
