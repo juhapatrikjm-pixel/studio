@@ -70,58 +70,58 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
 
   return (
     <Sidebar className="border-r border-white/5 bg-sidebar shadow-2xl" collapsible="offcanvas">
-      <SidebarHeader className="p-8">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl copper-gradient flex items-center justify-center shadow-[0_0_20px_rgba(184,115,51,0.5)] metal-shine-overlay">
-            <span className="text-white font-headline font-black text-2xl drop-shadow-lg">W</span>
+      <SidebarHeader className="p-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl copper-gradient flex items-center justify-center shadow-[0_0_15px_rgba(184,115,51,0.4)] metal-shine-overlay">
+            <span className="text-white font-headline font-black text-xl drop-shadow-lg">W</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-headline font-black text-xl copper-text-glow leading-none">Wisemisa</span>
-            <span className="font-headline font-bold text-lg text-muted-foreground leading-none">Bistro</span>
+            <span className="font-headline font-black text-lg copper-text-glow leading-none">Wisemisa</span>
+            <span className="font-headline font-bold text-sm text-muted-foreground leading-none mt-0.5">Bistro</span>
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-4">
-        <SidebarMenu className="gap-1.5">
+      <SidebarContent className="px-3">
+        <SidebarMenu className="gap-1">
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.id}>
               <SidebarMenuButton 
                 isActive={activeModule === item.id}
                 onClick={() => handleModuleChange(item.id as ModuleId)}
                 className={cn(
-                  "h-11 px-4 rounded-lg transition-all duration-300 border border-transparent group",
+                  "h-10 px-3 rounded-lg transition-all duration-300 border border-transparent group",
                   activeModule === item.id 
-                  ? "bg-primary/20 text-accent font-bold border-primary/40 shadow-[inset_0_0_12px_rgba(184,115,51,0.2)]" 
+                  ? "bg-primary/20 text-accent font-bold border-primary/40 shadow-[inset_0_0_10px_rgba(184,115,51,0.15)]" 
                   : "hover:bg-white/5 text-muted-foreground/80 hover:text-foreground"
                 )}
               >
                 <item.icon className={cn(
-                  "w-4.5 h-4.5 transition-colors",
+                  "w-4 h-4 transition-colors",
                   activeModule === item.id ? 'text-accent' : 'text-muted-foreground/60 group-hover:text-accent/80'
                 )} />
-                <span className="ml-3 font-medium text-sm">{item.label}</span>
-                {activeModule === item.id && <ChevronRight className="ml-auto w-3.5 h-3.5 text-accent animate-in slide-in-from-left-2" />}
+                <span className="ml-3 font-medium text-xs">{item.label}</span>
+                {activeModule === item.id && <ChevronRight className="ml-auto w-3 h-3 text-accent animate-in slide-in-from-left-2" />}
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <div className="p-6 border-t border-white/5 mt-auto bg-black/20 space-y-4">
+      <div className="p-4 border-t border-white/5 mt-auto bg-black/20 space-y-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg steel-detail flex items-center justify-center text-black font-black text-sm shadow-md metal-shine-overlay overflow-hidden">
+          <div className="w-9 h-9 rounded-lg steel-detail flex items-center justify-center text-black font-black text-xs shadow-md metal-shine-overlay overflow-hidden">
             {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : (user.displayName?.[0] || user.email?.[0])}
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="text-xs font-black text-foreground truncate">{user.displayName || 'Käyttäjä'}</span>
-            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold truncate">{user.email}</span>
+            <span className="text-[11px] font-black text-foreground truncate">{user.displayName || 'Käyttäjä'}</span>
+            <span className="text-[8px] uppercase tracking-wider text-muted-foreground font-bold truncate">{user.email}</span>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" className="flex-1 text-[10px] font-black uppercase text-muted-foreground hover:text-accent hover:bg-white/5" onClick={() => setActiveModule('profile')}>
-            <Settings className="w-3.5 h-3.5 mr-2" /> Asetukset
+          <Button variant="ghost" size="sm" className="flex-1 text-[9px] font-black uppercase text-muted-foreground hover:text-accent hover:bg-white/5 h-8" onClick={() => setActiveModule('profile')}>
+            <Settings className="w-3 h-3 mr-1.5" /> Asetukset
           </Button>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-white/5" onClick={handleSignOut} title="Kirjaudu ulos">
-            <LogOut className="w-3.5 h-3.5" />
+            <LogOut className="w-3 h-3" />
           </Button>
         </div>
       </div>
@@ -277,24 +277,24 @@ export default function Home() {
         <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} user={user} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
-          <header className="h-16 md:h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
+          <header className="h-14 md:h-16 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1">
               <SidebarTrigger className="text-muted-foreground hover:text-accent transition-transform hover:scale-110" />
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-lg md:text-xl leading-none tracking-tight tabular-nums copper-text-glow truncate">
+              <div className="text-accent font-headline font-black text-base md:text-lg leading-none tracking-wider tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
-              <div className="text-[8px] md:text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1 opacity-80 truncate w-full">
+              <div className="text-[7px] md:text-[9px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-1 opacity-80 truncate w-full">
                 {currentTime ? format(currentTime, 'EEEE d.M.yyyy', { locale: fi }) : 'Alustetaan...'}
               </div>
             </div>
 
             <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end">
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5 group h-9 w-9">
-                <Bell className="w-4 h-4 md:w-5 md:h-5 group-hover:animate-bounce" />
-                <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-accent rounded-full border border-background shadow-[0_0_8px_rgba(184,115,51,0.8)]" />
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5 group h-8 w-8">
+                <Bell className="w-4 h-4 group-hover:animate-bounce" />
+                <span className="absolute top-1.5 right-1.5 w-1 h-1 bg-accent rounded-full border border-background shadow-[0_0_6px_rgba(184,115,51,0.8)]" />
               </Button>
             </div>
           </header>
@@ -312,8 +312,8 @@ export default function Home() {
               <CarouselContent className="h-full ml-0">
                 {sortedMenuItems.map((item) => (
                   <CarouselItem key={item.id} className="pl-0 h-full overflow-y-auto">
-                    <div className="p-4 md:p-12 max-w-[1600px] mx-auto w-full min-h-full">
-                      <div className="max-w-6xl mx-auto space-y-8 md:space-y-12 pb-20">
+                    <div className="p-4 md:p-8 max-w-[1600px] mx-auto w-full min-h-full">
+                      <div className="max-w-6xl mx-auto space-y-6 md:space-y-10 pb-20">
                         {renderModule(item.id as ModuleId)}
                       </div>
                     </div>
