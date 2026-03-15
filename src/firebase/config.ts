@@ -3,7 +3,9 @@
 /**
  * @fileOverview Firebase-konfiguraatio.
  * 
- * Varmista, että Firebase-projekti on luotu ja Google-kirjautuminen on aktivoitu Firebase Consolessa.
+ * TÄRKEÄÄ: Jos kirjautuminen ei toimi, varmista että Firebase-konsolissa:
+ * 1. Google-kirjautuminen on aktivoitu (Authentication -> Sign-in method)
+ * 2. Authorized domains sisältää sovelluksen URL-osoitteen.
  */
 
 export const firebaseConfig = {

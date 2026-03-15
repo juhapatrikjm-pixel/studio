@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -30,6 +30,7 @@ import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth"
 import { cn } from "@/lib/utils"
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel"
 import { Card, CardContent } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 export type ModuleId = 'info' | 'shift-info' | 'tulos' | 'waste' | 'onboarding' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
@@ -66,6 +67,7 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
 
   const handleSignOut = () => {
     if (auth) signOut(auth)
+    window.location.reload() // Puhdista demo-tila
   }
 
   return (
@@ -109,11 +111,11 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
       <div className="p-3 border-t border-white/5 mt-auto bg-black/20 space-y-2">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg steel-detail flex items-center justify-center text-black font-black text-[10px] shadow-md metal-shine-overlay overflow-hidden">
-            {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : (user.displayName?.[0] || user.email?.[0])}
+            {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : (user.displayName?.[0] || user.email?.[0] || 'D')}
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="text-[10px] font-black text-foreground truncate">{user.displayName || 'Käyttäjä'}</span>
-            <span className="text-[7px] uppercase tracking-wider text-muted-foreground font-bold truncate opacity-50">{user.email}</span>
+            <span className="text-[10px] font-black text-foreground truncate">{user.displayName || 'Demo Käyttäjä'}</span>
+            <span className="text-[7px] uppercase tracking-wider text-muted-foreground font-bold truncate opacity-50">{user.email || 'demo@wisemisa.fi'}</span>
           </div>
         </div>
         <div className="flex gap-1">
@@ -129,12 +131,16 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
   )
 }
 
-function LoginPage() {
+function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
   const auth = useAuth()
   const firestore = useFirestore()
+  const [error, setError] = useState<string | null>(null)
 
   const handleLogin = async () => {
-    if (!auth || !firestore) return
+    if (!auth || !firestore) {
+      setError("Firebase-yhteyttä ei voitu muodostaa. Tarkista verkkoasetukset.")
+      return
+    }
     const provider = new GoogleAuthProvider()
     try {
       const result = await signInWithPopup(auth, provider)
@@ -145,8 +151,13 @@ function LoginPage() {
         email: user.email,
         updatedAt: serverTimestamp()
       }, { merge: true })
-    } catch (error) {
-      console.error("Kirjautuminen epäonnistui:", error)
+    } catch (error: any) {
+      console.error("Kirjautumisvirhe:", error)
+      if (error.code === 'auth/api-key-not-valid') {
+        setError("Projektin API-avain on virheellinen. Varmista, että Firebase-projekti on aktivoitu oikein.")
+      } else {
+        setError("Kirjautuminen epäonnistui. Kokeile Demo-tilaa alta.")
+      }
     }
   }
 
@@ -167,6 +178,16 @@ function LoginPage() {
             <h1 className="text-2xl font-headline font-black copper-text-glow uppercase tracking-tighter">Wisemisa Bistro</h1>
             <p className="text-muted-foreground font-black text-[9px] uppercase tracking-[0.3em] opacity-60">Industrial Kitchen Platform</p>
           </div>
+
+          {error && (
+            <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle className="text-[10px] font-black uppercase text-left">Konfiguraatiovirhe</AlertTitle>
+              <AlertDescription className="text-[9px] text-left leading-tight opacity-80">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
           
           <div className="w-full space-y-3">
             <Button 
@@ -176,7 +197,20 @@ function LoginPage() {
               <LogIn className="w-4 h-4 mr-2 group-hover:translate-x-1 transition-transform" />
               KIRJAUDU GOOGLELLA
             </Button>
-            <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest opacity-30">Pääsy rajoitettu valtuutetuille käyttäjille</p>
+            
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-white/5"></span></div>
+              <div className="relative flex justify-center text-[8px] uppercase font-black"><span className="bg-card px-2 text-muted-foreground/40">TAI</span></div>
+            </div>
+
+            <Button 
+              variant="outline"
+              onClick={onDemoLogin} 
+              className="w-full h-10 border-white/10 bg-white/5 text-muted-foreground hover:text-accent font-black uppercase tracking-widest text-[9px]"
+            >
+              KOKEILE DEMO-TILASSA
+            </Button>
+            <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest opacity-30 mt-4">Pääsy rajoitettu valtuutetuille käyttäjille</p>
           </div>
         </CardContent>
       </Card>
@@ -186,8 +220,12 @@ function LoginPage() {
 
 export default function Home() {
   const { user, loading } = useUser()
+  const [demoUser, setDemoUser] = useState<any>(null)
   const firestore = useFirestore()
-  const profileRef = useMemo(() => (firestore && user ? doc(firestore, 'userProfiles', user.uid) : null), [firestore, user])
+  
+  const effectiveUser = user || demoUser
+  
+  const profileRef = useMemo(() => (firestore && effectiveUser ? doc(firestore, 'userProfiles', effectiveUser.uid) : null), [firestore, effectiveUser])
   const { data: profile } = useDoc<any>(profileRef)
 
   const [activeModule, setActiveModule] = useState<ModuleId>('info')
@@ -245,7 +283,7 @@ export default function Home() {
     </div>
   )
 
-  if (!user) return <LoginPage />
+  if (!effectiveUser) return <LoginPage onDemoLogin={() => setDemoUser({ uid: 'demo-user', displayName: 'Testikäyttäjä', email: 'demo@wisemisa.fi' })} />
 
   const renderModule = (id: ModuleId) => {
     switch(id) {
@@ -274,7 +312,7 @@ export default function Home() {
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground relative brushed-metal">
-        <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} user={user} />
+        <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} user={effectiveUser} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
           <header className="h-12 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-6 flex items-center justify-between">
