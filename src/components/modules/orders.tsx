@@ -111,7 +111,13 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
 
   const handleDeleteOrder = (id: string) => {
     if (!firestore) return
-    deleteDoc(doc(firestore, 'orders', id))
+    const docRef = doc(firestore, 'orders', id)
+    deleteDoc(docRef).catch(async () => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete'
+      }))
+    })
   }
 
   const handleAddReminder = () => {
@@ -139,8 +145,8 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     if (!currentMonth) return []
     const monthStart = startOfMonth(currentMonth)
     const monthEnd = endOfMonth(monthStart)
-    const calendarStart = startOfWeek(monthStart, { locale: fi })
-    const calendarEnd = endOfWeek(monthEnd, { locale: fi })
+    const calendarStart = startOfWeek(monthStart, { locale: fi, weekStartsOn: 1 })
+    const calendarEnd = endOfWeek(monthEnd, { locale: fi, weekStartsOn: 1 })
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd })
   }, [currentMonth])
 
@@ -200,7 +206,6 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                   </div>
                 </div>
                 
-                {/* Ehdotuslista toimittajille */}
                 {suppliers.length > 0 && (
                   <div className="flex flex-wrap gap-2 pt-2">
                     {suppliers.slice(0, 5).map(s => (
@@ -226,31 +231,39 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                 <Label>Toivottu saapuminen</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal bg-muted/50 border-border">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
+                    <Button variant="outline" className="w-full justify-start text-left font-normal bg-muted/50 border-border h-11">
+                      <CalendarIcon className="mr-2 h-4 w-4 text-accent" />
                       {arrivalDate ? format(arrivalDate, 'dd.MM.yyyy', { locale: fi }) : <span>Valitse päivä</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0 bg-card border-border shadow-2xl" align="start">
-                    <Calendar mode="single" selected={arrivalDate} onSelect={(d) => d && setArrivalDate(d)} initialFocus locale={fi} />
+                    <Calendar 
+                      mode="single" 
+                      selected={arrivalDate} 
+                      onSelect={(d) => d && setArrivalDate(d)} 
+                      initialFocus 
+                      locale={fi}
+                    />
                   </PopoverContent>
                 </Popover>
               </div>
-              <Button onClick={handleMakeOrder} className="w-full copper-gradient text-white font-bold mt-2 h-11">
+              <Button onClick={handleMakeOrder} className="w-full copper-gradient text-white font-bold mt-2 h-11 shadow-lg">
                 <Plus className="w-4 h-4 mr-2" /> Lähetä tilaus
               </Button>
             </CardContent>
           </Card>
 
           <Card className="bg-card border-border shadow-xl">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-headline uppercase tracking-widest text-accent">Aktiiviset tilaukset</CardTitle>
+            <CardHeader className="pb-3 border-b border-border/50">
+              <CardTitle className="text-sm font-headline uppercase tracking-widest text-accent flex items-center gap-2">
+                <Package className="w-4 h-4" /> Aktiiviset tilaukset
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[300px]">
+            <CardContent className="pt-4">
+              <ScrollArea className="h-[350px]">
                 <div className="space-y-3 pr-4">
                   {orders.map(order => (
-                    <div key={order.id} className="p-3 rounded-lg border border-border bg-white/5 relative group animate-in slide-in-from-left-2">
+                    <div key={order.id} className="p-3 rounded-xl border border-border bg-white/5 relative group animate-in slide-in-from-left-2 transition-all hover:border-accent/30 shadow-inner">
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
                           <div className={cn("w-2 h-2 rounded-full", order.color)} />
@@ -265,20 +278,20 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
-                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground uppercase font-bold">
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-accent" />
-                          Tilattu: {order.orderDate instanceof Timestamp ? format(order.orderDate.toDate(), 'd.M. HH:mm') : '---'}
+                      <div className="flex flex-col gap-1.5 text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-3.5 h-3.5 text-accent/60" />
+                          <span>Tilattu: {order.orderDate instanceof Timestamp ? format(order.orderDate.toDate(), 'd.M. HH:mm') : '---'}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Truck className="w-3 h-3 text-accent" />
-                          Saapuu: {order.arrivalDate instanceof Timestamp ? format(order.arrivalDate.toDate(), 'd.M.yyyy') : '---'}
+                        <div className="flex items-center gap-2">
+                          <Truck className="w-3.5 h-3.5 text-accent" />
+                          <span className="text-foreground">Saapuu: {order.arrivalDate instanceof Timestamp ? format(order.arrivalDate.toDate(), 'd.M.yyyy') : '---'}</span>
                         </div>
                       </div>
                     </div>
                   ))}
                   {orders.length === 0 && (
-                    <div className="py-10 text-center text-xs text-muted-foreground italic">Ei aktiivisia tilauksia.</div>
+                    <div className="py-20 text-center text-xs text-muted-foreground italic border-2 border-dashed border-border rounded-xl">Ei aktiivisia tilauksia.</div>
                   )}
                 </div>
               </ScrollArea>
@@ -287,11 +300,11 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
         </div>
 
         <div className="lg:col-span-8">
-          <Card className="bg-card border-border shadow-2xl h-full">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+          <Card className="bg-card border-border shadow-2xl h-full overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 bg-secondary/10">
               <div>
                 <CardTitle className="font-headline text-xl text-foreground">Toimituskalenteri</CardTitle>
-                <CardDescription className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest">
+                <CardDescription className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest mt-1">
                   {format(currentMonth, 'MMMM yyyy', { locale: fi })} • Klikkaa päivää asettaaksesi muistutuksen
                 </CardDescription>
               </div>
@@ -315,24 +328,24 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                       key={day.toISOString()} 
                       onClick={() => { setSelectedDay(day); setIsReminderDialogOpen(true); }}
                       className={cn(
-                        "min-h-[100px] border-r border-b border-border p-2 transition-colors relative group cursor-pointer",
+                        "min-h-[110px] border-r border-b border-border p-2 transition-all relative group cursor-pointer",
                         i % 7 === 6 ? "border-r-0" : "",
-                        !isCurrentMonth ? "opacity-30 bg-muted/5" : (isSameDay(day, new Date()) ? "bg-primary/5" : "hover:bg-white/5")
+                        !isCurrentMonth ? "opacity-30 bg-muted/5" : (isSameDay(day, new Date()) ? "bg-primary/5" : "hover:bg-white/5 shadow-inner")
                       )}
                     >
                       <div className="flex justify-between items-start">
-                        <span className={cn("text-xs font-bold", isSameDay(day, new Date()) ? "text-accent" : "text-muted-foreground")}>{format(day, 'd')}</span>
+                        <span className={cn("text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full", isSameDay(day, new Date()) ? "bg-accent text-white" : "text-muted-foreground")}>{format(day, 'd')}</span>
                         {hasReminders && <Bell className="w-3 h-3 text-accent animate-pulse" />}
                       </div>
-                      <div className="space-y-1 mt-1">
+                      <div className="space-y-1.5 mt-2">
                         {dayOrders.map(order => (
-                          <div key={order.id} className={cn("p-1 rounded-md text-[9px] font-bold text-white shadow-sm truncate", order.color)}>
+                          <div key={order.id} className={cn("px-2 py-0.5 rounded-md text-[9px] font-bold text-white shadow-md truncate border border-white/10", order.color)}>
                             {order.supplierName}
                           </div>
                         ))}
                         {dayReminders.map(r => (
-                          <div key={r.id} className="bg-accent/20 border border-accent/30 text-[8px] text-accent p-0.5 rounded truncate">
-                            {r.time} {r.content}
+                          <div key={r.id} className="bg-accent/20 border border-accent/30 text-[8px] text-accent p-1 rounded-sm truncate font-medium">
+                            <Clock className="w-2 h-2 inline mr-1" /> {r.time} {r.content}
                           </div>
                         ))}
                       </div>
