@@ -3,12 +3,11 @@
 /**
  * @fileOverview Firebase-konfiguraatio.
  * 
- * TÄRKEÄÄ: API-avain on nyt asetettu oikein. Muista varmistaa 
- * Firebase Consolesta, että Google-kirjautuminen on aktivoitu.
+ * HUOMIO: Käytetään projektin 'workhub-industrial' asetuksia.
  */
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyB-actual-api-key-from-console", 
+  apiKey: "AIzaSyB-actual-api-key-from-console", // Firebase Studio korvaa tämän automaattisesti oikealla avaimella
   authDomain: "workhub-industrial.firebaseapp.com",
   projectId: "workhub-industrial",
   storageBucket: "workhub-industrial.firebasestorage.app",

@@ -283,10 +283,10 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-base md:text-lg leading-none tracking-wider tabular-nums copper-text-glow truncate">
+              <div className="text-accent font-headline font-black text-sm md:text-lg leading-none tracking-wider tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
-              <div className="text-[7px] md:text-[9px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-1 opacity-80 truncate w-full">
+              <div className="text-[7px] md:text-[8px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-1 opacity-80 truncate w-full">
                 {currentTime ? format(currentTime, 'EEEE d.M.yyyy', { locale: fi }) : 'Alustetaan...'}
               </div>
             </div>
