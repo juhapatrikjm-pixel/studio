@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -361,7 +360,7 @@ export function WasteModule() {
                 <Tabs value={activeType} onValueChange={(v: any) => setActiveType(v)} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 bg-black/60 border-white/10 p-1 h-12">
                     <TabsTrigger value="prep" className="text-[11px] font-black uppercase tracking-widest h-full transition-all data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-500">PREP-HUKKA</TabsTrigger>
-                    <TabsTrigger value="waste" className="text-[11px] font-black uppercase tracking-widest h-full transition-all data-[state=active]:bg-destructive/20 data-[state=active]:text-destructive">MYYNTIHÄVIKKI</TabsTrigger>
+                    <TabsTrigger value="waste" className="text-[11px] font-black uppercase tracking-widest h-full transition-all data-[state=active]:bg-destructive/20 data-[state=active]:text-destructive">HÄVIKKI</TabsTrigger>
                   </TabsList>
                 </Tabs>
 
@@ -514,7 +513,7 @@ export function WasteModule() {
               <div className="space-y-3">
                 <div className="p-5 rounded-2xl bg-destructive/5 border border-destructive/20 relative overflow-hidden group transition-all hover:bg-destructive/10">
                   <div className="absolute top-0 right-0 w-16 h-16 bg-destructive/10 rounded-full -mr-8 -mt-8 transition-transform group-hover:scale-150" />
-                  <p className="text-[10px] uppercase font-black text-destructive/60 mb-1 tracking-widest relative z-10">MYYNTIHÄVIKKI</p>
+                  <p className="text-[10px] uppercase font-black text-destructive/60 mb-1 tracking-widest relative z-10">HÄVIKKI</p>
                   <p className="text-4xl font-black text-destructive tabular-nums relative z-10">
                     {monthlyStats?.totalWasteCost?.toLocaleString('fi-FI', { minimumFractionDigits: 2 }) || "0,00"} €
                   </p>
