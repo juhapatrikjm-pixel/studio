@@ -106,15 +106,15 @@ export function WorkspaceModule() {
   }, [latestRecipes, latestDishes])
 
   return (
-    <div className="flex flex-col gap-1.5 animate-in fade-in duration-700 pb-10">
+    <div className="flex flex-col gap-1 animate-in fade-in duration-700 pb-10">
       <header className="flex flex-col gap-0.5 px-1">
         <div className="flex items-center gap-2">
-          <Zap className="w-3.5 h-3.5 text-accent" />
-          <h1 className="text-base font-headline font-black copper-text-glow uppercase tracking-tighter">Ohjauspaneeli</h1>
+          <Zap className="w-3 h-3 text-accent" />
+          <h1 className="text-sm font-headline font-black copper-text-glow uppercase tracking-tighter">Ohjauspaneeli</h1>
         </div>
         <div className="flex items-center gap-2 opacity-60">
-          <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-1 py-0 h-3 text-[6px]">SYSTEM OK</Badge>
-          <span className="text-[6px] uppercase font-bold tracking-widest">ID: wisemisa-d2b98</span>
+          <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-1 py-0 h-3 text-[5px]">SYSTEM OK</Badge>
+          <span className="text-[5px] uppercase font-bold tracking-widest">ID: wisemisa-d2b98</span>
         </div>
       </header>
 
@@ -134,7 +134,7 @@ export function WorkspaceModule() {
                   <CheckCircle className="w-2 h-2 mr-1" /> KUITTAA
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-1.5 p-2 pt-0">
+              <CardContent className="space-y-1 p-2 pt-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                   {shiftInfo.bulletPoints?.map((p: string, i: number) => p && (
                     <div key={i} className="flex items-center gap-1.5 p-1 rounded-lg bg-white/5 border border-white/5">
@@ -223,14 +223,14 @@ export function WorkspaceModule() {
             <Card className="industrial-card bg-primary/5 border-primary/20">
               <CardContent className="p-1.5 flex flex-col items-center justify-center text-center gap-0.5">
                 <Users className="w-2 h-2 text-accent mb-0.5" />
-                <div className="text-sm font-black text-foreground leading-none">12</div>
+                <div className="text-xs font-black text-foreground leading-none">12</div>
                 <p className="text-[5px] text-green-500 font-black uppercase tracking-widest">AKTIIVI</p>
               </CardContent>
             </Card>
             <Card className="industrial-card bg-white/5 border-white/10">
               <CardContent className="p-1.5 flex flex-col items-center justify-center text-center gap-0.5">
                 <Cloud className="w-2 h-2 text-accent mb-0.5" />
-                <div className="text-sm font-black text-foreground leading-none">84%</div>
+                <div className="text-xs font-black text-foreground leading-none">84%</div>
                 <p className="text-[5px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
               </CardContent>
             </Card>
