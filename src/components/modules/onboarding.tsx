@@ -3,7 +3,6 @@
 
 import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,10 +19,13 @@ import {
   Trash2, 
   FileCheck,
   UserCheck,
-  ChevronRight
+  MessageSquare,
+  RefreshCw,
+  Save,
+  Loader2
 } from "lucide-react"
-import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, where } from "firebase/firestore"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
+import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, where, writeBatch } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -32,16 +34,13 @@ type OnboardingTask = {
   id: string
   title: string
   description: string
-  category: 'general' | 'hygiene' | 'safety' | 'tech' | 'quality'
+  category: string
   order: number
 }
 
-type OnboardingProgress = {
-  id: string
-  userId: string
-  taskId: string
-  completedAt: any
-  completedBy: string
+type CategoryMeta = {
+  goal: string
+  masterQuestion: string
 }
 
 const CATEGORIES = [
@@ -52,28 +51,72 @@ const CATEGORIES = [
   { id: 'quality', label: 'Laatu & Reseptit', icon: GraduationCap, color: 'text-accent' },
 ]
 
+const DEFAULT_DATA: Record<string, { goal: string, masterQuestion: string, tasks: string[] }> = {
+  general: {
+    goal: "Perehdytettävä ymmärtää, miten tiimi toimii ja missä tavarat ovat.",
+    masterQuestion: "Jos huomaat, että maito on loppumassa ja seuraava kuorma tulee vasta ylihuomenna, mikä on meidän toimintatapamme?",
+    tasks: ["Työajat ja leimat", "Pukukoodi ja olemus", "Tavaran vastaanotto", "Viestintäkanavat", "Henkilökuntaravinto"]
+  },
+  hygiene: {
+    goal: "Taata asiakasturvallisuus ja noudattaa lakisääteisiä vaatimuksia.",
+    masterQuestion: "Miten toimit, jos huomaat aamulla, että kylmiön ovi on jäänyt raolleen ja lämpötila on noussut +12 asteeseen?",
+    tasks: ["Käsihygienia", "Lämpötilaseuranta", "Ristikontaminaatio", "Siivoussuunnitelma", "Pintapuhtausnäytteet"]
+  },
+  safety: {
+    goal: "Ehkäistä tapaturmat ja tietää, miten toimia kriisitilanteessa.",
+    masterQuestion: "Tiedätkö, missä on lähin sammutuspeite ja kuka on keittiön ensiapuvastaava?",
+    tasks: ["Ensiapupiste", "Paloturvallisuus", "Kemikaaliturvallisuus", "Veitsitekniikka & Ergonomia", "Liukastumisten esto"]
+  },
+  tech: {
+    goal: "Laitteiden pitkäikäisyyden varmistaminen ja käyttöturvallisuus.",
+    masterQuestion: "Näytätkö, miten tämä uuni pestään turvallisesti vuoron päätteeksi?",
+    tasks: ["Uunit ja liedet", "Astianpesukone", "Kylmälaitteet", "Pienkoneet", "Vikailmoitukset"]
+  },
+  quality: {
+    goal: "Tasalaatuisuuden varmistaminen ja kannattavuuden ymmärtäminen.",
+    masterQuestion: "Jos reseptissä lukee 150g proteiinia, mutta laitat huolimattomuuttasi 180g, mitä se tarkoittaa ravintolan kannattavuudelle pitkässä juoksussa?",
+    tasks: ["Reseptiikan käyttö", "Annoskatelaskenta", "Hävikin hallinta", "Esillepano", "Makuprofiili"]
+  }
+}
+
 export function OnboardingModule() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   
-  const currentUserId = "demo-user-123" // Oikeassa sovelluksessa useUser()
-  const isAdmin = true // Demo-ympäristössä Admin
+  const currentUserId = user?.uid || "guest"
+  const isAdmin = true // Todellisuudessa: profile?.role === 'admin'
 
   // Firestore Refs
   const tasksRef = useMemo(() => (firestore ? collection(firestore, 'onboardingTasks') : null), [firestore])
   const progressRef = useMemo(() => (firestore ? collection(firestore, 'onboardingProgress') : null), [firestore])
+  const metaRef = useMemo(() => (firestore ? collection(firestore, 'onboardingMeta') : null), [firestore])
 
   // Queries
   const tasksQuery = useMemo(() => tasksRef ? query(tasksRef, orderBy('order', 'asc')) : null, [tasksRef])
   const userProgressQuery = useMemo(() => progressRef ? query(progressRef, where('userId', '==', currentUserId)) : null, [progressRef, currentUserId])
 
   const { data: allTasks = [] } = useCollection<OnboardingTask>(tasksQuery)
-  const { data: userProgress = [] } = useCollection<OnboardingProgress>(userProgressQuery)
+  const { data: userProgress = [] } = useCollection<any>(userProgressQuery)
 
   // Local State
   const [activeCategory, setActiveCategory] = useState<string>('general')
   const [isManaging, setIsManaging] = useState(false)
-  const [newTask, setNewTask] = useState({ title: "", description: "", category: 'general' as any })
+  const [isSeeding, setIsSeeding] = useState(false)
+  const [newTask, setNewTask] = useState({ title: "", description: "" })
+
+  const categoryMetaRef = useMemo(() => (firestore ? doc(firestore, 'onboardingMeta', activeCategory) : null), [firestore, activeCategory])
+  const { data: currentMeta } = useDoc<CategoryMeta>(categoryMetaRef)
+
+  const [localQuestion, setLocalQuestion] = useState("")
+
+  useEffect(() => {
+    if (currentMeta) {
+      setLocalQuestion(currentMeta.masterQuestion || "")
+    } else {
+      setLocalQuestion(DEFAULT_DATA[activeCategory]?.masterQuestion || "")
+    }
+  }, [currentMeta, activeCategory])
 
   // Calculations
   const completedTaskIds = useMemo(() => new Set(userProgress.map(p => p.taskId)), [userProgress])
@@ -100,7 +143,6 @@ export function OnboardingModule() {
   // Handlers
   const toggleTask = (taskId: string) => {
     if (!firestore || !progressRef) return
-    
     const progressId = `${currentUserId}_${taskId}`
     const docRef = doc(firestore, 'onboardingProgress', progressId)
 
@@ -112,27 +154,66 @@ export function OnboardingModule() {
         userId: currentUserId,
         taskId: taskId,
         completedAt: serverTimestamp(),
-        completedBy: "John Smith" // Oikeassa sovelluksessa user.name
+        completedBy: user?.displayName || "Käyttäjä"
       })
-      toast({
-        title: "Tehtävä kuitattu",
-        description: "Hyvää työtä! Perehdytys etenee.",
-      })
+      toast({ title: "Tehtävä kuitattu" })
     }
+  }
+
+  const seedDefaults = async () => {
+    if (!firestore || !tasksRef || !metaRef) return
+    setIsSeeding(true)
+    try {
+      const batch = writeBatch(firestore)
+      
+      // Poista vanhat tehtävät (valinnainen, mutta siistimpi jos halutaan täysi reset)
+      allTasks.forEach(t => batch.delete(doc(tasksRef, t.id)))
+
+      // Lisää uudet tehtävät ja meta-data
+      Object.entries(DEFAULT_DATA).forEach(([catId, data]) => {
+        data.tasks.forEach((title, i) => {
+          const id = Math.random().toString(36).substr(2, 9)
+          batch.set(doc(tasksRef, id), {
+            id,
+            title,
+            description: "",
+            category: catId,
+            order: i
+          })
+        })
+        batch.set(doc(metaRef, catId), {
+          goal: data.goal,
+          masterQuestion: data.masterQuestion
+        })
+      })
+
+      await batch.commit()
+      toast({ title: "Oletuspohja ladattu onnistuneesti" })
+    } catch (e) {
+      console.error(e)
+      toast({ variant: "destructive", title: "Virhe pohjan latauksessa" })
+    } finally {
+      setIsSeeding(false)
+    }
+  }
+
+  const saveMasterQuestion = () => {
+    if (!categoryMetaRef) return
+    setDoc(categoryMetaRef, { masterQuestion: localQuestion }, { merge: true })
+      .then(() => toast({ title: "Mestarin kysymys tallennettu" }))
   }
 
   const addTask = () => {
     if (!newTask.title.trim() || !firestore) return
-    const taskId = Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'onboardingTasks', taskId)
-    
-    setDoc(docRef, {
-      id: taskId,
-      ...newTask,
-      order: allTasks.length + 1
+    const id = Math.random().toString(36).substr(2, 9)
+    setDoc(doc(firestore, 'onboardingTasks', id), {
+      id,
+      title: newTask.title,
+      description: newTask.description,
+      category: activeCategory,
+      order: allTasks.length
     })
-    setNewTask({ title: "", description: "", category: activeCategory as any })
-    toast({ title: "Perehdytystehtävä lisätty" })
+    setNewTask({ title: "", description: "" })
   }
 
   const deleteTask = (id: string) => {
@@ -154,20 +235,18 @@ export function OnboardingModule() {
         </div>
         
         {isAdmin && (
-          <Button 
-            variant="outline" 
-            onClick={() => setIsManaging(!isManaging)}
-            className={cn(
-              "border-white/10 bg-white/5 transition-all",
-              isManaging ? "border-accent text-accent" : "text-muted-foreground hover:text-accent"
-            )}
-          >
-            {isManaging ? "Sulje hallinta" : "Hallitse tehtäviä"}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={seedDefaults} disabled={isSeeding} className="border-accent/40 text-accent hover:bg-accent/5">
+              {isSeeding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              LATAA OLETUSPOHJA
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setIsManaging(!isManaging)} className={cn(isManaging ? "border-accent text-accent" : "border-white/10")}>
+              {isManaging ? "SULJE HALLINTA" : "HALLITSE"}
+            </Button>
+          </div>
         )}
       </header>
 
-      {/* Kokonaisedistyminen */}
       <Card className="industrial-card overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
         <CardContent className="p-6">
@@ -185,7 +264,6 @@ export function OnboardingModule() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Kategorianavigointi */}
         <div className="lg:col-span-4 space-y-4">
           <div className="grid grid-cols-1 gap-2">
             {CATEGORIES.map((cat) => {
@@ -197,34 +275,22 @@ export function OnboardingModule() {
                   onClick={() => setActiveCategory(cat.id)}
                   className={cn(
                     "flex flex-col p-4 rounded-2xl border transition-all text-left group relative overflow-hidden",
-                    activeCategory === cat.id 
-                      ? "bg-primary/20 border-accent/40 shadow-inner" 
-                      : "bg-white/5 border-white/5 hover:border-white/10"
+                    activeCategory === cat.id ? "bg-primary/20 border-accent/40 shadow-inner" : "bg-white/5 border-white/5 hover:border-white/10"
                   )}
                 >
                   <div className="flex items-center justify-between mb-2 relative z-10">
                     <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "p-2 rounded-lg bg-black/40 border border-white/5 transition-colors",
-                        activeCategory === cat.id ? cat.color : "text-muted-foreground"
-                      )}>
+                      <div className={cn("p-2 rounded-lg bg-black/40 border border-white/5", activeCategory === cat.id ? cat.color : "text-muted-foreground")}>
                         <Icon className="w-5 h-5" />
                       </div>
-                      <span className={cn(
-                        "text-sm font-black uppercase tracking-widest",
-                        activeCategory === cat.id ? "text-accent" : "text-muted-foreground"
-                      )}>{cat.label}</span>
+                      <span className={cn("text-sm font-black uppercase tracking-widest", activeCategory === cat.id ? "text-accent" : "text-muted-foreground")}>{cat.label}</span>
                     </div>
-                    {catStat.percent === 100 && (
-                      <CheckCircle2 className="w-4 h-4 text-green-500" />
-                    )}
+                    {catStat.percent === 100 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                   </div>
-                  
                   <div className="flex items-center justify-between mt-2 relative z-10">
                     <span className="text-[10px] font-bold text-muted-foreground/60">{catStat.completed}/{catStat.total} Tehtävää</span>
                     <span className="text-[10px] font-black text-foreground">{Math.round(catStat.percent)}%</span>
                   </div>
-                  
                   <div className="absolute bottom-0 left-0 h-0.5 bg-accent/20 transition-all" style={{ width: `${catStat.percent}%` }} />
                 </button>
               )
@@ -233,120 +299,72 @@ export function OnboardingModule() {
 
           {isManaging && (
             <Card className="industrial-card mt-6">
-              <CardHeader className="p-4 pb-2">
-                <CardTitle className="text-xs font-black uppercase tracking-widest text-accent">Lisää Tehtävä</CardTitle>
-              </CardHeader>
+              <CardHeader className="p-4 pb-2"><CardTitle className="text-xs font-black uppercase text-accent">LISÄÄ TEHTÄVÄ</CardTitle></CardHeader>
               <CardContent className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-[9px] font-bold uppercase">Tehtävän nimi</Label>
-                  <Input 
-                    value={newTask.title} 
-                    onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                    placeholder="Esim. Veitsien hionta..."
-                    className="bg-black/40 border-white/10 h-10 text-xs"
-                  />
+                  <Label className="text-[9px] font-bold uppercase">Tehtävä</Label>
+                  <Input value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} className="bg-black/40 border-white/10 h-10 text-xs" />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-[9px] font-bold uppercase">Kuvaus</Label>
-                  <Input 
-                    value={newTask.description} 
-                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                    placeholder="Lyhyt ohjeistus..."
-                    className="bg-black/40 border-white/10 h-10 text-xs"
-                  />
-                </div>
-                <Button onClick={addTask} className="w-full copper-gradient text-white font-black text-[10px] uppercase h-10">
-                  Tallenna Tehtävä
-                </Button>
+                <Button onClick={addTask} className="w-full copper-gradient text-white font-black text-[10px] uppercase h-10">TALLENNA</Button>
               </CardContent>
             </Card>
           )}
         </div>
 
-        {/* Tehtävälista */}
         <div className="lg:col-span-8 space-y-6">
-          <Card className="industrial-card min-h-[500px]">
+          <Card className="industrial-card min-h-[500px] flex flex-col">
             <CardHeader className="bg-black/20 border-b border-white/5">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-xl font-headline font-black text-accent uppercase tracking-tight">
-                    {CATEGORIES.find(c => c.id === activeCategory)?.label}
-                  </CardTitle>
-                  <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground mt-1">
-                    Suorita tehtävät ja varmista osaamistasosi.
+                  <CardTitle className="text-xl font-headline font-black text-accent uppercase">{CATEGORIES.find(c => c.id === activeCategory)?.label}</CardTitle>
+                  <CardDescription className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-widest italic">
+                    Tavoite: {currentMeta?.goal || DEFAULT_DATA[activeCategory]?.goal}
                   </CardDescription>
                 </div>
                 <div className="p-3 rounded-xl bg-black/40 border border-white/5">
-                  <span className="text-lg font-black text-accent">
-                    {stats.catStats[activeCategory]?.percent.toFixed(0)}%
-                  </span>
+                  <span className="text-lg font-black text-accent">{stats.catStats[activeCategory]?.percent.toFixed(0)}%</span>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-6">
-              <ScrollArea className="h-[400px] pr-4">
+            
+            <CardContent className="p-6 flex-1 flex flex-col gap-6">
+              <ScrollArea className="h-[300px] pr-4">
                 <div className="space-y-3">
                   {allTasks.filter(t => t.category === activeCategory).map((task) => (
-                    <div 
-                      key={task.id} 
-                      className={cn(
-                        "flex items-center justify-between p-4 rounded-2xl border transition-all group",
-                        completedTaskIds.has(task.id) 
-                          ? "bg-green-500/5 border-green-500/20" 
-                          : "bg-white/5 border-white/5 hover:border-white/10"
-                      )}
-                    >
+                    <div key={task.id} className={cn("flex items-center justify-between p-4 rounded-2xl border transition-all group", completedTaskIds.has(task.id) ? "bg-green-500/5 border-green-500/20" : "bg-white/5 border-white/5 hover:border-white/10")}>
                       <div className="flex items-center gap-4 flex-1">
-                        <Checkbox 
-                          checked={completedTaskIds.has(task.id)}
-                          onCheckedChange={() => toggleTask(task.id)}
-                          className="w-6 h-6 border-white/20 data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
-                        />
-                        <div className="flex flex-col">
-                          <span className={cn(
-                            "text-sm font-black transition-all",
-                            completedTaskIds.has(task.id) ? "text-muted-foreground/60 line-through" : "text-foreground"
-                          )}>
-                            {task.title}
-                          </span>
-                          {task.description && (
-                            <span className="text-[10px] text-muted-foreground italic mt-0.5">
-                              {task.description}
-                            </span>
-                          )}
-                        </div>
+                        <Checkbox checked={completedTaskIds.has(task.id)} onCheckedChange={() => toggleTask(task.id)} className="w-6 h-6 border-white/20 data-[state=checked]:bg-green-500" />
+                        <span className={cn("text-sm font-black uppercase tracking-tight", completedTaskIds.has(task.id) ? "text-muted-foreground/60 line-through" : "text-foreground")}>{task.title}</span>
                       </div>
-                      
-                      {isManaging && (
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => deleteTask(task.id)}
-                          className="text-destructive/40 hover:text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
+                      {isManaging && <Button variant="ghost" size="icon" onClick={() => deleteTask(task.id)} className="text-destructive/40 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>}
                     </div>
                   ))}
-                  {allTasks.filter(t => t.category === activeCategory).length === 0 && (
-                    <div className="py-20 text-center flex flex-col items-center gap-4 opacity-30">
-                      <FileCheck className="w-12 h-12 text-muted-foreground" />
-                      <p className="text-xs uppercase font-black tracking-widest">Ei määriteltyjä tehtäviä tässä osiossa.</p>
-                    </div>
-                  )}
                 </div>
               </ScrollArea>
 
-              {stats.catStats[activeCategory]?.percent === 100 && (
-                <div className="mt-8 p-6 rounded-2xl bg-green-500/10 border border-green-500/20 flex flex-col items-center text-center animate-in zoom-in-95">
-                  <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(34,197,94,0.4)]">
-                    <UserCheck className="w-8 h-8 text-white" />
+              <div className="mt-auto pt-6 border-t border-white/5">
+                <div className="bg-accent/5 p-4 rounded-2xl border border-accent/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[10px] font-black uppercase text-accent tracking-[0.2em] flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" /> Mestarin kysymys
+                    </h4>
+                    {isAdmin && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-accent hover:bg-accent/10" onClick={saveMasterQuestion}>
+                        <Save className="w-3.5 h-3.5" />
+                      </Button>
+                    )}
                   </div>
-                  <h4 className="text-lg font-headline font-black text-green-500 uppercase tracking-tight">Osio suoritettu!</h4>
-                  <p className="text-xs text-muted-foreground mt-2 max-w-[250px]">Olet hallinnut kaikki tämän kategorian vaatimukset. Hienoa työtä!</p>
+                  {isAdmin ? (
+                    <Input 
+                      value={localQuestion} 
+                      onChange={(e) => setLocalQuestion(e.target.value)}
+                      className="bg-transparent border-none p-0 text-sm font-bold text-foreground focus-visible:ring-0 italic"
+                    />
+                  ) : (
+                    <p className="text-sm font-bold text-foreground leading-relaxed italic">"{localQuestion}"</p>
+                  )}
                 </div>
-              )}
+              </div>
             </CardContent>
           </Card>
         </div>
