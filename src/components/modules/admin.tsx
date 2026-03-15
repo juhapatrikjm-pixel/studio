@@ -169,8 +169,11 @@ export function AdminModule() {
       <Tabs defaultValue="settings" className="w-full">
         <div className="relative w-full mb-8">
           <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-background to-transparent pointer-events-none z-10 md:hidden" />
-          <div className="overflow-x-auto no-scrollbar scroll-smooth">
-            <TabsList className="flex w-max min-w-full bg-black/40 border border-white/5 p-1 h-auto min-h-[72px] items-stretch gap-1">
+          <div 
+            className="overflow-x-auto no-scrollbar scroll-smooth"
+            onPointerDown={(e) => e.stopPropagation()} // Estetään Embla Carouselia kaappaamasta vaakasuuntaista rullausta
+          >
+            <TabsList className="flex w-max min-w-full bg-black/40 border border-white/5 p-1 h-auto min-h-[72px] items-stretch gap-1 justify-start">
               {[
                 { id: 'settings', icon: Settings, label: 'Yleiset' },
                 { id: 'order', icon: LayoutGrid, label: 'Järjestys' },
