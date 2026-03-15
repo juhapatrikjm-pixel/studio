@@ -18,7 +18,7 @@ export const BASE_MENU_ITEMS = [
   { id: 'shift-info', path: '/dashboard/shift-info', icon: Info, label: 'Vuoro' },
   { id: 'tulos', path: '/dashboard/tulos', icon: TrendingUp, label: 'Tulos' },
   { id: 'waste', path: '/dashboard/waste', icon: Trash2, label: 'Hävikki' },
-  { id: 'onboarding', path: '/dashboard/onboarding', icon: GraduationCap, label: 'Koulutus' },
+  { id: 'onboarding', path: '/dashboard/onboarding', icon: GraduationCap, label: 'Perehdytys' },
   { id: 'todo-calendar', path: '/dashboard/todo-calendar', icon: CalendarDays, label: 'To do' },
   { id: 'omavalvonta', path: '/dashboard/omavalvonta', icon: ShieldAlert, label: 'Valvonta' },
   { id: 'misa', path: '/dashboard/misa', icon: ClipboardList, label: 'Misa' },
