@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Phone, MessageCircle, MoreHorizontal, Search, UserPlus, Mail, Trash2, ShieldCheck, QrCode, X, Check, Users } from "lucide-react"
+import { Phone, MessageCircle, MoreHorizontal, Search, UserPlus, Mail, Trash2, ShieldCheck, QrCode, X, Check, Users, UserMinus, UserCog } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, doc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
@@ -37,8 +37,7 @@ export function DirectoryModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
   
-  // Simuloidaan järjestelmänvalvojan oikeudet
-  const isAdmin = true // Oikeassa sovelluksessa tämä tulisi useUser() koukulta
+  const isAdmin = true // Demo-ympäristössä true
 
   const contactsRef = useMemo(() => (firestore ? collection(firestore, 'contacts') : null), [firestore])
   const contactsQuery = useMemo(() => (contactsRef ? query(contactsRef, orderBy('name', 'asc')) : null), [contactsRef])
@@ -75,33 +74,21 @@ export function DirectoryModule() {
         setIsEventDialogOpen(false)
         resetForm()
       })
-      .catch(async () => {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'write',
-          requestResourceData: contactData
-        }))
-      })
   }
 
   const handleDeleteContact = (id: string) => {
     if (!firestore || !isAdmin) return
     const docRef = doc(firestore, 'contacts', id)
-    deleteDoc(docRef).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: docRef.path,
-        operation: 'delete'
-      }))
-    })
+    deleteDoc(docRef)
   }
 
-  const handleAddToTeam = () => {
-    if (!selectedContact || !firestore) return
+  const handleOpenTeamDialog = (contact: Contact) => {
+    setSelectedContact(contact)
+    setSelectedRole(ROLES.find(r => r.name === contact.role)?.id || "editor")
     setIsTeamDialogOpen(true)
   }
 
   const sendInvitation = () => {
-    // Simuloidaan kutsun ja QR-koodin lähetys
     setShowQr(true)
     setTimeout(() => {
       if (selectedContact) {
@@ -112,10 +99,26 @@ export function DirectoryModule() {
         }, { merge: true })
       }
       toast({
-        title: "Kutsu lähetetty!",
-        description: `Kertakäyttöinen QR-koodi lähetetty sähköpostiin: ${selectedContact?.email}`,
+        title: contactIsAlreadyMember ? "Rooli päivitetty" : "Kutsu lähetetty!",
+        description: contactIsAlreadyMember ? "Käyttöoikeustaso on nyt päivitetty." : `Kertakäyttöinen QR-koodi lähetetty sähköpostiin: ${selectedContact?.email}`,
       })
+      if (contactIsAlreadyMember) setIsTeamDialogOpen(false)
     }, 1500)
+  }
+
+  const removeFromTeam = () => {
+    if (!selectedContact || !firestore) return
+    const docRef = doc(firestore, 'contacts', selectedContact.id)
+    setDoc(docRef, { 
+      isTeamMember: false, 
+      role: "" 
+    }, { merge: true }).then(() => {
+      toast({
+        title: "Poistettu tiimistä",
+        description: `${selectedContact.name} on nyt vain yhteystieto.`,
+      })
+      setIsTeamDialogOpen(false)
+    })
   }
 
   const resetForm = () => {
@@ -130,6 +133,8 @@ export function DirectoryModule() {
     c.role?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  const contactIsAlreadyMember = selectedContact?.isTeamMember
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -139,7 +144,7 @@ export function DirectoryModule() {
         </div>
         {isAdmin && (
           <Button onClick={() => { resetForm(); setIsEventDialogOpen(true); }} className="copper-gradient hover:opacity-90 gap-2 shadow-lg metal-shine-overlay font-black uppercase text-xs">
-            <UserPlus className="w-4 h-4" /> Lisää yhteystieto
+            <UserPlus className="w-4 h-4" /> Lisää uusi kontakti
           </Button>
         )}
       </header>
@@ -157,8 +162,8 @@ export function DirectoryModule() {
       <div className="space-y-3">
         {filteredContacts.map((contact) => (
           <Card key={contact.id} className="industrial-card group hover:border-accent/30 transition-all border-white/5 overflow-hidden">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-1">
                 <div className="relative">
                   <Avatar className="w-14 h-14 border border-white/10 shadow-lg group-hover:scale-105 transition-transform">
                     <AvatarImage src={`https://picsum.photos/seed/${contact.avatarSeed || contact.id}/200/200`} />
@@ -188,28 +193,50 @@ export function DirectoryModule() {
               
               <div className="flex items-center gap-2">
                 <a href={`tel:${contact.phone}`}>
-                  <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-full transition-all hover:scale-110">
+                  <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-full transition-all">
                     <Phone className="w-4 h-4" />
                   </Button>
                 </a>
                 <a href={`sms:${contact.phone}`}>
-                  <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-full transition-all hover:scale-110">
+                  <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 text-muted-foreground hover:text-accent hover:bg-accent/10 rounded-full transition-all">
                     <MessageCircle className="w-4 h-4" />
                   </Button>
                 </a>
+                
                 {isAdmin && (
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-10 w-10 text-muted-foreground hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => {
-                      setSelectedContact(contact)
-                      setFormData({ name: contact.name, phone: contact.phone, email: contact.email })
-                      setIsEventDialogOpen(true)
-                    }}
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-2 ml-2 pl-4 border-l border-white/5">
+                    {contact.isTeamMember ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleOpenTeamDialog(contact)}
+                        className="border-green-500/20 text-green-500 hover:bg-green-500/10 font-black uppercase text-[9px] h-10 px-3"
+                      >
+                        <UserCog className="w-3 h-3 mr-1.5" /> Hallitse
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleOpenTeamDialog(contact)}
+                        className="border-accent/40 text-accent hover:bg-accent/10 font-black uppercase text-[9px] h-10 px-3"
+                      >
+                        <ShieldCheck className="w-3 h-3 mr-1.5" /> Tiimiin
+                      </Button>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-10 w-10 text-muted-foreground hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => {
+                        setSelectedContact(contact)
+                        setFormData({ name: contact.name, phone: contact.phone, email: contact.email })
+                        setIsEventDialogOpen(true)
+                      }}
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -223,14 +250,13 @@ export function DirectoryModule() {
         )}
       </div>
 
-      {/* Yhteystiedon muokkaus/lisäys Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setIsEventDialogOpen(open); }}>
         <DialogContent className="bg-background border-white/10 text-foreground max-w-md">
           <DialogHeader>
             <DialogTitle className="font-headline text-accent text-xl uppercase tracking-tight flex items-center gap-3">
-              <UserPlus className="w-6 h-6" /> {selectedContact ? "Muokkaa yhteystietoa" : "Uusi yhteystieto"}
+              <UserPlus className="w-6 h-6" /> {selectedContact ? "Muokkaa kontakti" : "Uusi kontakti"}
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground">Tallenna yhteistyökumppanin tai työntekijän tiedot.</DialogDescription>
+            <DialogDescription className="text-muted-foreground">Tallenna yhteistyökumppanin tai työntekijän perustiedot.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
@@ -261,18 +287,6 @@ export function DirectoryModule() {
                 className="bg-white/5 border-white/10 h-11"
               />
             </div>
-
-            {selectedContact && (
-              <div className="pt-4 border-t border-white/5">
-                <Button 
-                  variant="outline" 
-                  onClick={handleAddToTeam}
-                  className="w-full border-accent/20 text-accent hover:bg-accent/10 font-black uppercase text-[10px] h-11 gap-2"
-                >
-                  <ShieldCheck className="w-4 h-4" /> Lisää tiimiin
-                </Button>
-              </div>
-            )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
@@ -289,12 +303,11 @@ export function DirectoryModule() {
         </DialogContent>
       </Dialog>
 
-      {/* Lisää tiimiin Dialog */}
       <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
         <DialogContent className="bg-background border-white/10 text-foreground max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-headline text-accent text-lg uppercase tracking-tight flex items-center gap-3">
-              <ShieldCheck className="w-5 h-5" /> Kutsu tiimiin
+              <ShieldCheck className="w-5 h-5" /> {contactIsAlreadyMember ? "Muokkaa tiimijäsenyyttä" : "Kutsu tiimiin"}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground italic text-xs">
               Valitse käyttöoikeustaso henkilölle {selectedContact?.name}.
@@ -319,20 +332,34 @@ export function DirectoryModule() {
               
               <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
                 <p className="text-[10px] text-muted-foreground uppercase font-medium leading-relaxed">
-                  Henkilölle lähetetään digitaalinen kertakäyttöinen QR-koodi, joka oikeuttaa valittuun tasoon Wisemisa Bistro -työtilassa.
+                  {contactIsAlreadyMember 
+                    ? "Roolin muuttaminen päivittää välittömästi käyttäjän oikeudet ja vaikuttaa lisenssikuluihin."
+                    : "Henkilölle lähetetään digitaalinen kertakäyttöinen QR-koodi, joka oikeuttaa valittuun tasoon Wisemisa Bistro -työtilassa."}
                 </p>
               </div>
 
-              <Button onClick={sendInvitation} className="w-full copper-gradient text-white font-black h-14 gap-3 shadow-2xl metal-shine-overlay uppercase tracking-widest text-xs">
-                <QrCode className="w-5 h-5" /> LÄHETÄ KUTSU
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button onClick={sendInvitation} className="w-full copper-gradient text-white font-black h-14 gap-3 shadow-2xl metal-shine-overlay uppercase tracking-widest text-xs">
+                  {contactIsAlreadyMember ? <Save className="w-5 h-5" /> : <QrCode className="w-5 h-5" />}
+                  {contactIsAlreadyMember ? "PÄIVITÄ ROOLI" : "LÄHETÄ KUTSU"}
+                </Button>
+                
+                {contactIsAlreadyMember && (
+                  <Button 
+                    variant="ghost" 
+                    onClick={removeFromTeam}
+                    className="w-full text-destructive hover:bg-destructive/10 font-black uppercase text-[10px] h-10 gap-2"
+                  >
+                    <UserMinus className="w-4 h-4" /> Poista tiimistä
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center gap-6 py-8 animate-in zoom-in-95 duration-500">
               <div className="relative group cursor-pointer">
                 <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full group-hover:bg-accent/40 transition-all" />
                 <div className="relative w-48 h-48 bg-white p-4 rounded-3xl shadow-2xl metal-shine-overlay">
-                  {/* Tässä olisi oikea QR-koodi kirjastolla, käytetään ikonia ja kuviota simulaationa */}
                   <div className="w-full h-full border-4 border-black/5 flex flex-col items-center justify-center gap-2">
                     <QrCode className="w-24 h-24 text-black" />
                     <div className="w-full grid grid-cols-4 gap-1 px-4">

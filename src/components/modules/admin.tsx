@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -9,9 +8,9 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Shield, UserCog, Settings, Lock, Percent, Smile, Plus, Trash2, Banknote, Clock, BadgeEuro, Users2 } from "lucide-react"
-import { useFirestore, useDoc } from "@/firebase"
-import { doc, setDoc } from "firebase/firestore"
+import { Shield, UserCog, Settings, Lock, Percent, Smile, Plus, Trash2, Banknote, Clock, BadgeEuro, Users2, CreditCard } from "lucide-react"
+import { useFirestore, useDoc, useCollection } from "@/firebase"
+import { doc, setDoc, collection } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -21,28 +20,32 @@ const ROLES = [
     id: 'admin', 
     name: 'Ylläpitäjä', 
     kitchenTitle: 'Keittiömestari', 
-    price: '24,90 €/kk',
+    price: 24.90,
+    priceStr: '24,90 €/kk',
     desc: 'Täydet oikeudet hallintaan, talouteen ja asetuksiin.'
   },
   { 
     id: 'power', 
     name: 'Pääkäyttäjä', 
     kitchenTitle: 'Vuoromestari', 
-    price: '6,90 €/kk',
+    price: 6.90,
+    priceStr: '6,90 €/kk',
     desc: 'Oikeus hallita listoja, tilauksia ja vuoro-infoja.'
   },
   { 
     id: 'editor', 
     name: 'Muokkaaja', 
     kitchenTitle: 'Kokki', 
-    price: '4,90 €/kk',
+    price: 4.90,
+    priceStr: '4,90 €/kk',
     desc: 'Oikeus kuitata tehtäviä ja muokata reseptejä.'
   },
   { 
     id: 'viewer', 
     name: 'Katselija', 
     kitchenTitle: 'Apuhenkilöstö', 
-    price: '4,90 €/kk',
+    price: 4.90,
+    priceStr: '4,90 €/kk',
     desc: 'Luku-oikeus listoihin ja reseptiikkaan.'
   },
 ]
@@ -53,6 +56,9 @@ export function AdminModule() {
   
   const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
   const { data: settings } = useDoc<any>(settingsRef)
+
+  const contactsRef = useMemo(() => (firestore ? collection(firestore, 'contacts') : null), [firestore])
+  const { data: contacts = [] } = useCollection<any>(contactsRef)
 
   const [targetMargin, setTargetMargin] = useState(75)
   const [hourlyRate, setHourlyRate] = useState(22)
@@ -66,6 +72,23 @@ export function AdminModule() {
       if (settings.cheerMessages) setMessages(settings.cheerMessages)
     }
   }, [settings])
+
+  // Lasketaan tiimin jäsenet ja kustannukset
+  const teamStats = useMemo(() => {
+    const activeMembers = contacts.filter(c => c.isTeamMember)
+    const counts: Record<string, number> = { admin: 0, power: 0, editor: 0, viewer: 0 }
+    let totalCost = 0
+
+    activeMembers.forEach(member => {
+      const roleObj = ROLES.find(r => r.kitchenTitle === member.role)
+      if (roleObj) {
+        counts[roleObj.id]++
+        totalCost += roleObj.price
+      }
+    })
+
+    return { counts, totalCost, totalMembers: activeMembers.length }
+  }, [contacts])
 
   const saveSettings = () => {
     if (!firestore || !settingsRef) return
@@ -193,6 +216,91 @@ export function AdminModule() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="roles">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-8">
+              <Card className="industrial-card">
+                <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <CardTitle className="font-headline text-accent text-2xl uppercase tracking-tight">Roolimääritykset</CardTitle>
+                      <CardDescription>Määritä keittiön hierarkia ja käyttöoikeudet.</CardDescription>
+                    </div>
+                    <Badge variant="outline" className="border-accent/20 text-accent font-black tracking-widest uppercase">Lisenssit</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {ROLES.map((role) => (
+                      <div key={role.id} className="flex flex-col p-5 rounded-2xl border border-white/5 bg-black/40 shadow-inner group transition-all hover:border-accent/30 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                        
+                        <div className="flex items-start justify-between mb-4 relative z-10">
+                          <div>
+                            <h3 className="font-headline font-black text-xl text-foreground uppercase tracking-tight">{role.kitchenTitle}</h3>
+                            <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">{role.name}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-accent font-black text-lg">{role.priceStr}</div>
+                            <Badge variant="outline" className="text-[8px] border-accent/20 text-accent font-bold px-1 py-0">{teamStats.counts[role.id]} käytössä</Badge>
+                          </div>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mb-6 line-clamp-2 relative z-10">{role.desc}</p>
+                        
+                        <div className="flex gap-2 mt-auto relative z-10">
+                          <Button variant="outline" size="sm" className="flex-1 h-9 border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/5">Määritä oikeudet</Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="lg:col-span-4">
+              <Card className="industrial-card sticky top-24">
+                <div className="absolute top-0 left-0 w-full h-1 steel-detail" />
+                <CardHeader>
+                  <CardTitle className="font-headline text-accent uppercase tracking-tight flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" /> Kustannusyhteenveto
+                  </CardTitle>
+                  <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Arvioitu kuukausiveloitus (Alv 0%)</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    {ROLES.map(role => teamStats.counts[role.id] > 0 && (
+                      <div key={role.id} className="flex justify-between items-center text-sm border-b border-white/5 pb-2">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-foreground">{role.kitchenTitle}</span>
+                          <span className="text-[10px] text-muted-foreground">{teamStats.counts[role.id]} x {role.priceStr}</span>
+                        </div>
+                        <span className="font-mono font-bold">{(teamStats.counts[role.id] * role.price).toFixed(2)} €</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-4 border-t-2 border-accent/20">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-black uppercase text-muted-foreground">Yhteensä</span>
+                      <span className="text-3xl font-headline font-black text-accent tabular-nums">{teamStats.totalCost.toFixed(2)} €</span>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground italic text-right">Seuraava laskutus: 1. päivä</p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-4">
+                    <Shield className="w-6 h-6 text-accent shrink-0" />
+                    <p className="text-[10px] text-muted-foreground uppercase font-medium leading-relaxed">
+                      Laskutus perustuu tiimin aktiivisiin jäseniin yhteystietolistassa.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
         <TabsContent value="teams">
           <Card className="industrial-card">
             <div className="absolute top-0 left-0 w-full h-1 steel-detail" />
@@ -214,54 +322,6 @@ export function AdminModule() {
                   <p className="text-sm text-muted-foreground">Näytä kaikki jäsenet yhteystietoluettelossa oletuksena.</p>
                 </div>
                 <Switch defaultChecked />
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="roles">
-          <Card className="industrial-card">
-            <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <div>
-                  <CardTitle className="font-headline text-accent text-2xl uppercase tracking-tight">Roolimääritykset ja Hinnoittelu</CardTitle>
-                  <CardDescription>Määritä keittiön hierarkia ja käyttöoikeudet.</CardDescription>
-                </div>
-                <Badge variant="outline" className="border-accent/20 text-accent font-black tracking-widest uppercase">Lisenssit</Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {ROLES.map((role) => (
-                  <div key={role.id} className="flex flex-col p-5 rounded-2xl border border-white/5 bg-black/40 shadow-inner group transition-all hover:border-accent/30 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-                    
-                    <div className="flex items-start justify-between mb-4 relative z-10">
-                      <div>
-                        <h3 className="font-headline font-black text-xl text-foreground uppercase tracking-tight">{role.kitchenTitle}</h3>
-                        <p className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">{role.name}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-accent font-black text-lg">{role.price}</div>
-                        <p className="text-[8px] text-muted-foreground uppercase font-bold">Alv 0%</p>
-                      </div>
-                    </div>
-                    
-                    <p className="text-xs text-muted-foreground mb-6 line-clamp-2 relative z-10">{role.desc}</p>
-                    
-                    <div className="flex gap-2 mt-auto relative z-10">
-                      <Button variant="outline" size="sm" className="flex-1 h-9 border-white/10 text-[10px] font-black uppercase tracking-widest hover:bg-white/5">Hallitse oikeuksia</Button>
-                      <Button className="copper-gradient h-9 px-4 text-white"><BadgeEuro className="w-4 h-4" /></Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-8 p-4 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-4">
-                <Shield className="w-6 h-6 text-accent shrink-0" />
-                <p className="text-[10px] text-muted-foreground uppercase font-medium leading-relaxed">
-                  Huom: Hinnoittelu perustuu aktiivisiin käyttäjiin. Keittiömestari-tason lisenssi vaaditaan vähintään yhdelle käyttäjälle per toimipiste.
-                </p>
               </div>
             </CardContent>
           </Card>
