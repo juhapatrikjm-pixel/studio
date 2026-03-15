@@ -59,7 +59,7 @@ export function WorkspaceModule() {
 
   const isRead = useMemo(() => {
     if (!shiftInfo) return false
-    return shiftInfo.acknowledgedBy?.includes(currentUser) || readInfoIds.includes(shiftInfo.id)
+    return (shiftInfo.acknowledgedBy || []).includes(currentUser) || readInfoIds.includes(shiftInfo.id)
   }, [shiftInfo, currentUser, readInfoIds])
 
   const markAsRead = () => {
@@ -235,7 +235,7 @@ export function WorkspaceModule() {
                 <div className="text-2xl font-black text-foreground leading-none">84%</div>
                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
               </CardContent>
-            </Card>
+            </div>
           </div>
         </div>
       </div>
