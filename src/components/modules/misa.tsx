@@ -6,16 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ListChecks, Search, AlertCircle, Plus, Trash2, Calendar as CalendarIcon, ChevronRight, LayoutList } from "lucide-react"
+import { ListChecks, Search, AlertCircle, Plus, Trash2, Calendar as CalendarIcon, ChevronRight, LayoutList, Printer, Share2, Edit2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { format } from "date-fns"
-import { fi } from "date-fns/locale"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, doc, setDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
+import { useToast } from "@/hooks/use-toast"
 
 type TaskItem = {
   id: string
@@ -33,12 +30,15 @@ type MisaList = {
 
 export function MisaModule() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const misaListsRef = useMemo(() => (firestore ? collection(firestore, 'misaLists') : null), [firestore]);
   const { data: misaLists = [] } = useCollection<MisaList>(misaListsRef);
 
   const [newListTitle, setNewListTitle] = useState("")
   const [activeListId, setActiveListId] = useState<string | null>(null)
   const [newTaskText, setNewTaskText] = useState("")
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null)
+  const [tempTitle, setTempTitle] = useState("")
 
   const addMisaList = () => {
     if (!newListTitle.trim() || !firestore) return
@@ -46,13 +46,13 @@ export function MisaModule() {
     const newListRef = doc(firestore, 'misaLists', listId);
     
     setDoc(newListRef, {
+      id: listId,
       title: newListTitle,
       items: []
     }).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: newListRef.path,
-        operation: 'create',
-        requestResourceData: { title: newListTitle, items: [] }
+        operation: 'create'
       }));
     });
     
@@ -63,13 +63,15 @@ export function MisaModule() {
   const removeMisaList = (id: string) => {
     if (!firestore) return;
     const listRef = doc(firestore, 'misaLists', id);
-    deleteDoc(listRef).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: listRef.path,
-        operation: 'delete'
-      }));
-    });
+    deleteDoc(listRef);
     if (activeListId === id) setActiveListId(null)
+  }
+
+  const updateListTitle = (id: string) => {
+    if (!tempTitle.trim() || !firestore) return;
+    const listRef = doc(firestore, 'misaLists', id);
+    updateDoc(listRef, { title: tempTitle });
+    setEditingTitleId(null);
   }
 
   const addTaskToList = (listId: string) => {
@@ -79,12 +81,6 @@ export function MisaModule() {
 
     updateDoc(listRef, {
       items: arrayUnion(newTask)
-    }).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: listRef.path,
-        operation: 'update',
-        requestResourceData: newTask
-      }));
     });
     setNewTaskText("")
   }
@@ -99,12 +95,7 @@ export function MisaModule() {
       item.id === task.id ? { ...item, completed: !item.completed } : item
     );
 
-    updateDoc(listRef, { items: updatedItems }).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: listRef.path,
-        operation: 'update'
-      }));
-    });
+    updateDoc(listRef, { items: updatedItems });
   }
 
   const removeTaskFromList = (listId: string, task: TaskItem) => {
@@ -112,25 +103,36 @@ export function MisaModule() {
     const listRef = doc(firestore, 'misaLists', listId);
     updateDoc(listRef, {
       items: arrayRemove(task)
-    }).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: listRef.path,
-        operation: 'update'
-      }));
     });
+  }
+
+  const handlePrint = () => {
+    window.print();
+  }
+
+  const handleShare = (list: MisaList) => {
+    const text = `PREP-LISTA: ${list.title}\n\n` + 
+      list.items.map(i => `${i.completed ? '[x]' : '[ ]'} ${i.text}`).join('\n');
+    
+    if (navigator.share) {
+      navigator.share({ title: list.title, text });
+    } else {
+      navigator.clipboard.writeText(text);
+      toast({ title: "Kopioitu", description: "Lista kopioitu leikepöydälle." });
+    }
   }
 
   const activeList = misaLists.find(l => l.id === (activeListId || misaLists[0]?.id));
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
-      <header className="flex flex-col gap-1">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10 print:p-0">
+      <header className="flex flex-col gap-1 no-print">
         <h2 className="text-3xl font-headline font-bold text-accent">Prep-listat</h2>
         <p className="text-muted-foreground">Hallitse keittiön valmisteluja ja menuja.</p>
       </header>
 
       <Tabs defaultValue="misa" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 mb-8 bg-muted/30 border border-border p-1">
+        <TabsList className="grid w-full grid-cols-3 mb-8 bg-muted/30 border border-border p-1 no-print">
           <TabsTrigger value="misa" className="gap-2">Prep-listat</TabsTrigger>
           <TabsTrigger value="haku" className="gap-2">Haku-lista</TabsTrigger>
           <TabsTrigger value="puute" className="gap-2">Puute-lista</TabsTrigger>
@@ -138,7 +140,7 @@ export function MisaModule() {
 
         <TabsContent value="misa">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <Card className="lg:col-span-1 bg-card border-border shadow-xl h-fit">
+            <Card className="lg:col-span-1 bg-card border-border shadow-xl h-fit no-print">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-headline uppercase tracking-wider text-accent">Projektit & Menut</CardTitle>
               </CardHeader>
@@ -163,11 +165,9 @@ export function MisaModule() {
                           : "bg-transparent border-transparent hover:bg-white/5 text-muted-foreground"
                       )}
                     >
-                      <div className="flex flex-col">
-                        <span className="text-sm">{list.title}</span>
-                      </div>
+                      <span className="text-sm truncate">{list.title}</span>
                       <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); removeMisaList(list.id); }}>
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3 h-3 text-destructive" />
                       </Button>
                     </div>
                   ))}
@@ -175,18 +175,34 @@ export function MisaModule() {
               </CardContent>
             </Card>
 
-            <Card className="lg:col-span-2 bg-card border-border shadow-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-50" />
+            <Card className="lg:col-span-2 bg-card border-border shadow-2xl relative overflow-hidden print:shadow-none print:border-none print-container">
+              <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-50 no-print" />
               {activeList ? (
                 <>
-                  <CardHeader>
-                    <CardTitle className="font-headline text-2xl flex items-center gap-2">
-                      <LayoutList className="w-5 h-5 text-accent" />
-                      {activeList.title}
-                    </CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
+                    <div className="flex-1">
+                      {editingTitleId === activeList.id ? (
+                        <div className="flex gap-2">
+                          <Input value={tempTitle} onChange={(e) => setTempTitle(e.target.value)} className="h-8" />
+                          <Button size="sm" onClick={() => updateListTitle(activeList.id)}>OK</Button>
+                        </div>
+                      ) : (
+                        <CardTitle className="font-headline text-2xl flex items-center gap-2">
+                          <LayoutList className="w-5 h-5 text-accent no-print" />
+                          {activeList.title}
+                          <Button variant="ghost" size="icon" className="h-6 w-6 no-print" onClick={() => { setEditingTitleId(activeList.id); setTempTitle(activeList.title); }}>
+                            <Edit2 className="w-3 h-3" />
+                          </Button>
+                        </CardTitle>
+                      )}
+                    </div>
+                    <div className="flex gap-2 no-print">
+                      <Button variant="outline" size="icon" onClick={() => handleShare(activeList)}><Share2 className="w-4 h-4" /></Button>
+                      <Button variant="outline" size="icon" onClick={handlePrint}><Printer className="w-4 h-4" /></Button>
+                    </div>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex gap-2">
+                  <CardContent className="space-y-6 pt-6">
+                    <div className="flex gap-2 no-print">
                       <Input 
                         placeholder="Lisää tehtävä..." 
                         value={newTaskText}
@@ -197,16 +213,17 @@ export function MisaModule() {
                     </div>
                     <div className="space-y-2">
                       {activeList.items?.map((item) => (
-                        <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card">
+                        <div key={item.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-card print:border-black print:text-black">
                           <div className="flex items-center gap-3">
                             <Checkbox 
                               checked={item.completed} 
                               onCheckedChange={() => toggleTaskInList(activeList.id, item)}
+                              className="print:border-black"
                             />
-                            <span className={cn(item.completed && "line-through text-muted-foreground")}>{item.text}</span>
+                            <span className={cn(item.completed && "line-through text-muted-foreground print:text-black")}>{item.text}</span>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => removeTaskFromList(activeList.id, item)}>
-                            <Trash2 className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="no-print" onClick={() => removeTaskFromList(activeList.id, item)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
                         </div>
                       ))}

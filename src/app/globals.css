@@ -4,23 +4,23 @@
 
 @layer base {
   :root {
-    --background: 0 0% 5%; /* Matta musta */
-    --foreground: 0 0% 95%; /* Kirkas teksti luettavuutta varten */
+    --background: 0 0% 5%;
+    --foreground: 0 0% 95%;
     --card: 0 0% 8%;
     --card-foreground: 0 0% 95%;
     --popover: 0 0% 7%;
     --popover-foreground: 0 0% 95%;
-    --primary: 25 50% 45%; /* Lämmin kupari */
+    --primary: 25 50% 45%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 15%; /* Tumma teräs */
+    --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 90%;
     --muted: 0 0% 12%;
     --muted-foreground: 0 0% 70%;
-    --accent: 25 75% 60%; /* Heijastava kupari */
+    --accent: 25 75% 60%;
     --accent-foreground: 0 0% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 20%; /* Teräksen sävyinen raja */
+    --border: 0 0% 20%;
     --input: 0 0% 15%;
     --ring: 25 50% 45%;
     --radius: 0.5rem;
@@ -75,4 +75,36 @@
 
 .steel-detail {
   background: linear-gradient(135deg, #71717a 0%, #d4d4d8 50%, #52525b 100%);
+}
+
+/* Tulostusasetukset */
+@media print {
+  body {
+    @apply bg-white text-black;
+  }
+  .no-print, 
+  header, 
+  aside, 
+  button, 
+  nav, 
+  [role="tablist"],
+  .sidebar-trigger {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-container {
+    @apply m-0 p-0 shadow-none border-none;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .card {
+    @apply border-black shadow-none;
+    page-break-inside: avoid;
+  }
+  .copper-text-glow {
+    -webkit-text-fill-color: black !important;
+    background: none !important;
+  }
 }

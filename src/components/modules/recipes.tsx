@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -19,10 +18,15 @@ import {
   X,
   TrendingUp,
   Wrench,
-  Clock
+  Clock,
+  Printer,
+  Share2,
+  Edit2,
+  Search,
+  Filter
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, doc, setDoc } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -68,17 +72,24 @@ export function RecipesModule() {
   const equipmentRef = useMemo(() => (firestore ? collection(firestore, 'equipment') : null), [firestore])
   const foldersRef = useMemo(() => (firestore ? collection(firestore, 'archiveFolders') : null), [firestore])
   const recipesRef = useMemo(() => (firestore ? collection(firestore, 'recipes') : null), [firestore])
+  const dishesRef = useMemo(() => (firestore ? collection(firestore, 'dishes') : null), [firestore])
   const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
 
   const { data: globalEquipment = [] } = useCollection<any>(equipmentRef)
   const { data: folders = [] } = useCollection<any>(foldersRef)
   const { data: globalRecipes = [] } = useCollection<any>(recipesRef)
+  const { data: globalDishes = [] } = useCollection<any>(dishesRef)
   const { data: settings } = useDoc<any>(settingsRef)
 
   const targetMargin = settings?.targetMargin || 75
 
+  // Hakukone
+  const [searchTerm, setSearchTerm] = useState("")
+  const [activeTab, setActiveTab] = useState<'recipes' | 'dishes'>('recipes')
+
   // Tiloja Reseptille
-  const [isCreating, setIsCreating] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
   const [recipeName, setRecipeName] = useState("")
   const [portions, setPortions] = useState(1)
   const [selectedFolderId, setSelectedFolderId] = useState<string>("root")
@@ -87,7 +98,8 @@ export function RecipesModule() {
   const [recipeEquip, setRecipeEquip] = useState<RecipeEquipment[]>([])
 
   // Tiloja Annokselle
-  const [isCreatingDish, setIsCreatingDish] = useState(false)
+  const [isEditingDish, setIsEditingDish] = useState(false)
+  const [editDishId, setEditDishId] = useState<string | null>(null)
   const [dishName, setDishName] = useState("")
   const [sellingPrice, setSellingPrice] = useState(0)
   const [selectedDishFolderId, setSelectedDishFolderId] = useState<string>("root")
@@ -173,6 +185,7 @@ export function RecipesModule() {
     setIngredients([])
     setSteps([])
     setRecipeEquip([])
+    setEditId(null)
   }
 
   const resetDishForm = () => {
@@ -183,12 +196,13 @@ export function RecipesModule() {
     setDishIngredients([])
     setDishSteps([])
     setDishEquip([])
+    setEditDishId(null)
   }
 
   const handleSaveRecipe = () => {
     if (!recipeName.trim() || !firestore) return
 
-    const recipeId = Math.random().toString(36).substr(2, 9)
+    const recipeId = editId || Math.random().toString(36).substr(2, 9)
     const recipeRef = doc(firestore, 'recipes', recipeId)
     const recipeData = {
       id: recipeId,
@@ -199,26 +213,19 @@ export function RecipesModule() {
       steps,
       equipment: recipeEquip,
       calculations: recipeCalculations,
-      createdAt: new Date().toISOString()
+      createdAt: editId ? (globalRecipes.find(r => r.id === editId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
     }
 
-    setDoc(recipeRef, recipeData).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: recipeRef.path,
-        operation: 'create',
-        requestResourceData: recipeData
-      }))
-    })
-
-    toast({ title: "Resepti tallennettu", description: `"${recipeName}" on arkistoitu.` })
-    setIsCreating(false)
+    setDoc(recipeRef, recipeData, { merge: true });
+    toast({ title: "Resepti tallennettu", description: `"${recipeName}" on päivitetty.` })
+    setIsEditing(false)
     resetRecipeForm()
   }
 
   const handleSaveDish = () => {
     if (!dishName.trim() || !firestore) return
 
-    const dishId = Math.random().toString(36).substr(2, 9)
+    const dishId = editDishId || Math.random().toString(36).substr(2, 9)
     const dishRef = doc(firestore, 'dishes', dishId)
     const dishData = {
       id: dishId,
@@ -232,44 +239,88 @@ export function RecipesModule() {
       totalCost: dishCalculations.totalCost,
       totalWeight: dishCalculations.totalWeight,
       margin: dishCalculations.margin,
-      createdAt: new Date().toISOString()
+      createdAt: editDishId ? (globalDishes.find(d => d.id === editDishId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
     }
 
-    setDoc(dishRef, dishData).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: dishRef.path,
-        operation: 'create',
-        requestResourceData: dishData
-      }))
-    })
-
-    toast({ title: "Annos tallennettu", description: `"${dishName}" on valmis.` })
-    setIsCreatingDish(false)
+    setDoc(dishRef, dishData, { merge: true });
+    toast({ title: "Annos tallennettu", description: `"${dishName}" on päivitetty.` })
+    setIsEditingDish(false)
     resetDishForm()
   }
 
-  const addRecipeToDish = (recipeId: string) => {
-    const original = globalRecipes.find(r => r.id === recipeId)
-    if (!original) return
-
-    setSelectedRecipes([...selectedRecipes, {
-      id: Date.now().toString(),
-      recipeId: original.id,
-      name: original.name,
-      cost: original.calculations.portionCost || 0,
-      weight: original.calculations.portionWeight || 0
-    }])
+  const startEditRecipe = (recipe: any) => {
+    setEditId(recipe.id)
+    setRecipeName(recipe.name)
+    setPortions(recipe.portions)
+    setSelectedFolderId(recipe.folderId || "root")
+    setIngredients(recipe.ingredients || [])
+    setSteps(recipe.steps || [])
+    setRecipeEquip(recipe.equipment || [])
+    setIsEditing(true)
   }
 
+  const startEditDish = (dish: any) => {
+    setEditDishId(dish.id)
+    setDishName(dish.name)
+    setSellingPrice(dish.sellingPrice)
+    setSelectedDishFolderId(dish.folderId || "root")
+    setSelectedRecipes(dish.recipes || [])
+    setDishIngredients(dish.manualIngredients || [])
+    setDishSteps(dish.steps || [])
+    setDishEquip(dish.equipment || [])
+    setIsEditingDish(true)
+  }
+
+  const handleDeleteRecipe = (id: string) => {
+    if (!firestore) return;
+    deleteDoc(doc(firestore, 'recipes', id));
+    toast({ title: "Poistettu", description: "Resepti poistettu arkistosta." });
+  }
+
+  const handleDeleteDish = (id: string) => {
+    if (!firestore) return;
+    deleteDoc(doc(firestore, 'dishes', id));
+    toast({ title: "Poistettu", description: "Annoskortti poistettu arkistosta." });
+  }
+
+  const handlePrint = () => {
+    window.print();
+  }
+
+  const handleShareAsText = (type: 'recipe' | 'dish') => {
+    let text = "";
+    if (type === 'recipe') {
+      text = `RESEPTIKORTTI: ${recipeName}\nSaanto: ${portions} annosta\n\nAINESOSAT:\n` + 
+        ingredients.map(i => `- ${i.name}: ${i.weight}kg`).join('\n') +
+        `\n\nVAIHEET:\n` + steps.map((s, idx) => `${idx+1}. ${s.text}`).join('\n');
+    } else {
+      text = `ANNOSKORTTI: ${dishName}\nMyyntihinta: ${sellingPrice}€\n\nKOOSTUMUS:\n` +
+        selectedRecipes.map(r => `- ${r.name}`).join('\n') +
+        `\n\nVAIHEET:\n` + dishSteps.map((s, idx) => `${idx+1}. ${s.text}`).join('\n');
+    }
+    
+    if (navigator.share) {
+      navigator.share({ title: type === 'recipe' ? recipeName : dishName, text });
+    } else {
+      navigator.clipboard.writeText(text);
+      toast({ title: "Kopioitu", description: "Tiedot kopioitu leikepöydälle." });
+    }
+  }
+
+  const filteredItems = useMemo(() => {
+    const list = activeTab === 'recipes' ? globalRecipes : globalDishes;
+    return list.filter(item => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [activeTab, globalRecipes, globalDishes, searchTerm]);
+
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
-      <header className="flex flex-col gap-1">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10 print:p-0">
+      <header className="flex flex-col gap-1 no-print">
         <h2 className="text-3xl font-headline font-bold text-accent">Reseptiikka</h2>
         <p className="text-muted-foreground">Hallitse keittiön reseptejä ja kokoa niistä kannattavia annoksia.</p>
       </header>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card onClick={() => setIsCreating(true)} className="bg-card border-border shadow-xl relative overflow-hidden group hover:border-primary/40 transition-all cursor-pointer">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 no-print">
+        <Card onClick={() => { resetRecipeForm(); setIsEditing(true); }} className="bg-card border-border shadow-xl relative overflow-hidden group hover:border-primary/40 transition-all cursor-pointer">
           <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-50" />
           <CardHeader>
             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 border border-primary/20">
@@ -285,7 +336,7 @@ export function RecipesModule() {
           </CardContent>
         </Card>
 
-        <Card onClick={() => setIsCreatingDish(true)} className="bg-card border-border shadow-xl relative overflow-hidden group hover:border-primary/40 transition-all cursor-pointer">
+        <Card onClick={() => { resetDishForm(); setIsEditingDish(true); }} className="bg-card border-border shadow-xl relative overflow-hidden group hover:border-primary/40 transition-all cursor-pointer">
           <div className="absolute top-0 right-0 w-1 h-full steel-detail opacity-50" />
           <CardHeader>
             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 border border-primary/20">
@@ -302,33 +353,81 @@ export function RecipesModule() {
         </Card>
       </div>
 
+      <div className="no-print mt-6 space-y-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="flex gap-2 bg-muted/30 p-1 rounded-lg border border-border">
+            <Button variant={activeTab === 'recipes' ? 'default' : 'ghost'} onClick={() => setActiveTab('recipes')} className={cn(activeTab === 'recipes' && "copper-gradient")}>Reseptit</Button>
+            <Button variant={activeTab === 'dishes' ? 'default' : 'ghost'} onClick={() => setActiveTab('dishes')} className={cn(activeTab === 'dishes' && "steel-detail")}>Annokset</Button>
+          </div>
+          <div className="relative flex-1 max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input 
+              placeholder="Etsi tallennettuja..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-muted/30 border-border"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredItems.map(item => (
+            <Card key={item.id} className="bg-card border-border hover:border-accent/40 transition-all group overflow-hidden">
+               <div className={cn("h-1 w-full", activeTab === 'recipes' ? "copper-gradient" : "steel-detail")} />
+               <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded bg-muted/50">
+                      {activeTab === 'recipes' ? <ChefHat className="w-4 h-4 text-accent" /> : <CookingPot className="w-4 h-4 text-accent" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">{item.name}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">{activeTab === 'recipes' ? `${item.portions} annosta` : `${item.sellingPrice} €`}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => activeTab === 'recipes' ? startEditRecipe(item) : startEditDish(item)}><Edit2 className="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => activeTab === 'recipes' ? handleDeleteRecipe(item.id) : handleDeleteDish(item.id)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  </div>
+               </CardContent>
+            </Card>
+          ))}
+          {filteredItems.length === 0 && (
+            <div className="col-span-full py-12 text-center text-muted-foreground italic text-sm">Ei tuloksia.</div>
+          )}
+        </div>
+      </div>
+
       {/* RESEPTI POPUP */}
-      <Dialog open={isCreating} onOpenChange={(open) => { if (!open) resetRecipeForm(); setIsCreating(open); }}>
-        <DialogContent className="max-w-6xl h-[90vh] bg-background border-border overflow-hidden flex flex-col p-0">
-          <DialogHeader className="p-6 border-b border-border bg-card">
+      <Dialog open={isEditing} onOpenChange={(open) => { if (!open) resetRecipeForm(); setIsEditing(open); }}>
+        <DialogContent className="max-w-6xl h-[90vh] bg-background border-border overflow-hidden flex flex-col p-0 print-container">
+          <DialogHeader className="p-6 border-b border-border bg-card no-print">
             <div className="flex items-center justify-between w-full">
-              <DialogTitle className="text-2xl font-headline text-accent">Uusi resepti</DialogTitle>
-              <Button variant="ghost" size="icon" onClick={() => setIsCreating(false)}><X className="w-5 h-5" /></Button>
+              <DialogTitle className="text-2xl font-headline text-accent">{editId ? "Muokkaa reseptiä" : "Uusi resepti"}</DialogTitle>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => handleShareAsText('recipe')}><Share2 className="w-4 h-4 mr-2" /> Jaa</Button>
+                <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="w-4 h-4 mr-2" /> Tulosta</Button>
+                <Button variant="ghost" size="icon" onClick={() => setIsEditing(false)}><X className="w-5 h-5" /></Button>
+              </div>
             </div>
             <DialogDescription>Määritä reseptin sisältö, laitteet ja valmistusvaiheet.</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4">
-              <div className="lg:col-span-2 space-y-8">
-                <Card className="bg-card border-border shadow-xl">
-                  <CardHeader><CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Yleiskatsaus</CardTitle></CardHeader>
+          <ScrollArea className="flex-1 p-6 print:overflow-visible">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4 print:block">
+              <div className="lg:col-span-2 space-y-8 print:space-y-4">
+                <Card className="bg-card border-border shadow-xl print:border-black">
+                  <CardHeader><CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground print:text-black">Yleiskatsaus</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Reseptin nimi</Label>
-                        <Input placeholder="Esim. Perusmajoneesi..." value={recipeName} onChange={(e) => setRecipeName(e.target.value)} className="bg-muted/30 border-border" />
+                        <Label className="print:text-black">Reseptin nimi</Label>
+                        <Input placeholder="Esim. Perusmajoneesi..." value={recipeName} onChange={(e) => setRecipeName(e.target.value)} className="bg-muted/30 border-border print:border-black print:text-black" />
                       </div>
                       <div className="space-y-2">
-                        <Label>Saanto (kpl/annosta)</Label>
-                        <Input type="number" value={portions} onChange={(e) => setPortions(Number(e.target.value))} className="bg-muted/30 border-border" />
+                        <Label className="print:text-black">Saanto (kpl/annosta)</Label>
+                        <Input type="number" value={portions} onChange={(e) => setPortions(Number(e.target.value))} className="bg-muted/30 border-border print:border-black print:text-black" />
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 no-print">
                       <Label className="flex items-center gap-2"><Folder className="w-3.5 h-3.5 text-accent" /> Arkistokansio</Label>
                       <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
                         <SelectTrigger className="bg-muted/30 border-border"><SelectValue placeholder="Valitse kansio..." /></SelectTrigger>
@@ -341,31 +440,31 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border shadow-xl">
+                <Card className="bg-card border-border shadow-xl print:border-black">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
-                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Ainesosat</CardTitle>
-                    <Button onClick={() => setIngredients([...ingredients, { id: Date.now().toString(), name: "", weight: 0, price: 0, waste: 0 }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent"><Plus className="w-4 h-4" /> Lisää ainesosa</Button>
+                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground print:text-black">Ainesosat</CardTitle>
+                    <Button onClick={() => setIngredients([...ingredients, { id: Date.now().toString(), name: "", weight: 0, price: 0, waste: 0 }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent no-print"><Plus className="w-4 h-4" /> Lisää ainesosa</Button>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-4">
                     {ingredients.map((ing) => (
-                      <div key={ing.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg border border-border bg-white/5 group">
+                      <div key={ing.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg border border-border bg-white/5 group print:border-black print:text-black">
                         <div className="md:col-span-4 space-y-1">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Raaka-aine</Label>
-                          <Input value={ing.name} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, name: e.target.value} : i))} className="h-8 text-xs bg-muted/20" />
+                          <Label className="text-[10px] uppercase text-muted-foreground print:text-black">Raaka-aine</Label>
+                          <Input value={ing.name} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, name: e.target.value} : i))} className="h-8 text-xs bg-muted/20 print:border-black" />
                         </div>
                         <div className="md:col-span-2 space-y-1">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Määrä (kg)</Label>
-                          <Input type="number" step="0.001" value={ing.weight} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, weight: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
+                          <Label className="text-[10px] uppercase text-muted-foreground print:text-black">Määrä (kg)</Label>
+                          <Input type="number" step="0.001" value={ing.weight} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, weight: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20 print:border-black" />
                         </div>
-                        <div className="md:col-span-2 space-y-1">
+                        <div className="md:col-span-2 space-y-1 no-print">
                           <Label className="text-[10px] uppercase text-muted-foreground">Hinta (€/kg)</Label>
                           <Input type="number" step="0.01" value={ing.price} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, price: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
                         </div>
-                        <div className="md:col-span-2 space-y-1">
+                        <div className="md:col-span-2 space-y-1 no-print">
                           <Label className="text-[10px] uppercase text-muted-foreground">Hävikki (%)</Label>
                           <Input type="number" value={ing.waste} onChange={(e) => setIngredients(ingredients.map(i => i.id === ing.id ? {...i, waste: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
                         </div>
-                        <div className="md:col-span-2 flex justify-end">
+                        <div className="md:col-span-2 flex justify-end no-print">
                           <Button variant="ghost" size="icon" onClick={() => setIngredients(ingredients.filter(i => i.id !== ing.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       </div>
@@ -373,43 +472,24 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border shadow-xl">
+                <Card className="bg-card border-border shadow-xl print:border-black">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
-                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Valmistusohjeet</CardTitle>
-                    <Button onClick={() => setSteps([...steps, { id: Date.now().toString(), text: "" }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent"><Plus className="w-4 h-4" /> Lisää vaihe</Button>
+                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground print:text-black">Valmistusohjeet</CardTitle>
+                    <Button onClick={() => setSteps([...steps, { id: Date.now().toString(), text: "" }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent no-print"><Plus className="w-4 h-4" /> Lisää vaihe</Button>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-3">
                     {steps.map((step, index) => (
                       <div key={step.id} className="flex gap-4 items-start group">
-                        <div className="w-6 h-6 rounded-full copper-gradient text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-1">{index + 1}</div>
-                        <Input placeholder="Kuvaile työvaihe..." value={step.text} onChange={(e) => setSteps(steps.map(s => s.id === step.id ? {...s, text: e.target.value} : s))} className="bg-muted/20 border-border text-sm" />
-                        <Button variant="ghost" size="icon" onClick={() => setSteps(steps.filter(s => s.id !== step.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 shrink-0"><Trash2 className="w-4 h-4" /></Button>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-card border-border shadow-xl">
-                  <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
-                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Laitteisto</CardTitle>
-                    <Select onValueChange={(val) => { const equip = globalEquipment.find(e => e.id === val); if (equip) setRecipeEquip([...recipeEquip, { id: Date.now().toString(), equipmentId: equip.id, name: equip.name, temp: "", time: "", info: "" }]) }}>
-                      <SelectTrigger className="w-[200px] h-8 text-xs bg-muted/30 border-border"><SelectValue placeholder="Lisää laite..." /></SelectTrigger>
-                      <SelectContent>{globalEquipment.map((e: any) => ( <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem> ))}</SelectContent>
-                    </Select>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-4">
-                    {recipeEquip.map((re) => (
-                      <div key={re.id} className="p-3 rounded-lg border border-border bg-white/5 space-y-3 group relative">
-                        <div className="flex justify-between items-center"><h4 className="text-[10px] font-bold text-accent uppercase">{re.name}</h4><Button variant="ghost" size="icon" onClick={() => setRecipeEquip(recipeEquip.filter(r => r.id !== re.id))} className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5" /></Button></div>
-                        <div className="grid grid-cols-2 gap-2"><Input placeholder="Lämpö °C" value={re.temp} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, temp: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" /><Input placeholder="Aika" value={re.time} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, time: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" /></div>
-                        <Input placeholder="Lisätiedot..." value={re.info} onChange={(e) => setRecipeEquip(recipeEquip.map(r => r.id === re.id ? {...r, info: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" />
+                        <div className="w-6 h-6 rounded-full copper-gradient text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 print:bg-black print:text-white">{index + 1}</div>
+                        <Input placeholder="Kuvaile työvaihe..." value={step.text} onChange={(e) => setSteps(steps.map(s => s.id === step.id ? {...s, text: e.target.value} : s))} className="bg-muted/20 border-border text-sm print:border-black print:text-black" />
+                        <Button variant="ghost" size="icon" onClick={() => setSteps(steps.filter(s => s.id !== step.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 shrink-0 no-print"><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     ))}
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 no-print">
                 <Card className="bg-card border-border shadow-2xl overflow-hidden sticky top-0">
                   <div className="absolute top-0 right-0 w-1 h-full copper-gradient" />
                   <CardHeader className="bg-primary/5 border-b border-border">
@@ -428,41 +508,45 @@ export function RecipesModule() {
                 </Card>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 pt-6 pb-12 mt-6 border-t border-border">
-              <Button onClick={handleSaveRecipe} className="flex-1 copper-gradient text-white font-bold h-12 gap-2"><Save className="w-5 h-5" /> Tallenna arkistoon</Button>
-              <Button variant="outline" onClick={() => setIsCreating(false)} className="sm:w-32 h-12 border-border">Peruuta</Button>
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 pb-12 mt-6 border-t border-border no-print">
+              <Button onClick={handleSaveRecipe} className="flex-1 copper-gradient text-white font-bold h-12 gap-2"><Save className="w-5 h-5" /> Tallenna muutokset</Button>
+              <Button variant="outline" onClick={() => setIsEditing(false)} className="sm:w-32 h-12 border-border">Peruuta</Button>
             </div>
           </ScrollArea>
         </DialogContent>
       </Dialog>
 
       {/* ANNOS POPUP */}
-      <Dialog open={isCreatingDish} onOpenChange={(open) => { if (!open) resetDishForm(); setIsCreatingDish(open); }}>
-        <DialogContent className="max-w-6xl h-[90vh] bg-background border-border overflow-hidden flex flex-col p-0">
-          <DialogHeader className="p-6 border-b border-border bg-card">
+      <Dialog open={isEditingDish} onOpenChange={(open) => { if (!open) resetDishForm(); setIsEditingDish(open); }}>
+        <DialogContent className="max-w-6xl h-[90vh] bg-background border-border overflow-hidden flex flex-col p-0 print-container">
+          <DialogHeader className="p-6 border-b border-border bg-card no-print">
             <div className="flex items-center justify-between w-full">
-              <DialogTitle className="text-2xl font-headline text-accent">Annoskortin luonti</DialogTitle>
-              <Button variant="ghost" size="icon" onClick={() => setIsCreatingDish(false)}><X className="w-5 h-5" /></Button>
+              <DialogTitle className="text-2xl font-headline text-accent">{editDishId ? "Muokkaa annoskorttia" : "Annoskortin luonti"}</DialogTitle>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => handleShareAsText('dish')}><Share2 className="w-4 h-4 mr-2" /> Jaa</Button>
+                <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="w-4 h-4 mr-2" /> Tulosta</Button>
+                <Button variant="ghost" size="icon" onClick={() => setIsEditingDish(false)}><X className="w-5 h-5" /></Button>
+              </div>
             </div>
             <DialogDescription>Kokoa annos yhdistämällä reseptejä, raaka-aineita ja työvaiheita.</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4">
-              <div className="lg:col-span-2 space-y-8">
-                <Card className="bg-card border-border shadow-xl">
-                  <CardHeader><CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Myynti ja arkistointi</CardTitle></CardHeader>
+          <ScrollArea className="flex-1 p-6 print:overflow-visible">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-4 print:block">
+              <div className="lg:col-span-2 space-y-8 print:space-y-4">
+                <Card className="bg-card border-border shadow-xl print:border-black">
+                  <CardHeader><CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground print:text-black">Myynti ja arkistointi</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Annoksen nimi</Label>
-                        <Input placeholder="Esim. Keittiömestarin suositus..." value={dishName} onChange={(e) => setDishName(e.target.value)} className="bg-muted/30 border-border" />
+                        <Label className="print:text-black">Annoksen nimi</Label>
+                        <Input placeholder="Esim. Keittiömestarin suositus..." value={dishName} onChange={(e) => setDishName(e.target.value)} className="bg-muted/30 border-border print:border-black print:text-black" />
                       </div>
                       <div className="space-y-2">
-                        <Label>Myyntihinta (€, sis. ALV)</Label>
-                        <Input type="number" step="0.01" value={sellingPrice} onChange={(e) => setSellingPrice(Number(e.target.value))} className="bg-muted/30 border-border" />
+                        <Label className="print:text-black">Myyntihinta (€, sis. ALV)</Label>
+                        <Input type="number" step="0.01" value={sellingPrice} onChange={(e) => setSellingPrice(Number(e.target.value))} className="bg-muted/30 border-border print:border-black print:text-black" />
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 no-print">
                       <Label className="flex items-center gap-2"><Folder className="w-3.5 h-3.5 text-accent" /> Arkistokansio</Label>
                       <Select value={selectedDishFolderId} onValueChange={setSelectedDishFolderId}>
                         <SelectTrigger className="bg-muted/30 border-border"><SelectValue placeholder="Valitse kansio..." /></SelectTrigger>
@@ -475,11 +559,20 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border shadow-xl">
+                <Card className="bg-card border-border shadow-xl print:border-black">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
-                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Käytettävät reseptit</CardTitle>
-                    <Select onValueChange={addRecipeToDish}>
-                      <SelectTrigger className="w-[200px] h-8 text-xs bg-muted/30 border-border"><SelectValue placeholder="Lisää resepti..." /></SelectTrigger>
+                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground print:text-black">Käytettävät reseptit</CardTitle>
+                    <Select onValueChange={(recipeId) => {
+                      const original = globalRecipes.find(r => r.id === recipeId)
+                      if (original) setSelectedRecipes([...selectedRecipes, {
+                        id: Date.now().toString(),
+                        recipeId: original.id,
+                        name: original.name,
+                        cost: original.calculations.portionCost || 0,
+                        weight: original.calculations.portionWeight || 0
+                      }])
+                    }}>
+                      <SelectTrigger className="w-[200px] h-8 text-xs bg-muted/30 border-border no-print"><SelectValue placeholder="Lisää resepti..." /></SelectTrigger>
                       <SelectContent>
                         {globalRecipes.map((r: any) => ( <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem> ))}
                       </SelectContent>
@@ -487,45 +580,37 @@ export function RecipesModule() {
                   </CardHeader>
                   <CardContent className="pt-6 space-y-3">
                     {selectedRecipes.map((r) => (
-                      <div key={r.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-white/5 group">
+                      <div key={r.id} className="flex items-center justify-between p-4 rounded-xl border border-border bg-white/5 group print:border-black print:text-black">
                         <div className="flex items-center gap-4">
-                          <div className="p-2 rounded bg-muted/50"><ChefHat className="w-4 h-4 text-accent" /></div>
+                          <div className="p-2 rounded bg-muted/50 no-print"><ChefHat className="w-4 h-4 text-accent" /></div>
                           <div>
                             <p className="text-sm font-bold">{r.name}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-bold">{r.weight.toFixed(3)} kg • {r.cost.toFixed(2)} €</p>
+                            <p className="text-[10px] text-muted-foreground uppercase font-bold print:text-black">{r.weight.toFixed(3)} kg</p>
                           </div>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => setSelectedRecipes(selectedRecipes.filter(sr => sr.id !== r.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => setSelectedRecipes(selectedRecipes.filter(sr => sr.id !== r.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 no-print"><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     ))}
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border shadow-xl">
+                <Card className="bg-card border-border shadow-xl print:border-black">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
-                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Suorat raaka-aineet</CardTitle>
-                    <Button onClick={() => setDishIngredients([...dishIngredients, { id: Date.now().toString(), name: "", weight: 0, price: 0, waste: 0 }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent"><Plus className="w-4 h-4" /> Lisää ainesosa</Button>
+                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground print:text-black">Suorat raaka-aineet</CardTitle>
+                    <Button onClick={() => setDishIngredients([...dishIngredients, { id: Date.now().toString(), name: "", weight: 0, price: 0, waste: 0 }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent no-print"><Plus className="w-4 h-4" /> Lisää ainesosa</Button>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-4">
                     {dishIngredients.map((ing) => (
-                      <div key={ing.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg border border-border bg-white/5 group">
+                      <div key={ing.id} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-3 rounded-lg border border-border bg-white/5 group print:border-black print:text-black">
                         <div className="md:col-span-4 space-y-1">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Nimi</Label>
-                          <Input value={ing.name} onChange={(e) => setDishIngredients(dishIngredients.map(i => i.id === ing.id ? {...i, name: e.target.value} : i))} className="h-8 text-xs bg-muted/20" />
+                          <Label className="text-[10px] uppercase text-muted-foreground print:text-black">Nimi</Label>
+                          <Input value={ing.name} onChange={(e) => setDishIngredients(dishIngredients.map(i => i.id === ing.id ? {...i, name: e.target.value} : i))} className="h-8 text-xs bg-muted/20 print:border-black" />
                         </div>
                         <div className="md:col-span-2 space-y-1">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Paino (kg)</Label>
-                          <Input type="number" step="0.001" value={ing.weight} onChange={(e) => setDishIngredients(dishIngredients.map(i => i.id === ing.id ? {...i, weight: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
+                          <Label className="text-[10px] uppercase text-muted-foreground print:text-black">Paino (kg)</Label>
+                          <Input type="number" step="0.001" value={ing.weight} onChange={(e) => setDishIngredients(dishIngredients.map(i => i.id === ing.id ? {...i, weight: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20 print:border-black" />
                         </div>
-                        <div className="md:col-span-2 space-y-1">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Hinta (€/kg)</Label>
-                          <Input type="number" step="0.01" value={ing.price} onChange={(e) => setDishIngredients(dishIngredients.map(i => i.id === ing.id ? {...i, price: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
-                        </div>
-                        <div className="md:col-span-2 space-y-1">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Hävikki %</Label>
-                          <Input type="number" value={ing.waste} onChange={(e) => setDishIngredients(dishIngredients.map(i => i.id === ing.id ? {...i, waste: Number(e.target.value)} : i))} className="h-8 text-xs bg-muted/20" />
-                        </div>
-                        <div className="md:col-span-2 flex justify-end">
+                        <div className="md:col-span-2 flex justify-end no-print">
                           <Button variant="ghost" size="icon" onClick={() => setDishIngredients(dishIngredients.filter(i => i.id !== ing.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       </div>
@@ -533,46 +618,24 @@ export function RecipesModule() {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border shadow-xl">
+                <Card className="bg-card border-border shadow-xl print:border-black">
                   <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
-                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Kokoamisohjeet</CardTitle>
-                    <Button onClick={() => setDishSteps([...dishSteps, { id: Date.now().toString(), text: "" }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent"><Plus className="w-4 h-4" /> Lisää vaihe</Button>
+                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground print:text-black">Kokoamisohjeet</CardTitle>
+                    <Button onClick={() => setDishSteps([...dishSteps, { id: Date.now().toString(), text: "" }])} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent no-print"><Plus className="w-4 h-4" /> Lisää vaihe</Button>
                   </CardHeader>
                   <CardContent className="pt-6 space-y-3">
                     {dishSteps.map((step, index) => (
                       <div key={step.id} className="flex gap-4 items-start group">
-                        <div className="w-6 h-6 rounded-full copper-gradient text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-1">{index + 1}</div>
-                        <Input placeholder="Kirjoita ohje..." value={step.text} onChange={(e) => setDishSteps(dishSteps.map(s => s.id === step.id ? {...s, text: e.target.value} : s))} className="bg-muted/20 border-border text-sm" />
-                        <Button variant="ghost" size="icon" onClick={() => setDishSteps(dishSteps.filter(s => s.id !== step.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 shrink-0"><Trash2 className="w-4 h-4" /></Button>
+                        <div className="w-6 h-6 rounded-full copper-gradient text-white flex items-center justify-center text-[10px] font-bold shrink-0 mt-1 print:bg-black print:text-white">{index + 1}</div>
+                        <Input placeholder="Kirjoita ohje..." value={step.text} onChange={(e) => setDishSteps(dishSteps.map(s => s.id === step.id ? {...s, text: e.target.value} : s))} className="bg-muted/20 border-border text-sm print:border-black print:text-black" />
+                        <Button variant="ghost" size="icon" onClick={() => setDishSteps(dishSteps.filter(s => s.id !== step.id))} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 shrink-0 no-print"><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     ))}
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-card border-border shadow-xl">
-                  <CardHeader className="flex flex-row items-center justify-between border-b border-border/50">
-                    <CardTitle className="text-sm font-headline uppercase tracking-widest text-muted-foreground">Viimeistelylaitteet</CardTitle>
-                    <Select onValueChange={(val) => { const equip = globalEquipment.find(e => e.id === val); if (equip) setDishEquip([...dishEquip, { id: Date.now().toString(), equipmentId: equip.id, name: equip.name, temp: "", time: "", info: "" }]) }}>
-                      <SelectTrigger className="w-[200px] h-8 text-xs bg-muted/30 border-border"><SelectValue placeholder="Lisää laite..." /></SelectTrigger>
-                      <SelectContent>{globalEquipment.map((e: any) => ( <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem> ))}</SelectContent>
-                    </Select>
-                  </CardHeader>
-                  <CardContent className="pt-6 space-y-4">
-                    {dishEquip.map((re) => (
-                      <div key={re.id} className="p-3 rounded-lg border border-border bg-white/5 space-y-3 group relative">
-                        <div className="flex justify-between items-center"><h4 className="text-[10px] font-bold text-accent uppercase">{re.name}</h4><Button variant="ghost" size="icon" onClick={() => setDishEquip(dishEquip.filter(r => r.id !== re.id))} className="h-6 w-6 text-destructive opacity-0 group-hover:opacity-100"><Trash2 className="w-3.5 h-3.5" /></Button></div>
-                        <div className="grid grid-cols-2 gap-2"><Input placeholder="Lämpö °C" value={re.temp} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, temp: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" /><Input placeholder="Aika" value={re.time} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, time: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" /></div>
-                        <Input placeholder="Lisätiedot..." value={re.info} onChange={(e) => setDishEquip(dishEquip.map(r => r.id === re.id ? {...r, info: e.target.value} : r))} className="h-7 text-[10px] bg-muted/20" />
-                      </div>
-                    ))}
-                    {dishEquip.length === 0 && (
-                      <p className="text-xs text-muted-foreground italic text-center py-4">Ei valittuja laitteita.</p>
-                    )}
                   </CardContent>
                 </Card>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 no-print">
                 <Card className="bg-card border-border shadow-2xl overflow-hidden sticky top-0">
                   <div className="absolute top-0 right-0 w-1 h-full steel-detail" />
                   <CardHeader className="bg-primary/5 border-b border-border">
@@ -595,18 +658,14 @@ export function RecipesModule() {
                           dishCalculations.margin >= targetMargin ? "text-green-500" : "text-destructive"
                         )}>{dishCalculations.margin.toFixed(1)} %</span>
                       </div>
-                      <div className="flex justify-between items-center opacity-70">
-                        <span className="text-[10px] font-bold uppercase">Tavoite:</span>
-                        <span className="text-xs font-bold">{targetMargin} %</span>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
               </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 pt-6 pb-12 mt-6 border-t border-border">
-              <Button onClick={handleSaveDish} className="flex-1 steel-detail text-background font-bold h-12 gap-2"><Save className="w-5 h-5" /> Tallenna annoskortti</Button>
-              <Button variant="outline" onClick={() => setIsCreatingDish(false)} className="sm:w-32 h-12 border-border">Peruuta</Button>
+            <div className="flex flex-col sm:flex-row gap-3 pt-6 pb-12 mt-6 border-t border-border no-print">
+              <Button onClick={handleSaveDish} className="flex-1 steel-detail text-background font-bold h-12 gap-2"><Save className="w-5 h-5" /> Tallenna muutokset</Button>
+              <Button variant="outline" onClick={() => setIsEditingDish(false)} className="sm:w-32 h-12 border-border">Peruuta</Button>
             </div>
           </ScrollArea>
         </DialogContent>
