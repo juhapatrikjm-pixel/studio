@@ -32,6 +32,30 @@
       },
       "required": ["name", "phone", "email"]
     },
+    "OnboardingTask": {
+      "title": "OnboardingTask",
+      "description": "Perehdytysohjelman tehtävät",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string", "enum": ["general", "hygiene", "safety", "tech", "quality"] },
+        "order": { "type": "number" }
+      },
+      "required": ["title", "category"]
+    },
+    "OnboardingProgress": {
+      "title": "OnboardingProgress",
+      "description": "Käyttäjän edistyminen perehdytyksessä",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "taskId": { "type": "string" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "completedBy": { "type": "string" }
+      }
+    },
     "MisaList": {
       "title": "MisaList",
       "description": "Keittiön prep- ja valmistelulistat",
@@ -192,6 +216,14 @@
     "/contacts/{contactId}": {
       "schema": "Contact",
       "description": "Yhteystiedot"
+    },
+    "/onboardingTasks/{taskId}": {
+      "schema": "OnboardingTask",
+      "description": "Perehdytystehtävät"
+    },
+    "/onboardingProgress/{progressId}": {
+      "schema": "OnboardingProgress",
+      "description": "Käyttäjien perehdytysmerkinnät"
     },
     "/misaLists/{listId}": {
       "schema": "MisaList",
