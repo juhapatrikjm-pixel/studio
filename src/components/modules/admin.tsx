@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Shield, UserCog, Settings, Lock, Percent, Smile, Plus, Trash2, Banknote, Clock, BadgeEuro, Users2, CreditCard } from "lucide-react"
+import { Shield, Settings, Lock, Percent, Smile, Plus, Trash2, Banknote, Clock, Users2, CreditCard, LayoutGrid, ChevronUp, ChevronDown } from "lucide-react"
 import { useFirestore, useDoc, useCollection } from "@/firebase"
-import { doc, setDoc, collection } from "firebase/firestore"
+import { doc, setDoc, collection, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
+import { BASE_MENU_ITEMS } from "@/app/page"
+import { cn } from "@/lib/utils"
 
 const ROLES = [
   { 
@@ -54,8 +55,12 @@ export function AdminModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
   
+  const userId = "demo-user-123"
   const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
+  const profileRef = useMemo(() => (firestore ? doc(firestore, 'userProfiles', userId) : null), [firestore])
+  
   const { data: settings } = useDoc<any>(settingsRef)
+  const { data: profile } = useDoc<any>(profileRef)
 
   const contactsRef = useMemo(() => (firestore ? collection(firestore, 'contacts') : null), [firestore])
   const { data: contacts = [] } = useCollection<any>(contactsRef)
@@ -64,6 +69,7 @@ export function AdminModule() {
   const [hourlyRate, setHourlyRate] = useState(22)
   const [messages, setMessages] = useState<string[]>([])
   const [newMessage, setNewMessage] = useState("")
+  const [moduleOrder, setModuleOrder] = useState<string[]>([])
 
   useEffect(() => {
     if (settings) {
@@ -72,6 +78,18 @@ export function AdminModule() {
       if (settings.cheerMessages) setMessages(settings.cheerMessages)
     }
   }, [settings])
+
+  useEffect(() => {
+    if (profile) {
+      if (profile.moduleOrder) {
+        setModuleOrder(profile.moduleOrder)
+      } else {
+        setModuleOrder(BASE_MENU_ITEMS.map(m => m.id))
+      }
+    } else {
+      setModuleOrder(BASE_MENU_ITEMS.map(m => m.id))
+    }
+  }, [profile])
 
   // Lasketaan tiimin jäsenet ja kustannukset
   const teamStats = useMemo(() => {
@@ -105,6 +123,32 @@ export function AdminModule() {
       })
   }
 
+  const saveModuleOrder = () => {
+    if (!profileRef) return
+    setDoc(profileRef, {
+      moduleOrder,
+      updatedAt: serverTimestamp()
+    }, { merge: true })
+      .then(() => {
+        toast({
+          title: "Järjestys tallennettu",
+          description: "Työtilan moduulijärjestys on päivitetty.",
+        })
+      })
+  }
+
+  const moveModule = (index: number, direction: 'up' | 'down') => {
+    const newOrder = [...moduleOrder]
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    
+    if (index === 0 || targetIndex === 0 || targetIndex < 0 || targetIndex >= newOrder.length) return
+
+    const temp = newOrder[index]
+    newOrder[index] = newOrder[targetIndex]
+    newOrder[targetIndex] = temp
+    setModuleOrder(newOrder)
+  }
+
   const addMessage = () => {
     if (!newMessage.trim()) return
     setMessages([...messages, newMessage])
@@ -123,8 +167,9 @@ export function AdminModule() {
       </header>
 
       <Tabs defaultValue="settings" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 mb-6 bg-black/40 border border-white/5 p-1 h-12">
+        <TabsList className="grid w-full grid-cols-6 mb-6 bg-black/40 border border-white/5 p-1 h-12 overflow-x-auto">
           <TabsTrigger value="settings" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Settings className="w-4 h-4" /> Yleiset</TabsTrigger>
+          <TabsTrigger value="order" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><LayoutGrid className="w-4 h-4" /> Järjestys</TabsTrigger>
           <TabsTrigger value="cheers" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Smile className="w-4 h-4" /> Tsempit</TabsTrigger>
           <TabsTrigger value="teams" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Users2 className="w-4 h-4" /> Tiimi</TabsTrigger>
           <TabsTrigger value="roles" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Shield className="w-4 h-4" /> Oikeudet</TabsTrigger>
@@ -172,6 +217,78 @@ export function AdminModule() {
                 </div>
 
                 <Button onClick={saveSettings} className="w-full copper-gradient text-white font-black h-12 shadow-lg">TALLENNA ASETUKSET</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="order">
+          <Card className="industrial-card">
+            <div className="absolute top-0 left-0 w-full h-1 steel-detail" />
+            <CardHeader>
+              <CardTitle className="text-xl font-headline font-black text-accent flex items-center gap-3">
+                <LayoutGrid className="w-6 h-6" /> Moduulien järjestys
+              </CardTitle>
+              <CardDescription className="text-xs">Järjestä työtilan sivut itsellesi sopivimmaksi. Ohjauspaneeli pysyy aina ensimmäisenä.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <ScrollArea className="h-[500px] pr-4">
+                <div className="space-y-2">
+                  {moduleOrder.map((id, index) => {
+                    const menuItem = BASE_MENU_ITEMS.find(m => m.id === id)
+                    if (!menuItem) return null
+                    const isInfo = id === 'info'
+
+                    return (
+                      <div 
+                        key={id} 
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-xl border border-white/5 transition-all shadow-inner",
+                          isInfo ? "bg-primary/10 border-accent/20" : "bg-white/5 hover:bg-white/10"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={cn("p-2 rounded-lg bg-black/40", isInfo ? "text-accent" : "text-muted-foreground")}>
+                            <menuItem.icon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className={cn("text-sm font-bold", isInfo ? "text-accent" : "text-foreground")}>{menuItem.label}</p>
+                            {isInfo && <p className="text-[8px] uppercase font-black text-accent/60">Kiinnitetty alkuun</p>}
+                          </div>
+                        </div>
+                        
+                        {!isInfo && (
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-accent disabled:opacity-20"
+                              onClick={() => moveModule(index, 'up')}
+                              disabled={index <= 1}
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-accent disabled:opacity-20"
+                              onClick={() => moveModule(index, 'down')}
+                              disabled={index === moduleOrder.length - 1}
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </ScrollArea>
+              
+              <div className="pt-4">
+                <Button onClick={saveModuleOrder} className="w-full copper-gradient text-white font-black h-14 shadow-2xl metal-shine-overlay uppercase tracking-widest text-xs">
+                  <Plus className="w-5 h-5" /> TALLENNA UUSI JÄRJESTYS
+                </Button>
               </div>
             </CardContent>
           </Card>

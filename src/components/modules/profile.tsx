@@ -1,13 +1,11 @@
-
 "use client"
 
 import { useState, useMemo, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { 
-  UserCircle, 
   Building2, 
   Phone, 
   MapPin, 
@@ -15,22 +13,11 @@ import {
   Share2, 
   Save, 
   Image as ImageIcon,
-  CheckCircle2,
-  Mail,
-  History,
-  Trash2,
-  Upload,
-  GripVertical,
-  ChevronUp,
-  ChevronDown,
-  LayoutGrid
+  Upload
 } from "lucide-react"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
-import { cn } from "@/lib/utils"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { BASE_MENU_ITEMS, type ModuleId } from "@/app/page"
 
 export function ProfileModule() {
   const firestore = useFirestore()
@@ -52,8 +39,6 @@ export function ProfileModule() {
     logoUrl: ""
   })
 
-  const [moduleOrder, setModuleOrder] = useState<string[]>([])
-
   useEffect(() => {
     if (profile) {
       setFormData({
@@ -66,11 +51,6 @@ export function ProfileModule() {
         businessId: profile.businessId || "",
         logoUrl: profile.logoUrl || ""
       })
-      if (profile.moduleOrder) {
-        setModuleOrder(profile.moduleOrder)
-      } else {
-        setModuleOrder(BASE_MENU_ITEMS.map(m => m.id))
-      }
     }
   }, [profile])
 
@@ -78,28 +58,14 @@ export function ProfileModule() {
     if (!profileRef) return
     setDoc(profileRef, {
       ...formData,
-      moduleOrder,
       updatedAt: serverTimestamp()
     }, { merge: true })
       .then(() => {
         toast({
           title: "Profiili tallennettu",
-          description: "Tietosi ja sivujärjestys on päivitetty.",
+          description: "Tietosi on päivitetty järjestelmään.",
         })
       })
-  }
-
-  const moveModule = (index: number, direction: 'up' | 'down') => {
-    const newOrder = [...moduleOrder]
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    
-    // Ohjauspaneeli (ensimmäinen) ei liiku, eikä muiden yli voida mennä Ohjauspaneelin ohi
-    if (index === 0 || targetIndex === 0 || targetIndex < 0 || targetIndex >= newOrder.length) return
-
-    const temp = newOrder[index]
-    newOrder[index] = newOrder[targetIndex]
-    newOrder[targetIndex] = temp
-    setModuleOrder(newOrder)
   }
 
   const handleDelete = () => {
@@ -116,7 +82,6 @@ export function ProfileModule() {
           businessId: "",
           logoUrl: ""
         })
-        setModuleOrder(BASE_MENU_ITEMS.map(m => m.id))
         toast({
           title: "Profiili poistettu",
           description: "Tallennetut tiedot on tyhjennetty.",
@@ -161,12 +126,11 @@ Y-tunnus: ${formData.businessId}
   return (
     <div className="flex flex-col gap-8 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col gap-1">
-        <h2 className="text-3xl font-headline font-bold text-accent">Profiili & Asetukset</h2>
-        <p className="text-muted-foreground">Hallitse yrityksesi tietoja ja muokkaa työtilan järjestystä.</p>
+        <h2 className="text-3xl font-headline font-bold text-accent">Profiili</h2>
+        <p className="text-muted-foreground">Hallitse yrityksesi ja omia tietojasi.</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        {/* Lomake */}
         <div className="lg:col-span-7 space-y-6">
           <Card className="bg-card border-border shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-30" />
@@ -283,7 +247,9 @@ Y-tunnus: ${formData.businessId}
               </Button>
             </CardContent>
           </Card>
+        </div>
 
+        <div className="lg:col-span-5 space-y-6">
           <Card className="bg-card border-border shadow-2xl relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-1 h-full steel-detail opacity-30" />
             <CardHeader>
@@ -293,7 +259,7 @@ Y-tunnus: ${formData.businessId}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col items-center gap-6">
-              <div className="w-full max-w-sm aspect-[1.6/1] rounded-2xl p-8 bg-gradient-to-br from-sidebar via-sidebar to-zinc-900 border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group/card transition-transform duration-500">
+              <div className="w-full max-w-sm aspect-[1.6/1] rounded-2xl p-8 bg-gradient-to-br from-sidebar via-sidebar to-sidebar border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden group/card transition-transform duration-500">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
                 <div className="absolute top-0 left-0 w-full h-1 copper-gradient opacity-20" />
@@ -348,80 +314,6 @@ Y-tunnus: ${formData.businessId}
               <Button onClick={handleShare} className="w-full steel-detail text-background font-bold h-10 gap-2 shadow-lg">
                 <Share2 className="w-4 h-4" /> Jaa käyntikortti
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Järjestely */}
-        <div className="lg:col-span-5 space-y-6">
-          <Card className="industrial-card">
-            <div className="absolute top-0 left-0 w-full h-1 steel-detail" />
-            <CardHeader>
-              <CardTitle className="text-lg font-headline flex items-center gap-2">
-                <LayoutGrid className="w-5 h-5 text-accent" />
-                Moduulien järjestys
-              </CardTitle>
-              <CardDescription className="text-xs">Järjestä sivut itsellesi sopivimmaksi. Ohjauspaneeli pysyy aina ensimmäisenä.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[600px] pr-4">
-                <div className="space-y-2">
-                  {moduleOrder.map((id, index) => {
-                    const menuItem = BASE_MENU_ITEMS.find(m => m.id === id)
-                    if (!menuItem) return null
-                    const isInfo = id === 'info'
-
-                    return (
-                      <div 
-                        key={id} 
-                        className={cn(
-                          "flex items-center justify-between p-3 rounded-xl border border-white/5 transition-all shadow-inner",
-                          isInfo ? "bg-primary/10 border-accent/20" : "bg-white/5 hover:bg-white/10"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn("p-2 rounded-lg bg-black/40", isInfo ? "text-accent" : "text-muted-foreground")}>
-                            <menuItem.icon className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <p className={cn("text-sm font-bold", isInfo ? "text-accent" : "text-foreground")}>{menuItem.label}</p>
-                            {isInfo && <p className="text-[8px] uppercase font-black text-accent/60">Kiinnitetty alkuun</p>}
-                          </div>
-                        </div>
-                        
-                        {!isInfo && (
-                          <div className="flex items-center gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-muted-foreground hover:text-accent disabled:opacity-20"
-                              onClick={() => moveModule(index, 'up')}
-                              disabled={index <= 1}
-                            >
-                              <ChevronUp className="w-4 h-4" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8 text-muted-foreground hover:text-accent disabled:opacity-20"
-                              onClick={() => moveModule(index, 'down')}
-                              disabled={index === moduleOrder.length - 1}
-                            >
-                              <ChevronDown className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </ScrollArea>
-              
-              <div className="pt-6">
-                <Button onClick={handleSave} className="w-full steel-detail text-background font-black h-12 shadow-lg uppercase tracking-widest text-[10px]">
-                  Tallenna uusi järjestys
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>
