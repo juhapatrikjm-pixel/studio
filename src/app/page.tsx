@@ -136,7 +136,7 @@ function BackgroundWatermark() {
         src={profile.logoUrl} 
         alt="Background Watermark" 
         className="w-[60%] max-w-[800px] object-contain animate-pulse"
-        style={{ animationDuration: '15s', filter: 'blur(2px) drop-shadow(0 0 40px rgba(184, 115, 51, 0.3))' }}
+        style={{ animationDuration: '15s', filter: 'blur(2px) drop-shadow(0 0 40px rgba(184,115,51,0.3))' }}
       />
     </div>
   )
@@ -206,16 +206,16 @@ export default function Home() {
         <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
-          <header className="h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-8 flex items-center justify-between">
+          <header className="h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
             <div className="flex items-center gap-6 flex-1">
               <SidebarTrigger className="text-muted-foreground hover:text-accent transition-transform hover:scale-110" />
             </div>
 
-            <div className="flex flex-col items-center justify-center flex-1 text-center">
-              <div className="text-accent font-headline font-black text-2xl leading-none tracking-widest tabular-nums copper-text-glow">
+            <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
+              <div className="text-accent font-headline font-black text-lg md:text-xl lg:text-2xl leading-none tracking-wider tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
-              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-1.5 opacity-80">
+              <div className="text-[8px] md:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] md:tracking-[0.3em] mt-1.5 opacity-80 truncate w-full">
                 {currentTime ? format(currentTime, 'EEEE d. MMMM yyyy', { locale: fi }) : 'Alustetaan...'}
               </div>
             </div>
