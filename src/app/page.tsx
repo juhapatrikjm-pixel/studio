@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Search, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, Zap } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -28,10 +28,11 @@ import { fi } from "date-fns/locale"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc } from "firebase/firestore"
 import { cn } from "@/lib/utils"
+import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel"
 
-type ModuleId = 'info' | 'shift-info' | 'tulos' | 'waste' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin' | 'onboarding'
+type ModuleId = 'info' | 'shift-info' | 'tulos' | 'waste' | 'onboarding' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
-const menuItems = [
+const MENU_ITEMS = [
   { id: 'info', icon: LayoutDashboard, label: 'Ohjauspaneeli' },
   { id: 'shift-info', icon: Info, label: 'Vuoro-info' },
   { id: 'tulos', icon: TrendingUp, label: 'Tulosseuranta' },
@@ -80,7 +81,7 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
       </SidebarHeader>
       <SidebarContent className="px-4">
         <SidebarMenu className="gap-1.5">
-          {menuItems.map((item) => (
+          {MENU_ITEMS.map((item) => (
             <SidebarMenuItem key={item.id}>
               <SidebarMenuButton 
                 isActive={activeModule === item.id}
@@ -110,7 +111,7 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
           </div>
           <div className="flex flex-col">
             <span className="text-xs font-black text-foreground">John Smith</span>
-            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Mestari</span>
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Keittiömestari</span>
           </div>
           <Button variant="ghost" size="icon" className="ml-auto text-muted-foreground hover:text-accent hover:bg-transparent">
             <Settings className="w-4 h-4" />
@@ -144,6 +145,7 @@ function BackgroundWatermark() {
 export default function Home() {
   const [activeModule, setActiveModule] = useState<ModuleId>('info')
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
+  const [api, setApi] = useState<CarouselApi>()
 
   useEffect(() => {
     setCurrentTime(new Date())
@@ -153,8 +155,27 @@ export default function Home() {
     return () => clearInterval(timer)
   }, [])
 
-  const renderModule = () => {
-    switch(activeModule) {
+  // Päivitä karuselli kun aktiivinen moduuli vaihtuu sivupalkista
+  useEffect(() => {
+    if (!api) return
+    const index = MENU_ITEMS.findIndex(item => item.id === activeModule)
+    if (index !== -1) {
+      api.scrollTo(index)
+    }
+  }, [activeModule, api])
+
+  // Päivitä aktiivinen moduuli kun karusellia pyyhkäistään
+  useEffect(() => {
+    if (!api) return
+    api.on("select", () => {
+      const index = api.selectedScrollSnap()
+      const moduleId = MENU_ITEMS[index].id as ModuleId
+      setActiveModule(moduleId)
+    })
+  }, [api])
+
+  const renderModule = (id: ModuleId) => {
+    switch(id) {
       case 'info': return <WorkspaceModule />
       case 'shift-info': return <ShiftInfoModule />
       case 'tulos': return <TulosModule />
@@ -207,10 +228,28 @@ export default function Home() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-6 md:p-12 max-w-[1600px] mx-auto w-full relative">
-            <div className="max-w-6xl mx-auto space-y-12">
-              {renderModule()}
-            </div>
+          <main className="flex-1 overflow-hidden relative">
+            <Carousel 
+              setApi={setApi} 
+              className="w-full h-full"
+              opts={{
+                align: "start",
+                loop: false,
+                duration: 35,
+              }}
+            >
+              <CarouselContent className="h-full ml-0">
+                {MENU_ITEMS.map((item) => (
+                  <CarouselItem key={item.id} className="pl-0 h-full overflow-y-auto">
+                    <div className="p-6 md:p-12 max-w-[1600px] mx-auto w-full min-h-full">
+                      <div className="max-w-6xl mx-auto space-y-12 pb-20">
+                        {renderModule(item.id as ModuleId)}
+                      </div>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+            </Carousel>
           </main>
         </SidebarInset>
       </div>
