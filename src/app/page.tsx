@@ -153,20 +153,20 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
       }, { merge: true })
     } catch (err: any) {
       console.error("Login error:", err)
-      if (err.code === 'auth/configuration-not-found') {
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError({ 
+          title: "Kirjautumisikkuna suljettiin", 
+          desc: "Varmista, ettei selaimesi estä ponnahdusikkunoita (Pop-up blocker) ja yritä uudelleen." 
+        })
+      } else if (err.code === 'auth/configuration-not-found') {
         setError({ 
           title: "Google-kirjautuminen puuttuu", 
-          desc: "Aktivoi 'Google' kirjautumistapa Firebase-konsolin Authentication -> Sign-in method -osiosta projektissa wisemisa-d2b98." 
+          desc: "Aktivoi 'Google' kirjautumistapa Firebase-konsolin Authentication -> Sign-in method -osiosta." 
         })
       } else if (err.code === 'auth/unauthorized-domain') {
         setError({ 
           title: "Domain ei valtuutettu", 
-          desc: "Tämän sovelluksen osoite pitää lisätä Firebase-konsolin Authentication -> Settings -> Authorized domains -listaan." 
-        })
-      } else if (err.code?.includes('api-key-not-valid')) {
-        setError({ 
-          title: "API-avain virheellinen", 
-          desc: "Varmista, että tiedostossa src/firebase/config.ts on oikea Web API Key projektista wisemisa-d2b98." 
+          desc: "Lisää selaimen osoiterivillä näkyvä domain Firebase-konsolin Authorized domains -listaan." 
         })
       } else {
         setError({ 
