@@ -141,7 +141,7 @@ export function TulosModule() {
 
   return (
     <div className="flex flex-col gap-2 animate-in fade-in duration-700 pb-10">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <Gem className="w-4 h-4 text-accent" />
           <h2 className="text-lg font-headline font-black copper-text-glow uppercase tracking-tighter">Tulos</h2>
@@ -159,7 +159,7 @@ export function TulosModule() {
           <Card key={i} className="industrial-card overflow-hidden border-none p-[1px] bg-gradient-to-br from-white/10 to-transparent">
             <div className={cn("absolute top-0 left-0 w-full h-0.5", kpi.color)} />
             <CardContent className="p-2 bg-card rounded-[calc(var(--radius)-1px)] text-center">
-              <p className="text-[6px] uppercase font-black text-muted-foreground/60 tracking-widest mb-0.5">{kpi.label}</p>
+              <p className="text-[7px] uppercase font-black text-muted-foreground/60 tracking-widest mb-0.5">{kpi.label}</p>
               <div className={cn(
                 "text-[11px] font-black tabular-nums",
                 kpi.highlight ? (monthlyStats.profit >= 0 ? "text-green-500" : "text-destructive") : "text-foreground"
@@ -192,7 +192,7 @@ export function TulosModule() {
                   />
                   <div className="relative">
                     <Euro className="absolute left-2 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground" />
-                    <Input type="number" placeholder="MYYNTI (ALV 0%)" value={formData.revenue} onChange={(e) => setFormData({...formData, revenue: e.target.value})} className="pl-7 bg-white/5 h-8 text-xs font-black border-white/10" />
+                    <Input type="number" placeholder="MYYNTI (ALV 0%)" value={formData.revenue} onChange={(e) => setFormData({...formData, revenue: e.target.value})} className="pl-7 bg-white/5 h-8 text-[10px] font-black border-white/10" />
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
                     <Input type="number" placeholder="RAAKA-AIN. €" value={formData.foodCost} onChange={(e) => setFormData({...formData, foodCost: e.target.value})} className="bg-white/5 h-7 text-[9px] font-bold border-white/10" />
@@ -213,7 +213,7 @@ export function TulosModule() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2">
-              <div className="h-[120px] w-full bg-black/20 rounded-xl p-1.5 border border-white/5">
+              <div className="h-[100px] w-full bg-black/20 rounded-xl p-1.5 border border-white/5">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
@@ -239,9 +239,9 @@ export function TulosModule() {
                 {records.slice(0, 4).map(r => {
                   const profit = r.revenue - (r.foodCost || 0) - (r.laborCost || 0) - (r.otherExpenses || 0)
                   return (
-                    <div key={r.id} className="flex items-center justify-between p-1.5 rounded-lg bg-white/5 border border-white/5 group">
+                    <div key={r.id} className="flex items-center justify-between p-1 rounded-lg bg-white/5 border border-white/5 group">
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-0.5 h-5 rounded-full", profit >= 0 ? "bg-green-500" : "bg-destructive")} />
+                        <div className={cn("w-0.5 h-4 rounded-full", profit >= 0 ? "bg-green-500" : "bg-destructive")} />
                         <div>
                           <p className="text-[8px] font-black text-foreground">{r.date}</p>
                           <p className="text-[6px] text-muted-foreground font-bold">{r.revenue.toLocaleString()} €</p>

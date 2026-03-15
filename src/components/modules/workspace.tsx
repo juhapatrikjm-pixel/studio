@@ -107,22 +107,22 @@ export function WorkspaceModule() {
   }, [latestRecipes, latestDishes])
 
   return (
-    <div className="flex flex-col gap-3 animate-in fade-in duration-700 pb-20">
-      <header className="flex flex-col gap-0.5">
+    <div className="flex flex-col gap-2 animate-in fade-in duration-700 pb-20">
+      <header className="flex flex-col gap-0.5 px-1">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-accent" />
           <h1 className="text-xl font-headline font-black copper-text-glow uppercase tracking-tighter">Ohjauspaneeli</h1>
         </div>
         <div className="flex items-center gap-2 opacity-60">
-          <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-1 py-0 h-3 text-[7px]">OPTIMOITU</Badge>
-          <span className="text-[7px] uppercase font-bold tracking-widest">Järjestelmä OK</span>
+          <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-1 py-0 h-3 text-[7px]">SYSTEM OK</Badge>
+          <span className="text-[7px] uppercase font-bold tracking-widest">ID: wisemisa-d2b98</span>
         </div>
       </header>
 
       <OmavalvontaStatusHeader record={latestRecord} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
-        <div className="lg:col-span-8 space-y-3">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
+        <div className="lg:col-span-8 space-y-2">
           {shiftInfo && !isRead && (shiftInfo.bulletPoints?.length > 0 || shiftInfo.freeText) && (
             <Card className="industrial-card animate-breathing overflow-hidden border-accent/20">
               <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
@@ -156,7 +156,7 @@ export function WorkspaceModule() {
           <Card className="industrial-card">
             <div className="absolute top-0 left-0 w-full h-1 steel-detail metal-shine-overlay" />
             <CardHeader className="p-2 pb-1">
-              <CardTitle className="font-headline text-[10px] font-black text-accent flex items-center gap-2 uppercase tracking-widest">
+              <CardTitle className="font-headline text-[9px] font-black text-accent flex items-center gap-2 uppercase tracking-widest">
                 <Wrench className="w-3.5 h-3.5" /> HUOLLOT
               </CardTitle>
             </CardHeader>
@@ -174,10 +174,10 @@ export function WorkspaceModule() {
                 </Button>
               </div>
               
-              <ScrollArea className="h-[120px] pr-2">
+              <ScrollArea className="h-[100px] pr-2">
                 <div className="space-y-1">
                   {maintenanceNotes.map((note) => (
-                    <div key={note.id} className="flex items-center justify-between p-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-accent/20 transition-all group shadow-inner">
+                    <div key={note.id} className="flex items-center justify-between p-1 rounded-lg bg-white/5 border border-white/5 hover:border-accent/20 transition-all group shadow-inner">
                       <div className="flex items-center gap-2 overflow-hidden">
                         <div className="w-0.5 h-4 copper-gradient rounded-full shrink-0" />
                         <div className="truncate">
@@ -196,16 +196,16 @@ export function WorkspaceModule() {
           </Card>
         </div>
 
-        <div className="lg:col-span-4 space-y-3">
+        <div className="lg:col-span-4 space-y-2">
           <Card className="industrial-card">
             <CardHeader className="p-2 pb-1">
-              <CardTitle className="font-headline text-[9px] font-black text-accent uppercase tracking-[0.2em]">LOKI</CardTitle>
+              <CardTitle className="font-headline text-[8px] font-black text-accent uppercase tracking-[0.2em]">LOKI</CardTitle>
             </CardHeader>
             <CardContent className="p-2 pt-0">
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 {combinedLogs.map((log) => (
-                  <div key={log.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-white/5 border border-transparent hover:bg-white/10 transition-all group">
-                    <div className="w-6 h-6 rounded bg-black/40 flex items-center justify-center border border-white/10 shadow-lg shrink-0">
+                  <div key={log.id} className="flex items-center gap-2 p-1 rounded-lg bg-white/5 border border-transparent hover:bg-white/10 transition-all group">
+                    <div className="w-5 h-5 rounded bg-black/40 flex items-center justify-center border border-white/10 shadow-lg shrink-0">
                       <log.icon className="w-2.5 h-2.5 text-accent" />
                     </div>
                     <div className="flex-1 overflow-hidden">
