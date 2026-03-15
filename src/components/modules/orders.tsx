@@ -81,7 +81,6 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   const handleMakeOrder = () => {
     if (!supplierNameInput.trim() || !firestore) return
     
-    // Etsitään väri: joko valitulta toimittajalta tai oletus "ruostumaton teräs"
     const existingSupplier = suppliers.find(s => s.id === selectedSupplierId || s.name.toLowerCase() === supplierNameInput.toLowerCase())
     const color = existingSupplier?.color || "bg-[#71717a]"
     const supplierId = existingSupplier?.id || null
@@ -236,13 +235,14 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                       {arrivalDate ? format(arrivalDate, 'dd.MM.yyyy', { locale: fi }) : <span>Valitse päivä</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-card border-border shadow-2xl" align="start">
+                  <PopoverContent className="w-80 p-0 bg-card border-border shadow-2xl" align="start">
                     <Calendar 
                       mode="single" 
                       selected={arrivalDate} 
                       onSelect={(d) => d && setArrivalDate(d)} 
                       initialFocus 
                       locale={fi}
+                      className="rounded-md border border-border"
                     />
                   </PopoverContent>
                 </Popover>
