@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -163,36 +164,30 @@ export function AdminModule() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
       <header>
         <h2 className="text-3xl font-headline font-bold text-primary">Hallinta</h2>
-        <p className="text-muted-foreground">Hallitse tiimejä, käyttöoikeuksia ja sovelluksen asetuksia.</p>
+        <p className="text-muted-foreground">Hallitse tiimejä, käyttöoikeuksia ja asetuksia.</p>
       </header>
 
       <Tabs defaultValue="settings" className="w-full">
-        <div className="relative w-full mb-8">
-          <div className="absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-background to-transparent pointer-events-none z-10 md:hidden" />
-          <div 
-            className="overflow-x-auto no-scrollbar scroll-smooth"
-            onPointerDown={(e) => e.stopPropagation()} // Estetään Embla Carouselia kaappaamasta vaakasuuntaista rullausta
-          >
-            <TabsList className="flex w-max min-w-full bg-black/40 border border-white/5 p-1 h-auto min-h-[72px] items-stretch gap-1 justify-start">
-              {[
-                { id: 'settings', icon: Settings, label: 'Yleiset' },
-                { id: 'order', icon: LayoutGrid, label: 'Järjestys' },
-                { id: 'cheers', icon: Smile, label: 'Tsempit' },
-                { id: 'teams', icon: Users2, label: 'Tiimi' },
-                { id: 'roles', icon: Shield, label: 'Oikeudet' },
-                { id: 'security', icon: Lock, label: 'Suojaus' },
-              ].map((tab) => (
-                <TabsTrigger 
-                  key={tab.id}
-                  value={tab.id} 
-                  className="flex flex-col items-center justify-center gap-1.5 px-6 py-3 min-w-[100px] data-[state=active]:bg-primary/20 data-[state=active]:text-accent transition-all group rounded-lg"
-                >
-                  <tab.icon className="w-5 h-5 group-data-[state=active]:scale-110 transition-transform" />
-                  <span className="font-black uppercase text-[8px] tracking-[0.15em] whitespace-nowrap">{tab.label}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
+        <div className="w-full mb-8">
+          <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full bg-black/40 border border-white/5 p-1 h-auto gap-1">
+            {[
+              { id: 'settings', icon: Settings, label: 'Yleiset' },
+              { id: 'order', icon: LayoutGrid, label: 'Järjestys' },
+              { id: 'cheers', icon: Smile, label: 'Tsempit' },
+              { id: 'teams', icon: Users2, label: 'Tiimi' },
+              { id: 'roles', icon: Shield, label: 'Oikeudet' },
+              { id: 'security', icon: Lock, label: 'Suojaus' },
+            ].map((tab) => (
+              <TabsTrigger 
+                key={tab.id}
+                value={tab.id} 
+                className="flex flex-col items-center justify-center gap-1.5 py-3 px-1 data-[state=active]:bg-primary/20 data-[state=active]:text-accent transition-all group rounded-lg"
+              >
+                <tab.icon className="w-5 h-5 group-data-[state=active]:scale-110 transition-transform" />
+                <span className="font-black uppercase text-[8px] tracking-[0.1em] whitespace-nowrap">{tab.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
 
         <TabsContent value="settings">
