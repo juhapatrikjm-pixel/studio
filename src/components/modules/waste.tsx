@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,22 +10,19 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Trash2, 
   Scale, 
-  Euro, 
   TrendingDown, 
   Plus, 
   Edit2, 
   Utensils, 
   History, 
-  Sparkles,
   Save,
   X,
-  ArrowUpRight,
   ArrowDownRight,
   Calculator
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp, increment, where } from "firebase/firestore"
-import { format, startOfMonth, endOfMonth } from "date-fns"
+import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -63,7 +60,7 @@ export function WasteModule() {
   
   // Viitteet
   const productsRef = useMemo(() => (firestore ? collection(firestore, 'wasteProducts') : null), [firestore])
-  const monthlyRef = useMemo(() => (firestore ? doc(firestore, 'monthlyWaste', currentMonthId) : null), [monthlyRef, currentMonthId])
+  const monthlyRef = useMemo(() => (firestore ? doc(firestore, 'monthlyWaste', currentMonthId) : null), [firestore, currentMonthId])
   const entriesRef = useMemo(() => (firestore ? collection(firestore, 'wasteEntries') : null), [firestore])
   
   const entriesQuery = useMemo(() => {
@@ -104,9 +101,10 @@ export function WasteModule() {
       monthId: currentMonthId
     }
 
-    // Tallenna merkintä ja päivitä kuukausiyhteenveto
+    // Tallenna merkintä
     setDoc(entryRef, entryData)
     
+    // Päivitä kuukausiyhteenveto
     setDoc(doc(firestore, 'monthlyWaste', currentMonthId), {
       id: currentMonthId,
       monthName: format(new Date(), 'MMMM yyyy', { locale: fi }),
@@ -163,22 +161,23 @@ export function WasteModule() {
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
           <TrendingDown className="w-8 h-8 text-accent" />
-          <h2 className="text-4xl font-headline font-black copper-text-glow uppercase">Hävikkiseuranta</h2>
+          <h2 className="text-4xl font-headline font-black copper-text-glow uppercase tracking-tight">Hävikkiseuranta</h2>
         </div>
-        <p className="text-muted-foreground font-medium">Jokainen kirjattu gramma on euro kotiinpäin.</p>
+        <p className="text-muted-foreground font-medium italic">Jokainen kirjattu gramma on euro kotiinpäin.</p>
       </header>
 
-      {/* Keittiöapuri Info */}
-      <Card className="industrial-card bg-primary/5 border-primary/20">
-        <CardContent className="p-6 flex gap-4">
-          <div className="w-12 h-12 rounded-full copper-gradient flex items-center justify-center shrink-0 shadow-lg metal-shine-overlay">
-            <Utensils className="w-6 h-6 text-white" />
+      {/* Keittiöapuri Info - Metallinen kortti */}
+      <Card className="industrial-card bg-primary/5 border-primary/20 animate-breathing">
+        <div className="absolute top-0 left-0 w-full h-1 copper-gradient opacity-50" />
+        <CardContent className="p-6 flex gap-6 items-center">
+          <div className="w-16 h-16 rounded-2xl copper-gradient flex items-center justify-center shrink-0 shadow-[0_0_20px_rgba(184,115,51,0.4)] metal-shine-overlay border border-white/10">
+            <Utensils className="w-8 h-8 text-white drop-shadow-lg" />
           </div>
-          <div className="space-y-2">
-            <p className="font-headline font-bold text-accent">Moi! Olen keittiöapurisi.</p>
-            <p className="text-sm text-foreground/80 leading-relaxed">
-              Valitse ensin tyyppi (**Prep** vai **Hävikki**), napauta tuotetta ja syötä paino. 
-              Sovellus laskee hinnan automaattisesti. Alta löydät Top 3 -listan, joka kertoo mihin eurot valuvat juuri nyt.
+          <div className="space-y-1">
+            <p className="font-headline font-black text-xl text-accent uppercase tracking-wider">Moi! Olen keittiöapurisi.</p>
+            <p className="text-sm text-foreground/80 leading-relaxed font-medium">
+              Valitse tyyppi, napauta tuotetta ja syötä paino. Sovellus laskee hinnan automaattisesti. 
+              Seuraa alta <span className="text-accent font-bold">Top 3 Eurohukka</span> -listaa säästääksesi kuluissa.
             </p>
           </div>
         </CardContent>
@@ -186,123 +185,139 @@ export function WasteModule() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Kirjaus-osio */}
-        <div className="lg:col-span-7 space-y-6">
-          <Card className="industrial-card">
-            <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
-            <CardHeader>
+        <div className="lg:col-span-7 space-y-8">
+          <Card className="industrial-card overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
+            <CardHeader className="bg-black/20 border-b border-white/5">
               <CardTitle className="text-xl font-headline font-black text-accent flex items-center gap-3">
-                <Scale className="w-6 h-6" /> Kirjaa Hukka
+                <Scale className="w-6 h-6" /> KIRJAA HUKKA
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-8 pt-6">
               <Tabs value={activeType} onValueChange={(v: any) => setActiveType(v)} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-black/40 border-white/5 p-1 h-12">
-                  <TabsTrigger value="prep" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent">
+                <TabsList className="grid w-full grid-cols-2 mb-8 bg-black/40 border-white/5 p-1 h-14">
+                  <TabsTrigger value="prep" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent border-none h-full transition-all">
                     PREP (Kuoret tms.)
                   </TabsTrigger>
-                  <TabsTrigger value="waste" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-destructive/20 data-[state=active]:text-destructive">
+                  <TabsTrigger value="waste" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-destructive/20 data-[state=active]:text-destructive border-none h-full transition-all">
                     HÄVIKKI (Turha)
                   </TabsTrigger>
                 </TabsList>
-              </Tabs>
+              
 
-              <div className="space-y-4">
-                <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">VALITSE TUOTE</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {products.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedProduct(p)}
-                      className={cn(
-                        "p-3 rounded-xl border text-xs font-bold transition-all text-center uppercase tracking-tighter",
-                        selectedProduct?.id === p.id 
-                          ? "copper-gradient text-white border-accent shadow-lg scale-105" 
-                          : "bg-white/5 border-white/10 text-muted-foreground hover:border-accent/40"
-                      )}
+                <div className="space-y-6">
+                  <Label className="text-[10px] uppercase font-black text-muted-foreground tracking-[0.2em] mb-4 block">1. VALITSE TUOTE</Label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {products.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelectedProduct(p)}
+                        className={cn(
+                          "p-4 rounded-xl border text-xs font-black transition-all text-center uppercase tracking-widest group relative overflow-hidden h-20 flex flex-col items-center justify-center",
+                          selectedProduct?.id === p.id 
+                            ? "copper-gradient text-white border-accent shadow-[0_0_15px_rgba(184,115,51,0.4)] scale-[1.02] metal-shine-overlay" 
+                            : "bg-white/5 border-white/10 text-muted-foreground hover:border-accent/40 hover:bg-white/10"
+                        )}
+                      >
+                        <span className="relative z-10">{p.name}</span>
+                        <span className={cn(
+                          "block text-[8px] mt-1 font-bold opacity-60",
+                          selectedProduct?.id === p.id ? "text-white" : "text-accent"
+                        )}>{p.pricePerKg.toFixed(2)}€/kg</span>
+                      </button>
+                    ))}
+                    <button 
+                      onClick={() => setIsAddingProduct(true)}
+                      className="p-4 rounded-xl border border-dashed border-white/20 text-accent hover:bg-accent/5 flex flex-col items-center justify-center gap-1 text-[10px] font-black uppercase tracking-widest transition-all h-20"
                     >
-                      {p.name}
-                      <span className="block text-[8px] opacity-60 mt-1">{p.pricePerKg}€/kg</span>
+                      <Plus className="w-5 h-5" /> LISÄÄ UUSI
                     </button>
-                  ))}
-                  <button 
-                    onClick={() => setIsAddingProduct(true)}
-                    className="p-3 rounded-xl border border-dashed border-white/20 text-accent hover:bg-accent/5 flex items-center justify-center gap-2 text-xs font-black uppercase"
-                  >
-                    <Plus className="w-4 h-4" /> Uusi
-                  </button>
-                </div>
-
-                {selectedProduct && (
-                  <div className="pt-6 space-y-4 animate-in slide-in-from-bottom-4">
-                    <div className="space-y-2">
-                      <Label className="text-[10px] uppercase font-black text-accent tracking-widest">SYÖTÄ PAINO (KG)</Label>
-                      <div className="relative">
-                        <Calculator className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-                        <Input 
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={weight}
-                          onChange={(e) => setWeight(e.target.value)}
-                          className="pl-12 h-14 bg-white/5 border-white/10 text-2xl font-black rounded-xl focus:border-accent/40"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 rounded-xl bg-black/40 border border-white/5 flex justify-between items-center shadow-inner">
-                      <div>
-                        <p className="text-[10px] uppercase font-black text-muted-foreground">Kustannus</p>
-                        <p className="text-2xl font-black text-accent">{(Number(weight) * selectedProduct.pricePerKg).toFixed(2)} €</p>
-                      </div>
-                      <Button onClick={handleLogWaste} className="copper-gradient h-14 px-8 font-black uppercase text-xs tracking-widest shadow-2xl metal-shine-overlay">
-                        TALLENNA
-                      </Button>
-                    </div>
                   </div>
-                )}
-              </div>
+
+                  {selectedProduct && (
+                    <div className="pt-8 space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+                      <div className="space-y-3">
+                        <Label className="text-[10px] uppercase font-black text-accent tracking-[0.2em]">2. SYÖTÄ PAINO (KG)</Label>
+                        <div className="relative group">
+                          <Calculator className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-muted-foreground group-focus-within:text-accent transition-colors" />
+                          <Input 
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            value={weight}
+                            onChange={(e) => setWeight(e.target.value)}
+                            className="pl-14 h-16 bg-black/40 border-white/10 text-3xl font-black rounded-2xl focus:border-accent/40 transition-all tabular-nums"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="p-6 rounded-2xl bg-black/60 border border-white/5 flex justify-between items-center shadow-inner relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-30" />
+                        <div>
+                          <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mb-1">ARVIOITU KUSTANNUS</p>
+                          <p className="text-4xl font-black text-accent tabular-nums drop-shadow-[0_0_10px_rgba(184,115,51,0.3)]">
+                            {(Number(weight) * selectedProduct.pricePerKg).toFixed(2)} <span className="text-xl">€</span>
+                          </p>
+                        </div>
+                        <Button onClick={handleLogWaste} className="copper-gradient h-16 px-10 font-black uppercase text-xs tracking-[0.2em] shadow-2xl metal-shine-overlay rounded-xl hover:scale-105 transition-transform active:scale-95">
+                          <Save className="w-5 h-5 mr-2" /> TALLENNA
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </Tabs>
             </CardContent>
           </Card>
 
           {/* Kuukausiraportti */}
           <Card className="industrial-card">
-            <CardHeader>
-              <CardTitle className="text-xl font-headline font-black text-accent flex items-center gap-3">
-                <Calculator className="w-6 h-6" /> {currentMonthId} RAPORTTI
+            <CardHeader className="bg-black/20 border-b border-white/5">
+              <CardTitle className="text-xl font-headline font-black text-accent flex items-center gap-3 uppercase tracking-widest">
+                <Calculator className="w-6 h-6" /> {monthlyStats?.monthName || currentMonthId}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/5 shadow-inner">
-                  <p className="text-[10px] uppercase font-black text-muted-foreground mb-1">Turha Hävikki</p>
-                  <p className="text-3xl font-black text-destructive tabular-nums">
-                    {monthlyStats?.totalWasteCost?.toFixed(2) || "0.00"} €
+            <CardContent className="space-y-10 pt-8">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="p-6 rounded-3xl bg-white/5 border border-white/5 shadow-inner relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-destructive opacity-40 group-hover:opacity-100 transition-opacity" />
+                  <p className="text-[10px] uppercase font-black text-muted-foreground/60 mb-2 tracking-widest">TURHA HÄVIKKI</p>
+                  <p className="text-4xl font-black text-destructive tabular-nums tracking-tighter">
+                    {monthlyStats?.totalWasteCost?.toLocaleString('fi-FI', { minimumFractionDigits: 2 }) || "0,00"} €
                   </p>
                 </div>
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/5 shadow-inner">
-                  <p className="text-[10px] uppercase font-black text-muted-foreground mb-1">Prep-hukka</p>
-                  <p className="text-3xl font-black text-amber-500 tabular-nums">
-                    {monthlyStats?.totalPrepCost?.toFixed(2) || "0.00"} €
+                <div className="p-6 rounded-3xl bg-white/5 border border-white/5 shadow-inner relative overflow-hidden group">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-amber-500 opacity-40 group-hover:opacity-100 transition-opacity" />
+                  <p className="text-[10px] uppercase font-black text-muted-foreground/60 mb-2 tracking-widest">PREP-HUKKA</p>
+                  <p className="text-4xl font-black text-amber-500 tabular-nums tracking-tighter">
+                    {monthlyStats?.totalPrepCost?.toLocaleString('fi-FI', { minimumFractionDigits: 2 }) || "0,00"} €
                   </p>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <ArrowDownRight className="w-5 h-5 text-destructive" />
-                  <Label className="text-xs font-black uppercase tracking-widest text-muted-foreground">TOP 3 EUROHUKKA</Label>
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                  <div className="p-2 rounded-lg bg-destructive/10 text-destructive border border-destructive/20">
+                    <ArrowDownRight className="w-5 h-5" />
+                  </div>
+                  <Label className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground">TOP 3 EUROHUKKA TÄSSÄ KUUSSA</Label>
                 </div>
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-3">
                   {top3.map((item, i) => (
-                    <div key={item.name} className="flex items-center justify-between p-4 rounded-xl bg-black/40 border border-white/5 group">
-                      <div className="flex items-center gap-4">
-                        <span className="w-8 h-8 rounded-full steel-detail flex items-center justify-center text-xs font-black text-black">#{i+1}</span>
-                        <p className="font-bold text-sm uppercase">{item.name}</p>
+                    <div key={item.name} className="flex items-center justify-between p-5 rounded-2xl bg-black/40 border border-white/5 group hover:border-white/10 transition-all shadow-inner">
+                      <div className="flex items-center gap-5">
+                        <span className="w-10 h-10 rounded-xl steel-detail flex items-center justify-center text-xs font-black text-black shadow-lg">#{i+1}</span>
+                        <p className="font-black text-sm uppercase tracking-widest text-foreground/90">{item.name}</p>
                       </div>
-                      <p className="font-black text-destructive">{item.cost.toFixed(2)} €</p>
+                      <p className="font-black text-xl text-destructive tabular-nums">{item.cost.toFixed(2)} €</p>
                     </div>
                   ))}
-                  {top3.length === 0 && <p className="text-xs text-muted-foreground italic text-center py-4">Ei kirjauksia tässä kuussa.</p>}
+                  {top3.length === 0 && (
+                    <div className="py-12 text-center flex flex-col items-center gap-3 opacity-30">
+                      <Scale className="w-10 h-10 text-muted-foreground" />
+                      <p className="text-xs font-black uppercase tracking-widest">Ei kirjauksia tässä kuussa</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -310,81 +325,90 @@ export function WasteModule() {
         </div>
 
         {/* Hallinta-osio */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-5 space-y-8">
           <Card className="industrial-card">
             <div className="absolute top-0 right-0 w-1 h-full steel-detail opacity-30" />
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row items-center justify-between bg-black/20 border-b border-white/5">
               <div>
-                <CardTitle className="text-lg font-headline font-black text-accent uppercase">Hinnat & Tuotteet</CardTitle>
-                <CardDescription className="text-[10px] font-bold uppercase tracking-widest">Hallitse kilo-hintoja</CardDescription>
+                <CardTitle className="text-lg font-headline font-black text-accent uppercase tracking-widest">HINNAT & TUOTTEET</CardTitle>
+                <CardDescription className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground/60 mt-1">Hallitse kilo-hintoja</CardDescription>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => { setIsAddingProduct(!isAddingProduct); setEditingProduct(null); }}>
+              <Button variant="ghost" size="icon" className="text-accent hover:bg-accent/10 rounded-full" onClick={() => { setIsAddingProduct(!isAddingProduct); setEditingProduct(null); }}>
                 <Plus className="w-5 h-5" />
               </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6 pt-6">
               {(isAddingProduct || editingProduct) && (
-                <div className="p-4 rounded-xl bg-white/5 border border-accent/30 space-y-4 animate-in fade-in zoom-in-95">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-black uppercase">Nimi</Label>
-                      <Input value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="bg-black/40 border-white/10" placeholder="Esim. Tomaatti" />
+                <div className="p-5 rounded-2xl bg-white/5 border border-accent/30 space-y-5 animate-in fade-in zoom-in-95 duration-300 shadow-2xl">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">TUOTTEEN NIMI</Label>
+                      <Input value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="bg-black/40 border-white/10 h-11 text-xs font-bold" placeholder="Esim. Tomaatti" />
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] font-black uppercase">€ / KG</Label>
-                      <Input type="number" step="0.01" value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} className="bg-black/40 border-white/10" placeholder="0.00" />
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">€ / KG</Label>
+                      <Input type="number" step="0.01" value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} className="bg-black/40 border-white/10 h-11 text-xs font-bold" placeholder="0.00" />
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleAddProduct} className="flex-1 copper-gradient text-white font-black text-xs uppercase">Tallenna</Button>
-                    <Button variant="outline" onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }} className="px-3"><X className="w-4 h-4" /></Button>
+                  <div className="flex gap-3 pt-2">
+                    <Button onClick={handleAddProduct} className="flex-1 copper-gradient text-white font-black text-[10px] uppercase tracking-widest h-11 shadow-lg">TALLENNA TUOTE</Button>
+                    <Button variant="outline" onClick={() => { setIsAddingProduct(false); setEditingProduct(null); }} className="px-4 border-white/10 text-muted-foreground"><X className="w-4 h-4" /></Button>
                   </div>
                 </div>
               )}
 
-              <ScrollArea className="h-[400px]">
-                <div className="space-y-2 pr-3">
+              <ScrollArea className="h-[450px]">
+                <div className="space-y-2 pr-4">
                   {products.map(p => (
-                    <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 group hover:border-white/20 transition-all">
+                    <div key={p.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 group hover:border-white/20 hover:bg-white/10 transition-all shadow-inner">
                       <div>
-                        <p className="text-sm font-bold uppercase">{p.name}</p>
-                        <p className="text-[10px] text-muted-foreground font-black">{p.pricePerKg.toFixed(2)} €/kg</p>
+                        <p className="text-xs font-black uppercase tracking-widest text-foreground/90">{p.name}</p>
+                        <p className="text-[10px] text-accent font-black mt-0.5">{p.pricePerKg.toFixed(2)} €/kg</p>
                       </div>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-accent" onClick={() => { setEditingProduct(p); setNewProductName(p.name); setNewProductPrice(p.pricePerKg.toString()); }}>
-                          <Edit2 className="w-3.5 h-3.5" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-accent hover:bg-accent/10 rounded-lg" onClick={() => { setEditingProduct(p); setNewProductName(p.name); setNewProductPrice(p.pricePerKg.toString()); }}>
+                          <Edit2 className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteProduct(p.id)}>
-                          <Trash2 className="w-3.5 h-3.5" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive hover:bg-destructive/10 rounded-lg" onClick={() => deleteProduct(p.id)}>
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
                   ))}
+                  {products.length === 0 && (
+                    <div className="py-20 text-center flex flex-col items-center gap-4 opacity-20">
+                      <Utensils className="w-12 h-12 text-muted-foreground" />
+                      <p className="text-xs font-black uppercase tracking-widest">Ei tuotteita listalla</p>
+                    </div>
+                  )}
                 </div>
               </ScrollArea>
             </CardContent>
           </Card>
 
           <Card className="industrial-card">
-            <CardHeader>
-              <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                <History className="w-4 h-4" /> Viimeisimmät kirjaukset
+            <CardHeader className="bg-black/20 border-b border-white/5">
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 flex items-center gap-3">
+                <History className="w-4 h-4" /> VIIMEISIMMÄT KIRJAUKSET
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="pt-6">
               <div className="space-y-3">
                 {entries.map(e => (
-                  <div key={e.id} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-white/5 text-xs">
-                    <div className="flex items-center gap-3">
-                      <div className={cn("w-1.5 h-8 rounded-full", e.type === 'waste' ? "bg-destructive" : "bg-amber-500")} />
+                  <div key={e.id} className="flex items-center justify-between p-4 rounded-2xl bg-black/20 border border-white/5 text-xs group hover:bg-black/40 transition-colors shadow-inner">
+                    <div className="flex items-center gap-4">
+                      <div className={cn("w-1.5 h-10 rounded-full shadow-lg", e.type === 'waste' ? "bg-destructive" : "bg-amber-500")} />
                       <div>
-                        <p className="font-bold uppercase">{e.productName}</p>
-                        <p className="text-[10px] text-muted-foreground">{e.weight}kg • {format(e.date?.toDate() || new Date(), 'HH:mm')}</p>
+                        <p className="font-black uppercase tracking-widest text-foreground/90">{e.productName}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{e.weight}kg • {format(e.date?.toDate() || new Date(), 'HH:mm')}</p>
                       </div>
                     </div>
-                    <p className="font-black text-accent">{e.cost.toFixed(2)} €</p>
+                    <p className="font-black text-accent text-lg tabular-nums">{e.cost.toFixed(2)} €</p>
                   </div>
                 ))}
+                {entries.length === 0 && (
+                  <p className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 italic">Ei kirjauksia tänään</p>
+                )}
               </div>
             </CardContent>
           </Card>
