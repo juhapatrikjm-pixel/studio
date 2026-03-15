@@ -29,8 +29,11 @@ export const financialSchema = z.object({
 export const wasteEntrySchema = z.object({
   productId: z.string().min(1),
   productName: z.string().min(1),
-  weight: numericValue.pipe(z.number().gt(0, "Painon on oltava suurempi kuin 0")),
-  cost: numericValue.pipe(z.number().nonnegative()),
+  weight: z.union([
+    z.number(),
+    z.string().transform((val) => Number(val.replace(',', '.')))
+  ]).pipe(z.number().gt(0, "Painon on oltava suurempi kuin 0")),
+  cost: z.number().nonnegative(),
   type: z.enum(['prep', 'waste']),
   monthId: z.string().min(1),
   date: z.any() // Firestore timestamp
