@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, HelpCircle, Globe, CheckCircle2, Loader2 } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, Globe, Loader2 } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -149,6 +149,7 @@ function LoginPage({ onDemoLogin, error }: { onDemoLogin: () => void, error: { t
     try {
       await signInWithRedirect(auth, provider)
     } catch (err: any) {
+      console.error("Redirect trigger error:", err)
       setIsRedirecting(false)
     }
   }
@@ -236,33 +237,36 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [api, setApi] = useState<CarouselApi>()
 
-  // Käsitellään uudelleenohjauksen tulos heti kun auth on valmis
+  // Handle getRedirectResult on mount
   useEffect(() => {
     if (!auth || !firestore) return
 
-    setIsProcessingRedirect(true)
-    getRedirectResult(auth).then(async (result) => {
-      if (result?.user) {
-        const u = result.user
-        const userRef = doc(firestore, 'userProfiles', u.uid)
-        await setDoc(userRef, {
-          userName: u.displayName,
-          email: u.email,
-          updatedAt: serverTimestamp()
-        }, { merge: true })
+    const checkRedirect = async () => {
+      setIsProcessingRedirect(true)
+      try {
+        const result = await getRedirectResult(auth)
+        if (result?.user) {
+          const u = result.user
+          const userRef = doc(firestore, 'userProfiles', u.uid)
+          await setDoc(userRef, {
+            userName: u.displayName,
+            email: u.email,
+            updatedAt: serverTimestamp()
+          }, { merge: true })
+        }
+      } catch (err: any) {
+        console.error("Auth redirect result error:", err)
+        if (err.code === 'auth/unauthorized-domain') {
+          setAuthError({ title: "Valtuuttamaton domain", desc: "Lisää tämän sovelluksen osoite Firebase-konsolin Authorized Domains -listalle." })
+        } else {
+          setAuthError({ title: "Kirjautumisvirhe", desc: err.message || "Tuntematon virhe tapahtui." })
+        }
+      } finally {
+        setIsProcessingRedirect(false)
       }
-      setIsProcessingRedirect(false)
-    }).catch((err: any) => {
-      console.error("Auth error:", err)
-      setIsProcessingRedirect(false)
-      if (err.code === 'auth/unauthorized-domain') {
-        setAuthError({ title: "Valtuuttamaton domain", desc: "Lisää tämän sovelluksen osoite Firebase-konsolin Authorized Domains -listalle." })
-      } else if (err.code === 'auth/popup-closed-by-user') {
-        setAuthError({ title: "Kirjautuminen keskeytyi", desc: "Kirjautumisikkuna suljettiin tai selain esti uudelleenohjauksen." })
-      } else {
-        setAuthError({ title: "Kirjautumisvirhe", desc: err.message || "Tuntematon virhe tapahtui." })
-      }
-    })
+    }
+
+    checkRedirect()
   }, [auth, firestore])
 
   useEffect(() => {
