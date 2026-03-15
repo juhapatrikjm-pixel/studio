@@ -26,7 +26,7 @@ import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useFirestore, useDoc, useUser, useAuth } from "@/firebase"
 import { doc, setDoc, serverTimestamp } from "firebase/firestore"
-import { signInWithRedirect, GoogleAuthProvider, signOut, getRedirectResult } from "firebase/auth"
+import { signInWithRedirect, GoogleAuthProvider, getRedirectResult } from "firebase/auth"
 import { cn } from "@/lib/utils"
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel"
 import { Card, CardContent } from "@/components/ui/card"
@@ -57,17 +57,10 @@ export const BASE_MENU_ITEMS = [
 
 function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { activeModule: ModuleId, setActiveModule: (id: ModuleId) => void, menuItems: typeof BASE_MENU_ITEMS, user: any }) {
   const { setOpen, setOpenMobile } = useSidebar()
-  const auth = useAuth()
-
   const handleModuleChange = (id: ModuleId) => {
     setActiveModule(id)
     setOpen(false)
     setOpenMobile(false)
-  }
-
-  const handleSignOut = () => {
-    if (auth) signOut(auth)
-    window.location.reload()
   }
 
   return (
@@ -111,46 +104,38 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
       <div className="p-2 border-t border-white/5 mt-auto bg-black/20 space-y-1.5">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 rounded-lg steel-detail flex items-center justify-center text-black font-black text-[7px] shadow-md metal-shine-overlay overflow-hidden">
-            {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : (user.displayName?.[0] || user.email?.[0] || 'D')}
+            {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : (user.displayName?.[0] || 'U')}
           </div>
           <div className="flex flex-col overflow-hidden">
             <span className="text-[7px] font-black text-foreground truncate">{user.displayName || 'Käyttäjä'}</span>
-            <span className="text-[4px] uppercase tracking-wider text-muted-foreground font-bold truncate opacity-50">{user.email || 'demo@wisemisa.fi'}</span>
+            <span className="text-[4px] uppercase tracking-wider text-muted-foreground font-bold truncate opacity-50">{user.email}</span>
           </div>
         </div>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="sm" className="flex-1 text-[5px] font-black uppercase text-muted-foreground hover:text-accent hover:bg-white/5 h-4 px-1" onClick={() => setActiveModule('profile')}>
-            <Settings className="w-1.5 h-1.5 mr-1" /> ASETUKSET
-          </Button>
-          <Button variant="ghost" size="icon" className="h-4 w-4 text-muted-foreground hover:text-destructive hover:bg-white/5" onClick={handleSignOut}>
-            <LogOut className="w-1.5 h-1.5" />
-          </Button>
-        </div>
+        <Button variant="ghost" size="sm" className="w-full text-[5px] font-black uppercase text-muted-foreground hover:text-accent hover:bg-white/5 h-4 px-1" onClick={() => setActiveModule('profile')}>
+          <Settings className="w-1.5 h-1.5 mr-1" /> ASETUKSET
+        </Button>
       </div>
     </Sidebar>
   )
 }
 
-function LoginPage({ onDemoLogin, error }: { onDemoLogin: () => void, error: { title: string, desc: string } | null }) {
+function LoginPage({ onDemoLogin, error, isProcessing }: { onDemoLogin: () => void, error: { title: string, desc: string } | null, isProcessing: boolean }) {
   const auth = useAuth()
-  const [isRedirecting, setIsRedirecting] = useState(false)
   const [currentDomain, setCurrentDomain] = useState("")
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setCurrentDomain(window.location.hostname)
+      setCurrentDomain(window.location.host)
     }
   }, [])
 
   const handleLogin = async () => {
     if (!auth) return
     const provider = new GoogleAuthProvider()
-    setIsRedirecting(true)
     try {
       await signInWithRedirect(auth, provider)
     } catch (err: any) {
-      console.error("Redirect trigger error:", err)
-      setIsRedirecting(false)
+      console.error("Login Error:", err)
     }
   }
 
@@ -185,11 +170,11 @@ function LoginPage({ onDemoLogin, error }: { onDemoLogin: () => void, error: { t
           <div className="w-full space-y-2">
             <Button 
               onClick={handleLogin} 
-              disabled={isRedirecting}
-              className="w-full h-10 copper-gradient text-white font-black uppercase tracking-widest text-[9px] shadow-2xl metal-shine-overlay group"
+              disabled={isProcessing}
+              className="w-full h-10 copper-gradient text-white font-black uppercase tracking-widest text-[9px] shadow-2xl metal-shine-overlay"
             >
-              {isRedirecting ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <LogIn className="w-3.5 h-3.5 mr-2" />}
-              {isRedirecting ? "ODOTTAA..." : "KIRJAUDU GOOGLELLA"}
+              {isProcessing ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <LogIn className="w-3.5 h-3.5 mr-2" />}
+              {isProcessing ? "KÄSITTELLÄÄN..." : "KIRJAUDU GOOGLELLA"}
             </Button>
             
             <div className="relative py-1">
@@ -211,8 +196,8 @@ function LoginPage({ onDemoLogin, error }: { onDemoLogin: () => void, error: { t
               <Globe className="w-2.5 h-2.5 text-accent" />
               <span className="text-[7px] font-black text-muted-foreground uppercase tracking-widest">VALTUUTA TÄMÄ OSOITE:</span>
             </div>
-            <code className="text-[7px] font-mono bg-black/40 p-1.5 rounded border border-white/10 text-accent w-full break-all select-all">{currentDomain}</code>
-            <p className="text-[6px] text-muted-foreground/60 uppercase font-bold italic">Firebase Console &rarr; Authentication &rarr; Settings</p>
+            <code className="text-[7px] font-mono bg-black/40 p-1.5 rounded border border-white/10 text-accent w-full break-all">{currentDomain}</code>
+            <p className="text-[6px] text-muted-foreground/60 uppercase font-bold italic">Firebase Console &rarr; Auth &rarr; Settings &rarr; Domains</p>
           </div>
         </CardContent>
       </Card>
@@ -221,10 +206,10 @@ function LoginPage({ onDemoLogin, error }: { onDemoLogin: () => void, error: { t
 }
 
 export default function Home() {
-  const { user, loading } = useUser()
+  const { user, loading: authLoading } = useUser()
   const [demoUser, setDemoUser] = useState<any>(null)
   const [authError, setAuthError] = useState<{ title: string, desc: string } | null>(null)
-  const [isProcessingRedirect, setIsProcessingRedirect] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(true)
   const firestore = useFirestore()
   const auth = useAuth()
   
@@ -237,32 +222,37 @@ export default function Home() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [api, setApi] = useState<CarouselApi>()
 
-  // Handle getRedirectResult on mount
   useEffect(() => {
-    if (!auth || !firestore) return
+    if (!auth || !firestore) {
+      setIsProcessing(false)
+      return
+    }
 
     const checkRedirect = async () => {
-      setIsProcessingRedirect(true)
       try {
         const result = await getRedirectResult(auth)
         if (result?.user) {
           const u = result.user
-          const userRef = doc(firestore, 'userProfiles', u.uid)
-          await setDoc(userRef, {
-            userName: u.displayName,
-            email: u.email,
-            updatedAt: serverTimestamp()
-          }, { merge: true })
+          // Tallennetaan profiili, mutta ei anneta virheen estää sisäänpääsyä
+          try {
+            await setDoc(doc(firestore, 'userProfiles', u.uid), {
+              userName: u.displayName,
+              email: u.email,
+              updatedAt: serverTimestamp()
+            }, { merge: true })
+          } catch (fsErr) {
+            console.warn("Firestore profile save failed (Rules?), but user is authenticated.")
+          }
         }
       } catch (err: any) {
         console.error("Auth redirect result error:", err)
         if (err.code === 'auth/unauthorized-domain') {
           setAuthError({ title: "Valtuuttamaton domain", desc: "Lisää tämän sovelluksen osoite Firebase-konsolin Authorized Domains -listalle." })
         } else {
-          setAuthError({ title: "Kirjautumisvirhe", desc: err.message || "Tuntematon virhe tapahtui." })
+          setAuthError({ title: "Kirjautumisvirhe", desc: err.message })
         }
       } finally {
-        setIsProcessingRedirect(false)
+        setIsProcessing(false)
       }
     }
 
@@ -282,11 +272,9 @@ export default function Home() {
     const infoItem = items.find(i => i.id === 'info')!
     const otherItems = items.filter(i => i.id !== 'info')
     const sortedOthers = otherItems.sort((a, b) => {
-      const idxA = order.indexOf(a.id)
-      const idxB = order.indexOf(b.id)
+      const idxA = order.indexOf(a.id); const idxB = order.indexOf(b.id)
       if (idxA === -1 && idxB === -1) return 0
-      if (idxA === -1) return 1
-      if (idxB === -1) return -1
+      if (idxA === -1) return 1; if (idxB === -1) return -1
       return idxA - idxB
     })
     return [infoItem, ...sortedOthers]
@@ -302,20 +290,19 @@ export default function Home() {
     if (!api) return
     const onSelect = () => {
       const index = api.selectedScrollSnap()
-      const moduleId = sortedMenuItems[index].id as ModuleId
-      setActiveModule(moduleId)
+      setActiveModule(sortedMenuItems[index].id as ModuleId)
     }
     api.on("select", onSelect)
     return () => { api.off("select", onSelect) }
   }, [api, sortedMenuItems])
 
-  if (loading || isProcessingRedirect) return (
+  if (authLoading || isProcessing) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-8 h-8 rounded-xl copper-gradient animate-pulse shadow-2xl" />
     </div>
   )
 
-  if (!effectiveUser) return <LoginPage onDemoLogin={() => setDemoUser({ uid: 'demo-user', displayName: 'Testikäyttäjä', email: 'demo@wisemisa.fi' })} error={authError} />
+  if (!effectiveUser) return <LoginPage onDemoLogin={() => setDemoUser({ uid: 'demo-user', displayName: 'Demo Käyttäjä', email: 'demo@wisemisa.fi' })} error={authError} isProcessing={isProcessing} />
 
   const renderModule = (id: ModuleId) => {
     switch(id) {
@@ -348,29 +335,24 @@ export default function Home() {
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
           <header className="h-8 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-2 flex items-center justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              <SidebarTrigger className="text-muted-foreground hover:text-accent h-4 w-4" />
-            </div>
-
-            <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-[8px] leading-none tracking-widest tabular-nums copper-text-glow truncate">
+            <div className="flex items-center gap-3 flex-1"><SidebarTrigger className="text-muted-foreground hover:text-accent h-4 w-4" /></div>
+            <div className="flex flex-col items-center justify-center flex-1 text-center">
+              <div className="text-accent font-headline font-black text-[8px] leading-none tracking-widest tabular-nums copper-text-glow">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
-              <div className="text-[5px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-0.5 opacity-60 truncate w-full">
+              <div className="text-[5px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-0.5 opacity-60">
                 {currentTime ? format(currentTime, 'EEEE d.M.yyyy', { locale: fi }) : '...'}
               </div>
             </div>
-
             <div className="flex items-center gap-2 flex-1 justify-end">
               <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent h-4 w-4">
-                <Bell className="w-2 h-2" />
-                <span className="absolute top-0.5 right-0.5 w-1 h-1 bg-accent rounded-full border border-background" />
+                <Bell className="w-2 h-2" /><span className="absolute top-0.5 right-0.5 w-1 h-1 bg-accent rounded-full border border-background" />
               </Button>
             </div>
           </header>
 
           <main className="flex-1 overflow-hidden relative">
-            <Carousel setApi={setApi} className="w-full h-full" opts={{ align: "start", loop: false, duration: 35 }}>
+            <Carousel setApi={setApi} className="w-full h-full" opts={{ align: "start", loop: false, duration: 25 }}>
               <CarouselContent className="h-full ml-0">
                 {sortedMenuItems.map((item) => (
                   <CarouselItem key={item.id} className="pl-0 h-full overflow-y-auto">
