@@ -3,12 +3,11 @@
 /**
  * @fileOverview Firebase-konfiguraatio.
  * 
- * Firebase Studio täyttää nämä arvot automaattisesti oikeilla projektitiedoilla.
- * Varmistetaan, että kaikki kentät ovat olemassa virheiden välttämiseksi.
+ * Varmista, että Firebase-projekti on luotu ja Google-kirjautuminen on aktivoitu Firebase Consolessa.
  */
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyB-actual-api-key-from-console", 
+  apiKey: "AIzaSyB-actual-api-key-from-studio-settings", 
   authDomain: "workhub-industrial.firebaseapp.com",
   projectId: "workhub-industrial",
   storageBucket: "workhub-industrial.firebasestorage.app",
