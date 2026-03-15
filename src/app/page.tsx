@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, HelpCircle } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, HelpCircle, ExternalLink } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -134,11 +134,11 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
 function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
   const auth = useAuth()
   const firestore = useFirestore()
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ title: string, desc: string } | null>(null)
 
   const handleLogin = async () => {
     if (!auth || !firestore) {
-      setError("Firebase-yhteyttä ei voitu muodostaa. Tarkista API-avain koodista.")
+      setError({ title: "Yhteysvirhe", desc: "Firebase-yhteyttä ei voitu muodostaa. Tarkista API-avain." })
       return
     }
     const provider = new GoogleAuthProvider()
@@ -151,12 +151,23 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
         email: user.email,
         updatedAt: serverTimestamp()
       }, { merge: true })
-    } catch (error: any) {
-      console.error("Login error:", error)
-      if (error.code?.includes('api-key-not-valid')) {
-        setError("API-avain on virheellinen. Nouda uusi avain Firebase-konsolista (Project Settings) ja liitä se tiedostoon src/firebase/config.ts.")
+    } catch (err: any) {
+      console.error("Login error:", err)
+      if (err.code === 'auth/configuration-not-found') {
+        setError({ 
+          title: "Google-kirjautuminen puuttuu", 
+          desc: "Aktivoi 'Google' kirjautumistapa Firebase-konsolin Authentication -> Sign-in method -osiosta." 
+        })
+      } else if (err.code?.includes('api-key-not-valid')) {
+        setError({ 
+          title: "API-avain virheellinen", 
+          desc: "Varmista, että tiedostossa src/firebase/config.ts on oikea Web API Key." 
+        })
       } else {
-        setError("Kirjautuminen epäonnistui. Voit silti kokeilla sovellusta painamalla 'Demo-tila' alta.")
+        setError({ 
+          title: "Kirjautumisvirhe", 
+          desc: err.message || "Tapahtui odottamaton virhe. Kokeile Demo-tilaa alta." 
+        })
       }
     }
   }
@@ -182,9 +193,9 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
           {error && (
             <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 py-2">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle className="text-[10px] font-black uppercase text-left">Konfiguraatiovirhe</AlertTitle>
+              <AlertTitle className="text-[10px] font-black uppercase text-left">{error.title}</AlertTitle>
               <AlertDescription className="text-[9px] text-left leading-tight opacity-80">
-                {error}
+                {error.desc}
               </AlertDescription>
             </Alert>
           )}
@@ -214,7 +225,7 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
           
           <div className="pt-2 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
             <HelpCircle className="w-3 h-3 text-muted-foreground" />
-            <p className="text-[8px] font-bold text-muted-foreground uppercase">API-ohjeet löydät koodin config.ts tiedostosta</p>
+            <p className="text-[8px] font-bold text-muted-foreground uppercase">Ohjeet löydät config.ts tiedostosta</p>
           </div>
         </CardContent>
       </Card>

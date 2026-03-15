@@ -3,7 +3,7 @@
 /**
  * @fileOverview Firebase-konfiguraatio projektille: workhub-industrial
  * 
- * Sovellus on nyt linkitetty onnistuneesti!
+ * Sovellus on nyt linkitetty uudella API-avaimella!
  */
 
 export const firebaseConfig = {
