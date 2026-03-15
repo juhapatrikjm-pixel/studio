@@ -134,7 +134,7 @@ export function WorkspaceModule() {
                   <CheckCircle className="w-2 h-2 mr-1" /> KUITTAA
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-1 p-2 pt-0">
+              <CardContent className="space-y-1.5 p-2 pt-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                   {shiftInfo.bulletPoints?.map((p: string, i: number) => p && (
                     <div key={i} className="flex items-center gap-1.5 p-1 rounded-lg bg-white/5 border border-white/5">

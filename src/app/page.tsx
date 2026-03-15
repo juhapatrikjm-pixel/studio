@@ -131,10 +131,8 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
   )
 }
 
-function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
+function LoginPage({ onDemoLogin, error }: { onDemoLogin: () => void, error: { title: string, desc: string } | null }) {
   const auth = useAuth()
-  const firestore = useFirestore()
-  const [error, setError] = useState<{ title: string, desc: string } | null>(null)
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [currentDomain, setCurrentDomain] = useState("")
 
@@ -144,37 +142,14 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
     }
   }, [])
 
-  useEffect(() => {
-    if (!auth || !firestore) return
-
-    getRedirectResult(auth).then(async (result) => {
-      if (result?.user) {
-        const user = result.user
-        const userRef = doc(firestore, 'userProfiles', user.uid)
-        await setDoc(userRef, {
-          userName: user.displayName,
-          email: user.email,
-          updatedAt: serverTimestamp()
-        }, { merge: true })
-      }
-    }).catch((err: any) => {
-      console.error("Redirect error:", err)
-      setError({ title: "Kirjautumisvirhe", desc: err.message || "Uudelleenohjaus epäonnistui." })
-    })
-  }, [auth, firestore])
-
   const handleLogin = async () => {
-    if (!auth) {
-      setError({ title: "Yhteysvirhe", desc: "Firebase-yhteyttä ei voitu muodostaa." })
-      return
-    }
+    if (!auth) return
     const provider = new GoogleAuthProvider()
     setIsRedirecting(true)
     try {
       await signInWithRedirect(auth, provider)
     } catch (err: any) {
       setIsRedirecting(false)
-      setError({ title: "Virhe", desc: err.message })
     }
   }
 
@@ -247,7 +222,10 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
 export default function Home() {
   const { user, loading } = useUser()
   const [demoUser, setDemoUser] = useState<any>(null)
+  const [authError, setAuthError] = useState<{ title: string, desc: string } | null>(null)
+  const [isProcessingRedirect, setIsProcessingRedirect] = useState(false)
   const firestore = useFirestore()
+  const auth = useAuth()
   
   const effectiveUser = user || demoUser
   
@@ -257,6 +235,35 @@ export default function Home() {
   const [activeModule, setActiveModule] = useState<ModuleId>('info')
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [api, setApi] = useState<CarouselApi>()
+
+  // Käsitellään uudelleenohjauksen tulos heti kun auth on valmis
+  useEffect(() => {
+    if (!auth || !firestore) return
+
+    setIsProcessingRedirect(true)
+    getRedirectResult(auth).then(async (result) => {
+      if (result?.user) {
+        const u = result.user
+        const userRef = doc(firestore, 'userProfiles', u.uid)
+        await setDoc(userRef, {
+          userName: u.displayName,
+          email: u.email,
+          updatedAt: serverTimestamp()
+        }, { merge: true })
+      }
+      setIsProcessingRedirect(false)
+    }).catch((err: any) => {
+      console.error("Auth error:", err)
+      setIsProcessingRedirect(false)
+      if (err.code === 'auth/unauthorized-domain') {
+        setAuthError({ title: "Valtuuttamaton domain", desc: "Lisää tämän sovelluksen osoite Firebase-konsolin Authorized Domains -listalle." })
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        setAuthError({ title: "Kirjautuminen keskeytyi", desc: "Kirjautumisikkuna suljettiin tai selain esti uudelleenohjauksen." })
+      } else {
+        setAuthError({ title: "Kirjautumisvirhe", desc: err.message || "Tuntematon virhe tapahtui." })
+      }
+    })
+  }, [auth, firestore])
 
   useEffect(() => {
     setCurrentTime(new Date())
@@ -298,13 +305,13 @@ export default function Home() {
     return () => { api.off("select", onSelect) }
   }, [api, sortedMenuItems])
 
-  if (loading) return (
+  if (loading || isProcessingRedirect) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <div className="w-8 h-8 rounded-xl copper-gradient animate-pulse shadow-2xl" />
     </div>
   )
 
-  if (!effectiveUser) return <LoginPage onDemoLogin={() => setDemoUser({ uid: 'demo-user', displayName: 'Testikäyttäjä', email: 'demo@wisemisa.fi' })} />
+  if (!effectiveUser) return <LoginPage onDemoLogin={() => setDemoUser({ uid: 'demo-user', displayName: 'Testikäyttäjä', email: 'demo@wisemisa.fi' })} error={authError} />
 
   const renderModule = (id: ModuleId) => {
     switch(id) {
