@@ -2,7 +2,7 @@
 
 /**
  * @fileOverview Firebase-konfiguraatio Wisemisa Bistro -projektille.
- * Aktivoitu projektille: wisemisa-d2b98
+ * Projekti ID: wisemisa-d2b98
  */
 
 export const firebaseConfig = {
