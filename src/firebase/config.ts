@@ -3,13 +3,16 @@
 /**
  * @fileOverview Firebase-konfiguraatio.
  * 
- * TÄRKEÄÄ: Jos kirjautuminen ei toimi, varmista että Firebase-konsolissa:
- * 1. Google-kirjautuminen on aktivoitu (Authentication -> Sign-in method)
- * 2. Authorized domains sisältää sovelluksen URL-osoitteen.
+ * TÄRKEÄÄ: API-avain on projektikohtainen.
+ * Jos saat "api-key-not-valid" virheen:
+ * 1. Mene Firebase Consoleen (https://console.firebase.google.com)
+ * 2. Valitse oikea projekti
+ * 3. Ratas-ikoni -> Project Settings
+ * 4. Kopioi "Web API Key" tähän.
  */
 
 export const firebaseConfig = {
-  apiKey: "AIzaSyB-actual-api-key-from-studio-settings", 
+  apiKey: "AIzaSyB-actual-api-key-from-your-project-settings", 
   authDomain: "workhub-industrial.firebaseapp.com",
   projectId: "workhub-industrial",
   storageBucket: "workhub-industrial.firebasestorage.app",

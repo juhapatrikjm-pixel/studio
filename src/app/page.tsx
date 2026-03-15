@@ -67,7 +67,7 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
 
   const handleSignOut = () => {
     if (auth) signOut(auth)
-    window.location.reload() // Puhdista demo-tila
+    window.location.reload()
   }
 
   return (
@@ -114,7 +114,7 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
             {user.photoURL ? <img src={user.photoURL} alt={user.displayName} /> : (user.displayName?.[0] || user.email?.[0] || 'D')}
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="text-[10px] font-black text-foreground truncate">{user.displayName || 'Demo Käyttäjä'}</span>
+            <span className="text-[10px] font-black text-foreground truncate">{user.displayName || 'Käyttäjä'}</span>
             <span className="text-[7px] uppercase tracking-wider text-muted-foreground font-bold truncate opacity-50">{user.email || 'demo@wisemisa.fi'}</span>
           </div>
         </div>
@@ -122,7 +122,7 @@ function AppSidebar({ activeModule, setActiveModule, menuItems, user }: { active
           <Button variant="ghost" size="sm" className="flex-1 text-[8px] font-black uppercase text-muted-foreground hover:text-accent hover:bg-white/5 h-7" onClick={() => setActiveModule('profile')}>
             <Settings className="w-2.5 h-2.5 mr-1" /> ASETUKSET
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-white/5" onClick={handleSignOut} title="Kirjaudu ulos">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-white/5" onClick={handleSignOut}>
             <LogOut className="w-2.5 h-2.5" />
           </Button>
         </div>
@@ -138,7 +138,7 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
 
   const handleLogin = async () => {
     if (!auth || !firestore) {
-      setError("Firebase-yhteyttä ei voitu muodostaa. Tarkista verkkoasetukset.")
+      setError("Firebase-yhteyttä ei voitu muodostaa.")
       return
     }
     const provider = new GoogleAuthProvider()
@@ -152,9 +152,9 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
         updatedAt: serverTimestamp()
       }, { merge: true })
     } catch (error: any) {
-      console.error("Kirjautumisvirhe:", error)
+      console.error("Login error:", error)
       if (error.code === 'auth/api-key-not-valid') {
-        setError("Projektin API-avain on virheellinen. Varmista, että Firebase-projekti on aktivoitu oikein.")
+        setError("API-avain on virheellinen. Varmista, että koodin avain täsmää Firebase-projektisi avaimen kanssa.")
       } else {
         setError("Kirjautuminen epäonnistui. Kokeile Demo-tilaa alta.")
       }
@@ -210,7 +210,6 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
             >
               KOKEILE DEMO-TILASSA
             </Button>
-            <p className="text-[8px] text-muted-foreground uppercase font-bold tracking-widest opacity-30 mt-4">Pääsy rajoitettu valtuutetuille käyttäjille</p>
           </div>
         </CardContent>
       </Card>
@@ -234,20 +233,16 @@ export default function Home() {
 
   useEffect(() => {
     setCurrentTime(new Date())
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
   const sortedMenuItems = useMemo(() => {
     if (!profile?.moduleOrder || profile.moduleOrder.length === 0) return BASE_MENU_ITEMS
-
     const order = profile.moduleOrder as string[]
     const items = [...BASE_MENU_ITEMS]
     const infoItem = items.find(i => i.id === 'info')!
     const otherItems = items.filter(i => i.id !== 'info')
-
     const sortedOthers = otherItems.sort((a, b) => {
       const idxA = order.indexOf(a.id)
       const idxB = order.indexOf(b.id)
@@ -256,7 +251,6 @@ export default function Home() {
       if (idxB === -1) return -1
       return idxA - idxB
     })
-
     return [infoItem, ...sortedOthers]
   }, [profile?.moduleOrder])
 
@@ -315,43 +309,35 @@ export default function Home() {
         <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} user={effectiveUser} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
-          <header className="h-12 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-6 flex items-center justify-between">
+          <header className="h-12 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1">
-              <SidebarTrigger className="text-muted-foreground hover:text-accent transition-transform hover:scale-110 h-7 w-7" />
+              <SidebarTrigger className="text-muted-foreground hover:text-accent h-7 w-7" />
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-sm leading-none tracking-widest tabular-nums copper-text-glow truncate">
+              <div className="text-accent font-headline font-black text-xs leading-none tracking-widest tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
               <div className="text-[7px] text-muted-foreground font-black uppercase tracking-[0.2em] mt-0.5 opacity-60 truncate w-full">
-                {currentTime ? format(currentTime, 'EEEE d.M.yyyy', { locale: fi }) : 'Alustetaan...'}
+                {currentTime ? format(currentTime, 'EEEE d.M.yyyy', { locale: fi }) : '...'}
               </div>
             </div>
 
-            <div className="flex items-center gap-2 md:gap-4 flex-1 justify-end">
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5 group h-7 w-7">
-                <Bell className="w-3.5 h-3.5 group-hover:animate-bounce" />
-                <span className="absolute top-1.5 right-1.5 w-1 h-1 bg-accent rounded-full border border-background shadow-[0_0_6px_rgba(184,115,51,0.8)]" />
+            <div className="flex items-center gap-2 flex-1 justify-end">
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent h-7 w-7">
+                <Bell className="w-3.5 h-3.5" />
+                <span className="absolute top-1.5 right-1.5 w-1 h-1 bg-accent rounded-full border border-background" />
               </Button>
             </div>
           </header>
 
           <main className="flex-1 overflow-hidden relative">
-            <Carousel 
-              setApi={setApi} 
-              className="w-full h-full"
-              opts={{
-                align: "start",
-                loop: false,
-                duration: 35,
-              }}
-            >
+            <Carousel setApi={setApi} className="w-full h-full" opts={{ align: "start", loop: false, duration: 35 }}>
               <CarouselContent className="h-full ml-0">
                 {sortedMenuItems.map((item) => (
                   <CarouselItem key={item.id} className="pl-0 h-full overflow-y-auto">
                     <div className="p-4 md:p-6 max-w-[1600px] mx-auto w-full min-h-full">
-                      <div className="max-w-5xl mx-auto space-y-4 md:space-y-6 pb-20">
+                      <div className="max-w-5xl mx-auto space-y-4 pb-20">
                         {renderModule(item.id as ModuleId)}
                       </div>
                     </div>
