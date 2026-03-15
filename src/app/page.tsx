@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, LogOut, LogIn, AlertCircle, HelpCircle } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -35,22 +35,22 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 export type ModuleId = 'info' | 'shift-info' | 'tulos' | 'waste' | 'onboarding' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
 export const BASE_MENU_ITEMS = [
-  { id: 'info', icon: LayoutDashboard, label: 'Ohjauspaneeli' },
-  { id: 'shift-info', icon: Info, label: 'Vuoro-info' },
-  { id: 'tulos', icon: TrendingUp, label: 'Tulosseuranta' },
-  { id: 'waste', icon: Trash2, label: 'Hävikkiseuranta' },
-  { id: 'onboarding', icon: GraduationCap, label: 'Perehdytys' },
-  { id: 'todo-calendar', icon: CalendarDays, label: 'Kalenteri & To do' },
-  { id: 'omavalvonta', icon: ShieldAlert, label: 'Omavalvonta' },
-  { id: 'misa', icon: ClipboardList, label: 'Misa-lista' },
-  { id: 'recipes', icon: ChefHat, label: 'Reseptiikka' },
-  { id: 'suppliers', icon: Truck, label: 'Toimittajat' },
+  { id: 'info', icon: LayoutDashboard, label: 'Ohjaus' },
+  { id: 'shift-info', icon: Info, label: 'Vuoro' },
+  { id: 'tulos', icon: TrendingUp, label: 'Tulos' },
+  { id: 'waste', icon: Trash2, label: 'Hävikki' },
+  { id: 'onboarding', icon: GraduationCap, label: 'Koulutus' },
+  { id: 'todo-calendar', icon: CalendarDays, label: 'To do' },
+  { id: 'omavalvonta', icon: ShieldAlert, label: 'Valvonta' },
+  { id: 'misa', icon: ClipboardList, label: 'Misa' },
+  { id: 'recipes', icon: ChefHat, label: 'Reseptit' },
+  { id: 'suppliers', icon: Truck, label: 'Tukut' },
   { id: 'orders', icon: ShoppingBag, label: 'Tilaukset' },
-  { id: 'maintenance', icon: Wrench, label: 'Laitteet & Huolto' },
+  { id: 'maintenance', icon: Wrench, label: 'Huolto' },
   { id: 'archive', icon: Archive, label: 'Arkisto' },
-  { id: 'messaging', icon: MessageSquare, label: 'Viestintä' },
-  { id: 'cloud', icon: Cloud, label: 'Pilvidata' },
-  { id: 'directory', icon: Users, label: 'Yhteystiedot' },
+  { id: 'messaging', icon: MessageSquare, label: 'Chat' },
+  { id: 'cloud', icon: Cloud, label: 'Pilvi' },
+  { id: 'directory', icon: Users, label: 'Tiimi' },
   { id: 'profile', icon: UserCircle, label: 'Profiili' },
   { id: 'admin', icon: ShieldCheck, label: 'Hallinta' },
 ] as const
@@ -138,7 +138,7 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
 
   const handleLogin = async () => {
     if (!auth || !firestore) {
-      setError("Firebase-yhteyttä ei voitu muodostaa.")
+      setError("Firebase-yhteyttä ei voitu muodostaa. Tarkista API-avain koodista.")
       return
     }
     const provider = new GoogleAuthProvider()
@@ -153,10 +153,10 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
       }, { merge: true })
     } catch (error: any) {
       console.error("Login error:", error)
-      if (error.code === 'auth/api-key-not-valid') {
-        setError("API-avain on virheellinen. Varmista, että koodin avain täsmää Firebase-projektisi avaimen kanssa.")
+      if (error.code?.includes('api-key-not-valid')) {
+        setError("API-avain on virheellinen. Nouda uusi avain Firebase-konsolista (Project Settings) ja liitä se tiedostoon src/firebase/config.ts.")
       } else {
-        setError("Kirjautuminen epäonnistui. Kokeile Demo-tilaa alta.")
+        setError("Kirjautuminen epäonnistui. Voit silti kokeilla sovellusta painamalla 'Demo-tila' alta.")
       }
     }
   }
@@ -210,6 +210,11 @@ function LoginPage({ onDemoLogin }: { onDemoLogin: () => void }) {
             >
               KOKEILE DEMO-TILASSA
             </Button>
+          </div>
+          
+          <div className="pt-2 flex items-center gap-2 opacity-40 hover:opacity-100 transition-opacity">
+            <HelpCircle className="w-3 h-3 text-muted-foreground" />
+            <p className="text-[8px] font-bold text-muted-foreground uppercase">API-ohjeet löydät koodin config.ts tiedostosta</p>
           </div>
         </CardContent>
       </Card>
