@@ -120,8 +120,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { data: profile } = useDoc<any>(profileRef)
 
   useEffect(() => {
+    // Annetaan Firebaselle hieman aikaa varmistaa tila (esim. 500ms), jotta ei tule turhia looppeja
     if (!loading && !user) {
-      router.push('/')
+      const timeout = setTimeout(() => {
+        router.push('/')
+      }, 500)
+      return () => clearTimeout(timeout)
     }
   }, [user, loading, router])
 
@@ -131,7 +135,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(timer)
   }, [])
 
-  if (loading || !user) return (
+  if (loading || (!user && !profile)) return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6">
       <div className="w-16 h-16 rounded-2xl copper-gradient animate-pulse shadow-2xl" />
       <span className="text-xs font-black uppercase tracking-widest text-muted-foreground opacity-40">Ladataan dashboardia...</span>
@@ -146,7 +150,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <header className="h-14 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1">
               <SidebarTrigger className="text-muted-foreground hover:text-accent" />
-              {user.isAnonymous && (
+              {user?.isAnonymous && (
                 <Badge variant="outline" className="border-accent/40 text-accent font-black tracking-widest bg-accent/5 px-2 py-0.5 h-5 text-[9px] gap-1">
                   <Zap className="w-3 h-3" /> DEMO
                 </Badge>

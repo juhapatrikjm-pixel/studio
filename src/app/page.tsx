@@ -5,10 +5,10 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth, useUser, useFirestore } from "@/firebase"
 import { 
-  GoogleAuthProvider, 
-  signInWithPopup, 
   signInAnonymously, 
-  getRedirectResult, 
+  sendSignInLinkToEmail, 
+  isSignInWithEmailLink, 
+  signInWithEmailLink,
   setPersistence, 
   browserLocalPersistence 
 } from "firebase/auth"
@@ -16,7 +16,9 @@ import { doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { LogIn, AlertCircle, Globe, Zap, ShieldCheck, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { LogIn, AlertCircle, Globe, Zap, Loader2, Mail, CheckCircle2, QrCode } from "lucide-react"
 
 export default function LoginPage() {
   const { user, loading: authLoading } = useUser()
@@ -24,7 +26,9 @@ export default function LoginPage() {
   const firestore = useFirestore()
   const router = useRouter()
   
+  const [email, setEmail] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
   const [error, setError] = useState<{ title: string, desc: string } | null>(null)
   const [currentDomain, setCurrentDomain] = useState("")
 
@@ -34,27 +38,38 @@ export default function LoginPage() {
     }
   }, [])
 
-  // Robust Auth Check
+  // MAGIC LINK DETECTION
   useEffect(() => {
     if (!auth || !firestore) return
 
-    // Tarkistetaan onko käyttäjä jo kirjautunut tai palannut redirectistä
-    const checkAuth = async () => {
-      try {
-        const result = await getRedirectResult(auth)
-        if (result?.user) {
-          await syncProfile(result.user)
-          router.push('/dashboard')
-        } else if (user) {
-          router.push('/dashboard')
+    const handleMagicLink = async () => {
+      if (isSignInWithEmailLink(auth, window.location.href)) {
+        setIsProcessing(true)
+        let emailForSignIn = window.localStorage.getItem('emailForSignIn')
+        
+        if (!emailForSignIn) {
+          emailForSignIn = window.prompt('Vahvista sähköpostiosoitteesi viimeistelläksesi kirjautumisen:')
         }
-      } catch (err: any) {
-        console.error("Redirect error:", err)
-        setError({ title: "Kirjautumisvirhe", desc: err.message })
+
+        if (emailForSignIn) {
+          try {
+            const result = await signInWithEmailLink(auth, emailForSignIn, window.location.href)
+            window.localStorage.removeItem('emailForSignIn')
+            await syncProfile(result.user)
+            router.push('/dashboard')
+          } catch (err: any) {
+            console.error("Magic link error:", err)
+            setError({ title: "Kirjautumislinkki vanhentunut", desc: "Pyydä uusi linkki alta." })
+          } finally {
+            setIsProcessing(false)
+          }
+        }
+      } else if (user) {
+        router.push('/dashboard')
       }
     }
 
-    checkAuth()
+    handleMagicLink()
   }, [user, auth, firestore, router])
 
   const syncProfile = async (u: any) => {
@@ -70,35 +85,24 @@ export default function LoginPage() {
     }
   }
 
-  const handleLogin = async () => {
-    if (!auth || !firestore) return
+  const handleEmailLinkLogin = async () => {
+    if (!auth || !email.trim()) return
     setIsProcessing(true)
     setError(null)
-    
-    const provider = new GoogleAuthProvider()
+
+    const actionCodeSettings = {
+      url: window.location.href, // Paluu tälle samalle sivulle
+      handleCodeInApp: true,
+    }
+
     try {
-      // Asetetaan pysyvyys ennen kirjautumista
       await setPersistence(auth, browserLocalPersistence)
-      const result = await signInWithPopup(auth, provider)
-      if (result.user) {
-        await syncProfile(result.user)
-        router.push('/dashboard')
-      }
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings)
+      window.localStorage.setItem('emailForSignIn', email)
+      setEmailSent(true)
     } catch (err: any) {
-      console.error("Auth error:", err)
-      if (err.code === 'auth/popup-blocked') {
-        setError({ 
-          title: "Selain esti ikkunan", 
-          desc: "Salli ponnahdusikkunat tai kokeile Demo-tilaa alta." 
-        })
-      } else if (err.code === 'auth/unauthorized-domain') {
-        setError({ 
-          title: "Domain valtuuttamatta", 
-          desc: `Lisää ${currentDomain} Firebase-konsolin valtuutettuihin domaineihin.` 
-        })
-      } else {
-        setError({ title: "Kirjautumisvirhe", desc: err.message })
-      }
+      console.error("Email link send error:", err)
+      setError({ title: "Lähetys epäonnistui", desc: "Tarkista sähköpostiosoite tai kokeile myöhemmin uudelleen." })
     } finally {
       setIsProcessing(false)
     }
@@ -108,6 +112,7 @@ export default function LoginPage() {
     if (!auth) return
     setIsProcessing(true)
     try {
+      await setPersistence(auth, browserLocalPersistence)
       await signInAnonymously(auth)
       router.push('/dashboard')
     } catch (err: any) {
@@ -144,7 +149,7 @@ export default function LoginPage() {
           </div>
           <div className="space-y-2">
             <h1 className="text-3xl font-headline font-black copper-text-glow uppercase tracking-tighter">Wisemisa</h1>
-            <p className="text-muted-foreground font-black text-[10px] uppercase tracking-[0.3em] opacity-60">Industrial Kitchen Platform</p>
+            <p className="text-muted-foreground font-black text-[10px] uppercase tracking-[0.3em] opacity-60">Industrial Kitchen Intelligence</p>
           </div>
 
           {error && (
@@ -154,22 +159,53 @@ export default function LoginPage() {
               <AlertDescription className="text-xs leading-tight opacity-80">{error.desc}</AlertDescription>
             </Alert>
           )}
-          
-          <div className="w-full space-y-3">
-            <Button onClick={handleLogin} className="w-full h-14 copper-gradient text-white font-black uppercase tracking-widest text-xs shadow-2xl metal-shine-overlay">
-              <LogIn className="w-5 h-5 mr-3" /> KIRJAUDU GOOGLELLA
-            </Button>
-            
-            <div className="relative flex items-center py-2">
-              <div className="flex-grow border-t border-white/5"></div>
-              <span className="flex-shrink mx-4 text-[10px] font-black text-muted-foreground/40 uppercase">tai</span>
-              <div className="flex-grow border-t border-white/5"></div>
-            </div>
 
-            <Button onClick={handleDemoLogin} variant="outline" className="w-full h-12 border-white/10 hover:bg-white/5 text-muted-foreground font-black uppercase tracking-widest text-[10px]">
-              <Zap className="w-4 h-4 mr-2 text-accent" /> KOKEILE DEMO-TILASSA
-            </Button>
-          </div>
+          {!emailSent ? (
+            <div className="w-full space-y-6">
+              <div className="space-y-3 text-left">
+                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground ml-1">Sähköpostiosoite</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input 
+                    type="email" 
+                    placeholder="kokki@wisemisa.fi" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 bg-black/40 border-white/10 h-12 text-sm font-bold focus:border-accent/40"
+                  />
+                </div>
+                <Button onClick={handleEmailLinkLogin} className="w-full h-14 copper-gradient text-white font-black uppercase tracking-widest text-xs shadow-2xl metal-shine-overlay">
+                  LÄHETÄ KIRJAUTUMISLINKKI
+                </Button>
+              </div>
+              
+              <div className="relative flex items-center py-2">
+                <div className="flex-grow border-t border-white/5"></div>
+                <span className="flex-shrink mx-4 text-[10px] font-black text-muted-foreground/40 uppercase">tai</span>
+                <div className="flex-grow border-t border-white/5"></div>
+              </div>
+
+              <Button onClick={handleDemoLogin} variant="outline" className="w-full h-12 border-white/10 hover:bg-white/5 text-muted-foreground font-black uppercase tracking-widest text-[10px]">
+                <Zap className="w-4 h-4 mr-2 text-accent" /> KOKEILE DEMO-TILASSA
+              </Button>
+            </div>
+          ) : (
+            <div className="w-full py-6 space-y-6 animate-in zoom-in-95">
+              <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto">
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-xl font-headline font-black text-foreground uppercase">Linkki lähetetty!</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Tarkista sähköpostisi <b>{email}</b>.<br/>
+                  Voit klikata linkkiä tai skannata linkin sisältämän QR-koodin millä tahansa laitteella.
+                </p>
+              </div>
+              <Button onClick={() => setEmailSent(false)} variant="ghost" className="text-[10px] font-black uppercase text-accent hover:bg-accent/5">
+                KOKEILE TOISTA SÄHKÖPOSTIA
+              </Button>
+            </div>
+          )}
           
           <div className="pt-6 flex flex-col items-center gap-4 bg-black/20 p-6 rounded-xl border border-white/5 w-full">
             <div className="flex items-center gap-2">
