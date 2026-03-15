@@ -1,9 +1,11 @@
 'use client';
 
 /**
- * @fileOverview Firebase-konfiguraatio projektille: workhub-industrial
+ * @fileOverview Firebase-konfiguraatio Wisemisa Bistro -projektille.
  * 
- * Sovellus on nyt linkitetty uudella API-avaimella!
+ * Jos käytät toista Wisemisa-projektia Firebase-konsolista:
+ * 1. Mene Firebase Console -> Project Settings.
+ * 2. Kopioi sieltä "Web configuration" tiedot ja korvaa alla oleva objekti.
  */
 
 export const firebaseConfig = {

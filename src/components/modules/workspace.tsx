@@ -107,46 +107,46 @@ export function WorkspaceModule() {
   }, [latestRecipes, latestDishes])
 
   return (
-    <div className="flex flex-col gap-4 animate-in fade-in duration-700 pb-20">
-      <header className="flex flex-col gap-1">
+    <div className="flex flex-col gap-3 animate-in fade-in duration-700 pb-20">
+      <header className="flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
-          <Zap className="w-5 h-5 text-accent" />
-          <h1 className="text-2xl font-headline font-black copper-text-glow uppercase tracking-tighter">Ohjauspaneeli</h1>
+          <Zap className="w-4 h-4 text-accent" />
+          <h1 className="text-xl font-headline font-black copper-text-glow uppercase tracking-tighter">Ohjauspaneeli</h1>
         </div>
         <div className="flex items-center gap-2 opacity-60">
-          <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-1.5 py-0 h-4 text-[8px]">OPTIMOITU</Badge>
-          <span className="text-[8px] uppercase font-bold tracking-widest">Järjestelmä OK</span>
+          <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-1 py-0 h-3 text-[7px]">OPTIMOITU</Badge>
+          <span className="text-[7px] uppercase font-bold tracking-widest">Järjestelmä OK</span>
         </div>
       </header>
 
       <OmavalvontaStatusHeader record={latestRecord} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-8 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+        <div className="lg:col-span-8 space-y-3">
           {shiftInfo && !isRead && (shiftInfo.bulletPoints?.length > 0 || shiftInfo.freeText) && (
             <Card className="industrial-card animate-breathing overflow-hidden border-accent/20">
               <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
-              <CardHeader className="flex flex-row items-center justify-between p-3 pb-1 space-y-0">
+              <CardHeader className="flex flex-row items-center justify-between p-2 pb-1 space-y-0">
                 <div className="flex items-center gap-2">
-                  <Info className="w-3.5 h-3.5 text-accent" />
-                  <CardTitle className="text-[10px] font-black text-accent uppercase tracking-widest">VUORO-INFO</CardTitle>
+                  <Info className="w-3 h-3 text-accent" />
+                  <CardTitle className="text-[9px] font-black text-accent uppercase tracking-widest">VUORO-INFO</CardTitle>
                 </div>
-                <Button onClick={markAsRead} size="sm" variant="ghost" className="h-6 text-[8px] font-black uppercase tracking-widest text-accent hover:bg-accent/10">
-                  <CheckCircle className="w-2.5 h-2.5 mr-1" /> KUITTAA
+                <Button onClick={markAsRead} size="sm" variant="ghost" className="h-5 text-[7px] font-black uppercase tracking-widest text-accent hover:bg-accent/10">
+                  <CheckCircle className="w-2 h-2 mr-1" /> KUITTAA
                 </Button>
               </CardHeader>
-              <CardContent className="space-y-3 p-3 pt-1">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <CardContent className="space-y-2 p-2 pt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
                   {shiftInfo.bulletPoints?.map((p: string, i: number) => p && (
-                    <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-white/5 shadow-inner">
+                    <div key={i} className="flex items-center gap-2 p-1.5 rounded-lg bg-white/5 border border-white/5 shadow-inner">
                       <div className="w-1 h-1 rounded-full bg-accent" />
-                      <span className="text-[10px] font-bold">{p}</span>
+                      <span className="text-[9px] font-bold">{p}</span>
                     </div>
                   ))}
                 </div>
                 {shiftInfo.freeText && (
-                  <div className="p-3 rounded-lg bg-black/40 border border-white/5">
-                    <p className="text-[10px] text-foreground/80 italic leading-relaxed whitespace-pre-wrap">{shiftInfo.freeText}</p>
+                  <div className="p-2 rounded-lg bg-black/40 border border-white/5">
+                    <p className="text-[9px] text-foreground/80 italic leading-relaxed whitespace-pre-wrap">{shiftInfo.freeText}</p>
                   </div>
                 )}
               </CardContent>
@@ -155,38 +155,38 @@ export function WorkspaceModule() {
 
           <Card className="industrial-card">
             <div className="absolute top-0 left-0 w-full h-1 steel-detail metal-shine-overlay" />
-            <CardHeader className="p-3 pb-1">
-              <CardTitle className="font-headline text-xs font-black text-accent flex items-center gap-2 uppercase tracking-widest">
-                <Wrench className="w-4 h-4" /> HUOLLOT
+            <CardHeader className="p-2 pb-1">
+              <CardTitle className="font-headline text-[10px] font-black text-accent flex items-center gap-2 uppercase tracking-widest">
+                <Wrench className="w-3.5 h-3.5" /> HUOLLOT
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 p-3">
+            <CardContent className="space-y-2 p-2">
               <div className="flex gap-2">
                 <Input 
                   placeholder="Kirjaa huolto..." 
                   value={newMaintenanceText}
                   onChange={(e) => setNewMaintenanceText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addMaintenanceNote()}
-                  className="bg-white/5 border-white/10 h-9 text-[10px] rounded-lg"
+                  className="bg-white/5 border-white/10 h-8 text-[9px] rounded-lg"
                 />
-                <Button onClick={addMaintenanceNote} className="copper-gradient h-9 px-3">
-                  <Send className="w-3.5 h-3.5" />
+                <Button onClick={addMaintenanceNote} className="copper-gradient h-8 px-2">
+                  <Send className="w-3 h-3" />
                 </Button>
               </div>
               
-              <ScrollArea className="h-[150px] pr-2">
-                <div className="space-y-1.5">
+              <ScrollArea className="h-[120px] pr-2">
+                <div className="space-y-1">
                   {maintenanceNotes.map((note) => (
-                    <div key={note.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5 hover:border-accent/20 transition-all group shadow-inner">
+                    <div key={note.id} className="flex items-center justify-between p-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-accent/20 transition-all group shadow-inner">
                       <div className="flex items-center gap-2 overflow-hidden">
-                        <div className="w-0.5 h-5 copper-gradient rounded-full shrink-0" />
+                        <div className="w-0.5 h-4 copper-gradient rounded-full shrink-0" />
                         <div className="truncate">
-                          <p className="text-[10px] font-bold text-foreground truncate">{note.text}</p>
-                          <p className="text-[7px] text-muted-foreground uppercase font-black tracking-widest">{note.createdAt ? format(note.createdAt.toDate(), 'd.M. HH:mm') : 'Nyt'}</p>
+                          <p className="text-[9px] font-bold text-foreground truncate">{note.text}</p>
+                          <p className="text-[6px] text-muted-foreground uppercase font-black tracking-widest">{note.createdAt ? format(note.createdAt.toDate(), 'd.M. HH:mm') : 'Nyt'}</p>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon" onClick={() => deleteMaintenanceNote(note.id)} className="h-6 w-6 text-destructive/40 hover:text-destructive opacity-0 group-hover:opacity-100 shrink-0">
-                        <Trash2 className="w-3 h-3" />
+                      <Button variant="ghost" size="icon" onClick={() => deleteMaintenanceNote(note.id)} className="h-5 w-5 text-destructive/40 hover:text-destructive opacity-0 group-hover:opacity-100 shrink-0">
+                        <Trash2 className="w-2.5 h-2.5" />
                       </Button>
                     </div>
                   ))}
@@ -196,21 +196,21 @@ export function WorkspaceModule() {
           </Card>
         </div>
 
-        <div className="lg:col-span-4 space-y-4">
+        <div className="lg:col-span-4 space-y-3">
           <Card className="industrial-card">
-            <CardHeader className="p-3 pb-1">
-              <CardTitle className="font-headline text-[10px] font-black text-accent uppercase tracking-[0.2em]">LOKI</CardTitle>
+            <CardHeader className="p-2 pb-1">
+              <CardTitle className="font-headline text-[9px] font-black text-accent uppercase tracking-[0.2em]">LOKI</CardTitle>
             </CardHeader>
-            <CardContent className="p-3 pt-1">
-              <div className="space-y-2">
+            <CardContent className="p-2 pt-0">
+              <div className="space-y-1.5">
                 {combinedLogs.map((log) => (
-                  <div key={log.id} className="flex items-center gap-2 p-2 rounded-lg bg-white/5 border border-transparent hover:bg-white/10 transition-all group">
-                    <div className="w-7 h-7 rounded bg-black/40 flex items-center justify-center border border-white/10 shadow-lg shrink-0">
-                      <log.icon className="w-3 h-3 text-accent" />
+                  <div key={log.id} className="flex items-center gap-2 p-1.5 rounded-lg bg-white/5 border border-transparent hover:bg-white/10 transition-all group">
+                    <div className="w-6 h-6 rounded bg-black/40 flex items-center justify-center border border-white/10 shadow-lg shrink-0">
+                      <log.icon className="w-2.5 h-2.5 text-accent" />
                     </div>
                     <div className="flex-1 overflow-hidden">
-                      <p className="text-[9px] font-black text-foreground leading-tight truncate">{log.text}</p>
-                      <p className="text-[7px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">
+                      <p className="text-[8px] font-black text-foreground leading-tight truncate">{log.text}</p>
+                      <p className="text-[6px] text-muted-foreground font-black uppercase tracking-widest mt-0.5">
                         {log.time ? formatDistanceToNow(new Date(log.time), { addSuffix: true, locale: fi }) : 'Äsken'}
                       </p>
                     </div>
@@ -222,17 +222,17 @@ export function WorkspaceModule() {
 
           <div className="grid grid-cols-2 gap-2">
             <Card className="industrial-card bg-primary/5 border-primary/20">
-              <CardContent className="p-3 flex flex-col items-center justify-center text-center gap-0.5">
-                <Users className="w-3 h-3 text-accent mb-0.5" />
-                <div className="text-xl font-black text-foreground leading-none">12</div>
-                <p className="text-[7px] text-green-500 font-black uppercase tracking-widest">AKTIIVI</p>
+              <CardContent className="p-2 flex flex-col items-center justify-center text-center gap-0.5">
+                <Users className="w-2.5 h-2.5 text-accent mb-0.5" />
+                <div className="text-lg font-black text-foreground leading-none">12</div>
+                <p className="text-[6px] text-green-500 font-black uppercase tracking-widest">AKTIIVI</p>
               </CardContent>
             </Card>
             <Card className="industrial-card bg-white/5 border-white/10">
-              <CardContent className="p-3 flex flex-col items-center justify-center text-center gap-0.5">
-                <Cloud className="w-3 h-3 text-accent mb-0.5" />
-                <div className="text-xl font-black text-foreground leading-none">84%</div>
-                <p className="text-[7px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
+              <CardContent className="p-2 flex flex-col items-center justify-center text-center gap-0.5">
+                <Cloud className="w-2.5 h-2.5 text-accent mb-0.5" />
+                <div className="text-lg font-black text-foreground leading-none">84%</div>
+                <p className="text-[6px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
               </CardContent>
             </Card>
           </div>

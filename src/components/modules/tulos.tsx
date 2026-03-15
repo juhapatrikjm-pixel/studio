@@ -140,16 +140,16 @@ export function TulosModule() {
   }
 
   return (
-    <div className="flex flex-col gap-4 animate-in fade-in duration-700 pb-10">
+    <div className="flex flex-col gap-2 animate-in fade-in duration-700 pb-10">
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Gem className="w-5 h-5 text-accent" />
-          <h2 className="text-xl font-headline font-black copper-text-glow uppercase tracking-tighter">Tulos</h2>
+          <Gem className="w-4 h-4 text-accent" />
+          <h2 className="text-lg font-headline font-black copper-text-glow uppercase tracking-tighter">Tulos</h2>
         </div>
-        <span className="text-muted-foreground text-[8px] font-black uppercase tracking-widest opacity-40">Live Analysis</span>
+        <span className="text-muted-foreground text-[7px] font-black uppercase tracking-widest opacity-40">Live Analysis</span>
       </header>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
         {[
           { label: "MYYNTI", val: `${monthlyStats.totals.revenue.toLocaleString('fi-FI')} €`, color: "copper-gradient" },
           { label: "RAAKA-AINE %", val: `${monthlyStats.foodCostPerc.toFixed(1)} %`, color: "steel-detail" },
@@ -158,10 +158,10 @@ export function TulosModule() {
         ].map((kpi, i) => (
           <Card key={i} className="industrial-card overflow-hidden border-none p-[1px] bg-gradient-to-br from-white/10 to-transparent">
             <div className={cn("absolute top-0 left-0 w-full h-0.5", kpi.color)} />
-            <CardContent className="p-2.5 bg-card rounded-[calc(var(--radius)-1px)] text-center">
-              <p className="text-[7px] uppercase font-black text-muted-foreground/60 tracking-widest mb-0.5">{kpi.label}</p>
+            <CardContent className="p-2 bg-card rounded-[calc(var(--radius)-1px)] text-center">
+              <p className="text-[6px] uppercase font-black text-muted-foreground/60 tracking-widest mb-0.5">{kpi.label}</p>
               <div className={cn(
-                "text-xs font-black tabular-nums",
+                "text-[11px] font-black tabular-nums",
                 kpi.highlight ? (monthlyStats.profit >= 0 ? "text-green-500" : "text-destructive") : "text-foreground"
               )}>{kpi.val}</div>
             </CardContent>
@@ -169,59 +169,59 @@ export function TulosModule() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-4 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-2">
+        <div className="lg:col-span-4 space-y-2">
           <Card className="industrial-card">
-            <CardHeader className="p-3 pb-1">
-              <CardTitle className="text-[9px] font-black text-accent flex items-center gap-2 uppercase tracking-widest">
-                <Calculator className="w-3 h-3" /> KIRJAUS
+            <CardHeader className="p-2 pb-1">
+              <CardTitle className="text-[8px] font-black text-accent flex items-center gap-2 uppercase tracking-widest">
+                <Calculator className="w-2.5 h-2.5" /> KIRJAUS
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-3">
+            <CardContent className="p-2 space-y-2">
               <Tabs value={entryType} onValueChange={(v: any) => setEntryType(v)}>
-                <TabsList className="grid w-full grid-cols-2 mb-3 bg-black/40 h-8 p-1">
-                  <TabsTrigger value="daily" className="text-[8px] font-black uppercase">PÄIVÄ</TabsTrigger>
-                  <TabsTrigger value="monthly" className="text-[8px] font-black uppercase">KUUKAUSI</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-2 mb-2 bg-black/40 h-7 p-1">
+                  <TabsTrigger value="daily" className="text-[7px] font-black uppercase h-full">PÄIVÄ</TabsTrigger>
+                  <TabsTrigger value="monthly" className="text-[7px] font-black uppercase h-full">KUUKAUSI</TabsTrigger>
                 </TabsList>
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <Input 
                     type={entryType === 'daily' ? 'date' : 'month'} 
                     value={entryType === 'daily' ? formData.date : formData.month}
                     onChange={(e) => setFormData({...formData, [entryType === 'daily' ? 'date' : 'month']: e.target.value})}
-                    className="bg-black/40 h-8 text-[10px] font-bold border-white/5"
+                    className="bg-black/40 h-7 text-[9px] font-bold border-white/5"
                   />
                   <div className="relative">
-                    <Euro className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                    <Input type="number" placeholder="MYYNTI (ALV 0%)" value={formData.revenue} onChange={(e) => setFormData({...formData, revenue: e.target.value})} className="pl-8 bg-white/5 h-10 text-sm font-black border-white/10" />
+                    <Euro className="absolute left-2 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-muted-foreground" />
+                    <Input type="number" placeholder="MYYNTI (ALV 0%)" value={formData.revenue} onChange={(e) => setFormData({...formData, revenue: e.target.value})} className="pl-7 bg-white/5 h-8 text-xs font-black border-white/10" />
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input type="number" placeholder="RAAKA-AIN. €" value={formData.foodCost} onChange={(e) => setFormData({...formData, foodCost: e.target.value})} className="bg-white/5 h-8 text-[10px] font-bold border-white/10" />
-                    <Input type="number" placeholder="TUNNIT (H)" value={formData.workHours} onChange={(e) => setFormData({...formData, workHours: e.target.value})} className="bg-white/5 h-8 text-[10px] font-bold border-white/10" />
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <Input type="number" placeholder="RAAKA-AIN. €" value={formData.foodCost} onChange={(e) => setFormData({...formData, foodCost: e.target.value})} className="bg-white/5 h-7 text-[9px] font-bold border-white/10" />
+                    <Input type="number" placeholder="TUNNIT (H)" value={formData.workHours} onChange={(e) => setFormData({...formData, workHours: e.target.value})} className="bg-white/5 h-7 text-[9px] font-bold border-white/10" />
                   </div>
                 </div>
               </Tabs>
-              <Button onClick={handleSave} className="w-full copper-gradient text-white font-black h-9 text-[10px] uppercase tracking-widest mt-1">TALLENNA</Button>
+              <Button onClick={handleSave} className="w-full copper-gradient text-white font-black h-8 text-[8px] uppercase tracking-widest mt-1">TALLENNA</Button>
             </CardContent>
           </Card>
         </div>
 
-        <div className="lg:col-span-8 space-y-4">
+        <div className="lg:col-span-8 space-y-2">
           <Card className="industrial-card">
-            <CardHeader className="p-3 pb-0">
-              <CardTitle className="text-[9px] font-black text-accent flex items-center gap-2 uppercase tracking-widest">
-                <BarChart3 className="w-3 h-3" /> KEHITYS
+            <CardHeader className="p-2 pb-0">
+              <CardTitle className="text-[8px] font-black text-accent flex items-center gap-2 uppercase tracking-widest">
+                <BarChart3 className="w-2.5 h-2.5" /> KEHITYS
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3">
-              <div className="h-[160px] w-full bg-black/20 rounded-xl p-2 border border-white/5">
+            <CardContent className="p-2">
+              <div className="h-[120px] w-full bg-black/20 rounded-xl p-1.5 border border-white/5">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="pvm" axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)', fontSize: 7, fontWeight: 900}} />
-                    <YAxis axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)', fontSize: 7, fontWeight: 900}} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '7px', fontWeight: 'bold' }} />
-                    <Bar dataKey="myynti" fill="#b87333" radius={[2, 2, 0, 0]} name="Myynti" barSize={10} />
-                    <Bar dataKey="tulos" fill="#71717a" radius={[2, 2, 0, 0]} name="Tulos" barSize={10} />
+                    <XAxis dataKey="pvm" axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)', fontSize: 6, fontWeight: 900}} />
+                    <YAxis axisLine={false} tickLine={false} tick={{fill: 'rgba(255,255,255,0.4)', fontSize: 6, fontWeight: 900}} />
+                    <Tooltip contentStyle={{ backgroundColor: '#0a0a0a', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '6px', fontSize: '6px', fontWeight: 'bold' }} />
+                    <Bar dataKey="myynti" fill="#b87333" radius={[1, 1, 0, 0]} name="Myynti" barSize={8} />
+                    <Bar dataKey="tulos" fill="#71717a" radius={[1, 1, 0, 0]} name="Tulos" barSize={8} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -229,27 +229,27 @@ export function TulosModule() {
           </Card>
 
           <Card className="industrial-card">
-            <CardHeader className="p-3 pb-1 flex flex-row items-center justify-between">
-              <CardTitle className="text-[9px] font-black text-muted-foreground flex items-center gap-2 uppercase tracking-widest">
-                <HistoryIcon className="w-3 h-3" /> HISTORIA
+            <CardHeader className="p-2 pb-1 flex flex-row items-center justify-between">
+              <CardTitle className="text-[8px] font-black text-muted-foreground flex items-center gap-2 uppercase tracking-widest">
+                <HistoryIcon className="w-2.5 h-2.5" /> HISTORIA
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 pt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <CardContent className="p-2 pt-0">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
                 {records.slice(0, 4).map(r => {
                   const profit = r.revenue - (r.foodCost || 0) - (r.laborCost || 0) - (r.otherExpenses || 0)
                   return (
-                    <div key={r.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/5 group">
+                    <div key={r.id} className="flex items-center justify-between p-1.5 rounded-lg bg-white/5 border border-white/5 group">
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-0.5 h-6 rounded-full", profit >= 0 ? "bg-green-500" : "bg-destructive")} />
+                        <div className={cn("w-0.5 h-5 rounded-full", profit >= 0 ? "bg-green-500" : "bg-destructive")} />
                         <div>
-                          <p className="text-[9px] font-black text-foreground">{r.date}</p>
-                          <p className="text-[7px] text-muted-foreground font-bold">{r.revenue.toLocaleString()} €</p>
+                          <p className="text-[8px] font-black text-foreground">{r.date}</p>
+                          <p className="text-[6px] text-muted-foreground font-bold">{r.revenue.toLocaleString()} €</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={cn("text-[10px] font-black tabular-nums", profit >= 0 ? "text-green-500" : "text-destructive")}>{profit > 0 ? "+" : ""}{profit.toLocaleString()}€</span>
-                        <Button variant="ghost" size="icon" onClick={() => deleteRecord(r.id)} className="h-6 w-6 text-destructive/40 opacity-0 group-hover:opacity-100"><Trash2 className="w-3 h-3" /></Button>
+                      <div className="flex items-center gap-1.5">
+                        <span className={cn("text-[9px] font-black tabular-nums", profit >= 0 ? "text-green-500" : "text-destructive")}>{profit > 0 ? "+" : ""}{profit.toLocaleString()}€</span>
+                        <Button variant="ghost" size="icon" onClick={() => deleteRecord(r.id)} className="h-5 w-5 text-destructive/40 opacity-0 group-hover:opacity-100"><Trash2 className="w-2.5 h-2.5" /></Button>
                       </div>
                     </div>
                   )
