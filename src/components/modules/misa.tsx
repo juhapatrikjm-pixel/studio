@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -152,12 +151,6 @@ export function MisaModule() {
       toast({ title: "Kopioitu" });
     }
   }
-
-  const tabConfigs = {
-    prep: { label: "Misa", icon: ClipboardList, color: "text-accent" },
-    tukku: { label: "Haku", icon: ShoppingCart, color: "text-blue-400" },
-    puute: { label: "Puute", icon: AlertTriangle, color: "text-destructive" }
-  };
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10 print:p-0">
