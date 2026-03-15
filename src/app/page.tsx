@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, Zap } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap } from "lucide-react"
 import { WorkspaceModule } from "@/components/modules/workspace"
 import { MessagingModule } from "@/components/modules/messaging"
 import { CloudStorageModule } from "@/components/modules/cloud-storage"
@@ -30,9 +30,9 @@ import { doc } from "firebase/firestore"
 import { cn } from "@/lib/utils"
 import { Carousel, CarouselContent, CarouselItem, type CarouselApi } from "@/components/ui/carousel"
 
-type ModuleId = 'info' | 'shift-info' | 'tulos' | 'waste' | 'onboarding' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
+export type ModuleId = 'info' | 'shift-info' | 'tulos' | 'waste' | 'onboarding' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
-const MENU_ITEMS = [
+export const BASE_MENU_ITEMS = [
   { id: 'info', icon: LayoutDashboard, label: 'Ohjauspaneeli' },
   { id: 'shift-info', icon: Info, label: 'Vuoro-info' },
   { id: 'tulos', icon: TrendingUp, label: 'Tulosseuranta' },
@@ -53,7 +53,7 @@ const MENU_ITEMS = [
   { id: 'admin', icon: ShieldCheck, label: 'Hallinta' },
 ] as const
 
-function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId, setActiveModule: (id: ModuleId) => void }) {
+function AppSidebar({ activeModule, setActiveModule, menuItems }: { activeModule: ModuleId, setActiveModule: (id: ModuleId) => void, menuItems: typeof BASE_MENU_ITEMS }) {
   const { setOpen, setOpenMobile } = useSidebar()
 
   const handleModuleChange = (id: ModuleId) => {
@@ -81,7 +81,7 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
       </SidebarHeader>
       <SidebarContent className="px-4">
         <SidebarMenu className="gap-1.5">
-          {MENU_ITEMS.map((item) => (
+          {menuItems.map((item) => (
             <SidebarMenuItem key={item.id}>
               <SidebarMenuButton 
                 isActive={activeModule === item.id}
@@ -113,7 +113,7 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
             <span className="text-xs font-black text-foreground">John Smith</span>
             <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Keittiömestari</span>
           </div>
-          <Button variant="ghost" size="icon" className="ml-auto text-muted-foreground hover:text-accent hover:bg-transparent">
+          <Button variant="ghost" size="icon" className="ml-auto text-muted-foreground hover:text-accent hover:bg-transparent" onClick={() => setActiveModule('profile')}>
             <Settings className="w-4 h-4" />
           </Button>
         </div>
@@ -143,6 +143,11 @@ function BackgroundWatermark() {
 }
 
 export default function Home() {
+  const firestore = useFirestore()
+  const userId = "demo-user-123"
+  const profileRef = useMemo(() => (firestore ? doc(firestore, 'userProfiles', userId) : null), [firestore])
+  const { data: profile } = useDoc<any>(profileRef)
+
   const [activeModule, setActiveModule] = useState<ModuleId>('info')
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [api, setApi] = useState<CarouselApi>()
@@ -155,24 +160,50 @@ export default function Home() {
     return () => clearInterval(timer)
   }, [])
 
+  // Käyttäjän oma moduulijärjestys
+  const sortedMenuItems = useMemo(() => {
+    if (!profile?.moduleOrder || profile.moduleOrder.length === 0) return BASE_MENU_ITEMS
+
+    const order = profile.moduleOrder as string[]
+    const items = [...BASE_MENU_ITEMS]
+    
+    // Varmistetaan että 'info' on aina ensimmäinen
+    const infoItem = items.find(i => i.id === 'info')!
+    const otherItems = items.filter(i => i.id !== 'info')
+
+    const sortedOthers = otherItems.sort((a, b) => {
+      const idxA = order.indexOf(a.id)
+      const idxB = order.indexOf(b.id)
+      
+      if (idxA === -1 && idxB === -1) return 0
+      if (idxA === -1) return 1
+      if (idxB === -1) return -1
+      return idxA - idxB
+    })
+
+    return [infoItem, ...sortedOthers]
+  }, [profile?.moduleOrder])
+
   // Päivitä karuselli kun aktiivinen moduuli vaihtuu sivupalkista
   useEffect(() => {
     if (!api) return
-    const index = MENU_ITEMS.findIndex(item => item.id === activeModule)
+    const index = sortedMenuItems.findIndex(item => item.id === activeModule)
     if (index !== -1) {
       api.scrollTo(index)
     }
-  }, [activeModule, api])
+  }, [activeModule, api, sortedMenuItems])
 
   // Päivitä aktiivinen moduuli kun karusellia pyyhkäistään
   useEffect(() => {
     if (!api) return
-    api.on("select", () => {
+    const onSelect = () => {
       const index = api.selectedScrollSnap()
-      const moduleId = MENU_ITEMS[index].id as ModuleId
+      const moduleId = sortedMenuItems[index].id as ModuleId
       setActiveModule(moduleId)
-    })
-  }, [api])
+    }
+    api.on("select", onSelect)
+    return () => { api.off("select", onSelect) }
+  }, [api, sortedMenuItems])
 
   const renderModule = (id: ModuleId) => {
     switch(id) {
@@ -203,7 +234,7 @@ export default function Home() {
       <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground relative brushed-metal">
         <BackgroundWatermark />
         
-        <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} />
+        <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} menuItems={sortedMenuItems} />
 
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
           <header className="h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 md:px-8 flex items-center justify-between">
@@ -212,7 +243,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center min-w-0">
-              <div className="text-accent font-headline font-black text-lg md:text-xl lg:text-2xl leading-none tracking-wider tabular-nums copper-text-glow truncate">
+              <div className="text-accent font-headline font-black text-lg md:text-xl leading-none tracking-wider tabular-nums copper-text-glow truncate">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
               <div className="text-[8px] md:text-[10px] text-muted-foreground font-black uppercase tracking-[0.2em] md:tracking-[0.3em] mt-1.5 opacity-80 truncate w-full">
@@ -239,7 +270,7 @@ export default function Home() {
               }}
             >
               <CarouselContent className="h-full ml-0">
-                {MENU_ITEMS.map((item) => (
+                {sortedMenuItems.map((item) => (
                   <CarouselItem key={item.id} className="pl-0 h-full overflow-y-auto">
                     <div className="p-6 md:p-12 max-w-[1600px] mx-auto w-full min-h-full">
                       <div className="max-w-6xl mx-auto space-y-12 pb-20">

@@ -14,6 +14,11 @@
         "address": { "type": "string" },
         "businessId": { "type": "string" },
         "logoUrl": { "type": "string" },
+        "moduleOrder": { 
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Käyttäjän järjestämä moduulijärjestys"
+        },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
