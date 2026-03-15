@@ -111,7 +111,7 @@ export function WorkspaceModule() {
       <header className="flex flex-col gap-0.5 px-1">
         <div className="flex items-center gap-2">
           <Zap className="w-3.5 h-3.5 text-accent" />
-          <h1 className="text-lg font-headline font-black copper-text-glow uppercase tracking-tighter">Ohjauspaneeli</h1>
+          <h1 className="text-base font-headline font-black copper-text-glow uppercase tracking-tighter">Ohjauspaneeli</h1>
         </div>
         <div className="flex items-center gap-2 opacity-60">
           <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-1 py-0 h-3 text-[6px]">SYSTEM OK</Badge>
@@ -224,17 +224,17 @@ export function WorkspaceModule() {
             <Card className="industrial-card bg-primary/5 border-primary/20">
               <CardContent className="p-1.5 flex flex-col items-center justify-center text-center gap-0.5">
                 <Users className="w-2 h-2 text-accent mb-0.5" />
-                <div className="text-base font-black text-foreground leading-none">12</div>
+                <div className="text-sm font-black text-foreground leading-none">12</div>
                 <p className="text-[5px] text-green-500 font-black uppercase tracking-widest">AKTIIVI</p>
               </CardContent>
             </Card>
             <Card className="industrial-card bg-white/5 border-white/10">
               <CardContent className="p-1.5 flex flex-col items-center justify-center text-center gap-0.5">
                 <Cloud className="w-2 h-2 text-accent mb-0.5" />
-                <div className="text-base font-black text-foreground leading-none">84%</div>
+                <div className="text-sm font-black text-foreground leading-none">84%</div>
                 <p className="text-[5px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
               </CardContent>
-            </div>
+            </Card>
           </div>
         </div>
       </div>
