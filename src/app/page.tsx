@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -25,6 +24,7 @@ import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useFirestore, useDoc } from "@/firebase"
 import { doc } from "firebase/firestore"
+import { cn } from "@/lib/utils"
 
 type ModuleId = 'info' | 'shift-info' | 'tulos' | 'todo-calendar' | 'omavalvonta' | 'misa' | 'recipes' | 'suppliers' | 'orders' | 'maintenance' | 'archive' | 'messaging' | 'cloud' | 'directory' | 'profile' | 'admin'
 
@@ -57,49 +57,59 @@ function AppSidebar({ activeModule, setActiveModule }: { activeModule: ModuleId,
   }
 
   return (
-    <Sidebar className="border-r border-border bg-sidebar shadow-2xl" collapsible="offcanvas">
-      <SidebarHeader className="p-6">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg copper-gradient flex items-center justify-center shadow-[0_0_15px_rgba(184,115,51,0.4)]">
-            <span className="text-white font-headline font-bold text-xl">W</span>
+    <Sidebar className="border-r border-white/5 bg-sidebar shadow-2xl" collapsible="offcanvas">
+      <SidebarHeader className="p-8">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl copper-gradient flex items-center justify-center shadow-[0_0_20px_rgba(184,115,51,0.5)] metal-shine-overlay">
+            <span className="text-white font-headline font-black text-2xl drop-shadow-lg">W</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-headline font-bold text-lg copper-text-glow leading-tight">Wisemisa Bistro</span>
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Industrial Edition</span>
+            <span className="font-headline font-black text-xl copper-text-glow leading-none">Wisemisa</span>
+            <span className="font-headline font-bold text-lg text-muted-foreground leading-none">Bistro</span>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+              <span className="text-[9px] uppercase tracking-[0.2em] text-accent/80 font-bold">Industrial</span>
+            </div>
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent className="px-3">
-        <SidebarMenu className="gap-2">
+      <SidebarContent className="px-4">
+        <SidebarMenu className="gap-1.5">
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.id}>
               <SidebarMenuButton 
                 isActive={activeModule === item.id}
                 onClick={() => handleModuleChange(item.id as ModuleId)}
-                className={`h-12 px-4 rounded-lg transition-all duration-300 border border-transparent ${
+                className={cn(
+                  "h-11 px-4 rounded-lg transition-all duration-300 border border-transparent group",
                   activeModule === item.id 
-                  ? "bg-primary/20 text-accent font-bold border-primary/50 shadow-inner" 
-                  : "hover:bg-white/5 text-muted-foreground"
-                }`}
+                  ? "bg-primary/20 text-accent font-bold border-primary/40 shadow-[inset_0_0_12px_rgba(184,115,51,0.2)]" 
+                  : "hover:bg-white/5 text-muted-foreground/80 hover:text-foreground"
+                )}
               >
-                <item.icon className={`w-5 h-5 ${activeModule === item.id ? 'text-accent' : 'text-muted-foreground'}`} />
-                <span className="ml-3 font-medium">{item.label}</span>
-                {activeModule === item.id && <ChevronRight className="ml-auto w-4 h-4 text-accent" />}
+                <item.icon className={cn(
+                  "w-4.5 h-4.5 transition-colors",
+                  activeModule === item.id ? 'text-accent' : 'text-muted-foreground/60 group-hover:text-accent/80'
+                )} />
+                <span className="ml-3 font-medium text-sm">{item.label}</span>
+                {activeModule === item.id && <ChevronRight className="ml-auto w-3.5 h-3.5 text-accent animate-in slide-in-from-left-2" />}
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <div className="p-6 border-t border-border mt-auto">
+      <div className="p-6 border-t border-white/5 mt-auto bg-black/20">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-md steel-detail flex items-center justify-center text-background font-bold text-xs shadow-sm">
+          <div className="w-10 h-10 rounded-lg steel-detail flex items-center justify-center text-black font-black text-sm shadow-md metal-shine-overlay">
             JS
           </div>
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-foreground">John Smith</span>
-            <span className="text-[10px] text-muted-foreground">Pääinsinööri</span>
+            <span className="text-xs font-black text-foreground">John Smith</span>
+            <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Mestari</span>
           </div>
-          <Settings className="w-4 h-4 ml-auto text-muted-foreground hover:text-accent cursor-pointer transition-colors" />
+          <Button variant="ghost" size="icon" className="ml-auto text-muted-foreground hover:text-accent hover:bg-transparent">
+            <Settings className="w-4 h-4" />
+          </Button>
         </div>
       </div>
     </Sidebar>
@@ -115,12 +125,12 @@ function BackgroundWatermark() {
   if (!profile?.logoUrl) return null
 
   return (
-    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden opacity-[0.15] grayscale contrast-200 transition-all duration-1000">
+    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 overflow-hidden opacity-[0.08] transition-all duration-1000 grayscale contrast-150">
       <img 
         src={profile.logoUrl} 
         alt="Background Watermark" 
-        className="w-[70%] max-w-[900px] object-contain animate-pulse"
-        style={{ animationDuration: '10s', filter: 'drop-shadow(0 0 20px rgba(184, 115, 51, 0.2))' }}
+        className="w-[60%] max-w-[800px] object-contain animate-pulse"
+        style={{ animationDuration: '15s', filter: 'blur(2px) drop-shadow(0 0 40px rgba(184, 115, 51, 0.3))' }}
       />
     </div>
   )
@@ -162,43 +172,43 @@ export default function Home() {
 
   return (
     <SidebarProvider defaultOpen={false}>
-      <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground relative">
+      <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground relative brushed-metal">
         <BackgroundWatermark />
         
         <AppSidebar activeModule={activeModule} setActiveModule={setActiveModule} />
 
-        <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10">
-          <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10 px-6 flex items-center justify-between">
-            <div className="flex items-center gap-4 flex-1">
-              <SidebarTrigger className="text-muted-foreground hover:text-accent" />
-              <div className="hidden sm:flex items-center gap-2 bg-muted/50 px-4 py-2 rounded-lg border border-border/50 shadow-inner">
-                <Search className="w-4 h-4 text-muted-foreground" />
+        <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
+          <header className="h-20 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-8 flex items-center justify-between">
+            <div className="flex items-center gap-6 flex-1">
+              <SidebarTrigger className="text-muted-foreground hover:text-accent transition-transform hover:scale-110" />
+              <div className="hidden sm:flex items-center gap-3 bg-white/5 px-5 py-2.5 rounded-full border border-white/10 shadow-inner group transition-all hover:border-accent/40">
+                <Search className="w-4 h-4 text-muted-foreground group-focus-within:text-accent transition-colors" />
                 <input 
-                  placeholder="Yleishaku..." 
-                  className="bg-transparent border-none text-xs focus:outline-none w-32 md:w-64 text-foreground placeholder:text-muted-foreground"
+                  placeholder="Hae järjestelmästä..." 
+                  className="bg-transparent border-none text-xs focus:outline-none w-48 md:w-80 text-foreground placeholder:text-muted-foreground/60"
                 />
               </div>
             </div>
 
             <div className="flex flex-col items-center justify-center flex-1 text-center">
-              <div className="text-accent font-headline font-bold text-xl leading-none tracking-widest tabular-nums">
+              <div className="text-accent font-headline font-black text-2xl leading-none tracking-widest tabular-nums copper-text-glow">
                 {currentTime ? format(currentTime, 'HH:mm:ss') : '--:--:--'}
               </div>
-              <div className="text-[9px] text-muted-foreground font-bold uppercase tracking-[0.2em] mt-1">
-                {currentTime ? format(currentTime, 'EEEE d. MMMM yyyy', { locale: fi }) : 'Ladataan...'}
+              <div className="text-[10px] text-muted-foreground font-black uppercase tracking-[0.3em] mt-1.5 opacity-80">
+                {currentTime ? format(currentTime, 'EEEE d. MMMM yyyy', { locale: fi }) : 'Alustetaan...'}
               </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-1 justify-end">
-              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-accent rounded-full border-2 border-background shadow-[0_0_8px_rgba(184,115,51,0.6)]" />
+            <div className="flex items-center gap-4 flex-1 justify-end">
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-accent hover:bg-white/5 group">
+                <Bell className="w-5 h-5 group-hover:animate-bounce" />
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-background shadow-[0_0_12px_rgba(184,115,51,0.8)]" />
               </Button>
             </div>
           </header>
 
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 max-w-[1440px] mx-auto w-full">
-            <div className="max-w-6xl mx-auto">
+          <main className="flex-1 overflow-y-auto p-6 md:p-12 max-w-[1600px] mx-auto w-full relative">
+            <div className="max-w-6xl mx-auto space-y-12">
               {renderModule()}
             </div>
           </main>

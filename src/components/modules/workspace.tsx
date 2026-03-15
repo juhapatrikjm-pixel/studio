@@ -1,10 +1,9 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Activity, LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, CheckCircle, Info, ChefHat, CookingPot, Wrench, Send, Trash2, Clock } from "lucide-react"
+import { Activity, LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, CheckCircle, Info, ChefHat, CookingPot, Wrench, Send, Trash2, Clock, Zap, Target } from "lucide-react"
 import { OmavalvontaStatusHeader } from "./omavalvonta"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
@@ -13,6 +12,7 @@ import { fi } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { cn } from "@/lib/utils"
 
 export function WorkspaceModule() {
   const firestore = useFirestore()
@@ -107,173 +107,194 @@ export function WorkspaceModule() {
   }, [latestRecipes, latestDishes])
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-3xl font-headline font-bold text-accent">Ohjauspaneeli</h1>
-        <p className="text-muted-foreground">Toiminnan tila: <span className="text-green-500 font-bold">OPTIMOITU</span></p>
+    <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-20">
+      <header className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <Zap className="w-8 h-8 text-accent animate-pulse" />
+          <h1 className="text-4xl font-headline font-black copper-text-glow">Ohjauspaneeli</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-3">OPTIMOITU</Badge>
+          <span className="text-muted-foreground text-xs uppercase font-bold tracking-widest opacity-60">Toiminnan tila</span>
+        </div>
       </header>
 
       <OmavalvontaStatusHeader record={latestRecord} />
 
-      {shiftInfo && !isRead && (shiftInfo.bulletPoints?.length > 0 || shiftInfo.freeText) && (
-        <Card className="bg-accent/10 border-accent/40 shadow-xl relative overflow-hidden animate-in slide-in-from-right duration-700">
-          <div className="absolute top-0 left-0 w-1 h-full copper-gradient" />
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle className="text-lg font-headline text-accent flex items-center gap-2">
-                <Info className="w-5 h-5" /> Tärkeää tälle vuorolle
-              </CardTitle>
-              <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">
-                Vastaa ja kuittaa luetuksi
-              </CardDescription>
-            </div>
-            <Button onClick={markAsRead} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent hover:bg-accent/10">
-              <CheckCircle className="w-4 h-4" /> Luettu
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {shiftInfo.bulletPoints?.length > 0 && (
-              <ul className="space-y-1">
-                {shiftInfo.bulletPoints.map((p: string, i: number) => p && (
-                  <li key={i} className="flex items-start gap-2 text-sm">
-                    <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
-                    <span>{p}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {shiftInfo.freeText && (
-              <p className="text-sm text-foreground/80 italic border-l-2 border-accent/20 pl-4 py-1 whitespace-pre-wrap">
-                {shiftInfo.freeText}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Huolto-osio (UUSI) */}
-      <Card className="bg-card border-border shadow-xl border-primary/20 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 steel-detail opacity-50" />
-        <CardHeader className="pb-3">
-          <CardTitle className="font-headline text-lg text-accent flex items-center gap-2">
-            <Wrench className="w-5 h-5" /> Huollot & Ilmoitukset
-          </CardTitle>
-          <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground">Päivitä laitteiston ja huollon tilanne</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <Input 
-              placeholder="Esim. Uunin huolto tilattu..." 
-              value={newMaintenanceText}
-              onChange={(e) => setNewMaintenanceText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addMaintenanceNote()}
-              className="bg-muted/30 border-border text-sm"
-            />
-            <Button onClick={addMaintenanceNote} className="copper-gradient"><Send className="w-4 h-4" /></Button>
-          </div>
-          
-          <ScrollArea className="h-[120px]">
-            <div className="space-y-2">
-              {maintenanceNotes.map((note) => (
-                <div key={note.id} className="flex items-center justify-between p-2 rounded bg-white/5 border border-border/50 group animate-in slide-in-from-left-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-1 h-8 bg-accent/40 rounded-full" />
-                    <div>
-                      <p className="text-xs font-bold text-foreground">{note.text}</p>
-                      <p className="text-[9px] text-muted-foreground uppercase">{note.createdAt ? format(note.createdAt.toDate(), 'd.M. HH:mm') : 'Nyt'}</p>
-                    </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        {/* Vasen sarake */}
+        <div className="lg:col-span-8 space-y-8">
+          {shiftInfo && !isRead && (shiftInfo.bulletPoints?.length > 0 || shiftInfo.freeText) && (
+            <Card className="industrial-card animate-breathing overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 copper-gradient metal-shine-overlay" />
+              <CardHeader className="flex flex-row items-center justify-between pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full copper-gradient flex items-center justify-center text-white shadow-lg metal-shine-overlay">
+                    <Info className="w-5 h-5" />
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => deleteMaintenanceNote(note.id)} className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </Button>
+                  <div>
+                    <CardTitle className="text-xl font-headline font-black text-accent uppercase tracking-tight">Vuorokohtainen Info</CardTitle>
+                    <CardDescription className="text-[10px] uppercase font-black text-muted-foreground/60 tracking-widest">Tärkeät huomiot tiimille</CardDescription>
+                  </div>
                 </div>
-              ))}
-              {maintenanceNotes.length === 0 && (
-                <p className="text-center py-8 text-[10px] text-muted-foreground uppercase italic tracking-widest">Ei aktiivisia huoltoilmoituksia</p>
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Toimintalokit (DYNAAMINEN) */}
-        <Card className="bg-card border-border shadow-xl">
-          <CardHeader>
-            <CardTitle className="font-headline text-lg text-accent">Toimintalokit</CardTitle>
-            <CardDescription className="text-muted-foreground text-xs font-bold uppercase">Uusimmat päivitykset keittiöstä</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {combinedLogs.map((log) => (
-                <div key={log.id} className="flex items-center gap-4 p-4 rounded-lg bg-white/5 border border-transparent hover:border-primary/20 transition-all group">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center border border-border group-hover:bg-primary/20 transition-colors">
-                    <log.icon className="w-4 h-4 text-accent" />
+                <Button onClick={markAsRead} size="sm" variant="outline" className="gap-2 border-accent/20 text-accent hover:bg-accent/10 hover:border-accent">
+                  <CheckCircle className="w-4 h-4" /> KUITTAA LUETUKSI
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-2">
+                {shiftInfo.bulletPoints?.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {shiftInfo.bulletPoints.map((p: string, i: number) => p && (
+                      <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/5 shadow-inner group">
+                        <div className="w-2 h-2 rounded-full bg-accent group-hover:scale-150 transition-transform shadow-[0_0_8px_rgba(184,115,51,0.6)]" />
+                        <span className="text-sm font-bold leading-relaxed">{p}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-foreground">{log.text}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <Clock className="w-3 h-3 text-muted-foreground/60" />
-                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">
+                )}
+                {shiftInfo.freeText && (
+                  <div className="p-5 rounded-2xl bg-black/40 border border-white/5 relative">
+                    <p className="text-sm text-foreground/90 font-medium italic leading-relaxed whitespace-pre-wrap">
+                      {shiftInfo.freeText}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className="industrial-card">
+            <div className="absolute top-0 left-0 w-full h-1 steel-detail metal-shine-overlay" />
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="font-headline text-2xl font-black text-accent flex items-center gap-3">
+                    <Wrench className="w-6 h-6" /> Huollot & Ilmoitukset
+                  </CardTitle>
+                  <CardDescription className="text-[10px] uppercase font-black text-muted-foreground tracking-widest mt-1">Laitteiston reaaliaikainen tila</CardDescription>
+                </div>
+                <Target className="w-6 h-6 text-muted-foreground/20" />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex gap-3">
+                <Input 
+                  placeholder="Kirjaa uusi huolto tai havainto..." 
+                  value={newMaintenanceText}
+                  onChange={(e) => setNewMaintenanceText(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addMaintenanceNote()}
+                  className="bg-white/5 border-white/10 h-12 text-sm focus:border-accent/50 transition-all rounded-xl"
+                />
+                <Button onClick={addMaintenanceNote} className="copper-gradient h-12 px-6 metal-shine-overlay">
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+              
+              <ScrollArea className="h-[250px] pr-4">
+                <div className="space-y-3">
+                  {maintenanceNotes.map((note) => (
+                    <div key={note.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:border-accent/20 transition-all group animate-in slide-in-from-left-2 shadow-inner">
+                      <div className="flex items-center gap-4">
+                        <div className="w-1.5 h-10 copper-gradient rounded-full opacity-60 group-hover:opacity-100 transition-opacity" />
+                        <div>
+                          <p className="text-sm font-black text-foreground">{note.text}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Clock className="w-3 h-3 text-muted-foreground/60" />
+                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest">{note.createdAt ? format(note.createdAt.toDate(), 'd.M. HH:mm') : 'Nyt'}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" onClick={() => deleteMaintenanceNote(note.id)} className="h-9 w-9 text-destructive/40 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all rounded-full">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {maintenanceNotes.length === 0 && (
+                    <div className="py-20 text-center flex flex-col items-center gap-4 opacity-40">
+                      <Wrench className="w-12 h-12 text-muted-foreground" />
+                      <p className="text-xs uppercase font-black tracking-[0.2em]">Kaikki laitteet kunnossa</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Oikea sarake */}
+        <div className="lg:col-span-4 space-y-8">
+          <Card className="industrial-card">
+            <CardHeader className="pb-4">
+              <CardTitle className="font-headline text-xl font-black text-accent uppercase tracking-tight">Logitiedot</CardTitle>
+              <CardDescription className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Keittiön viimeisimmät</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {combinedLogs.map((log) => (
+                  <div key={log.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-transparent hover:border-white/10 hover:bg-white/10 transition-all group cursor-default">
+                    <div className="w-11 h-11 rounded-xl bg-black/40 flex items-center justify-center border border-white/10 group-hover:border-accent/40 transition-colors shadow-lg">
+                      <log.icon className="w-5 h-5 text-accent" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-black text-foreground leading-tight">{log.text}</p>
+                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
                         {formatDistanceToNow(new Date(log.time), { addSuffix: true, locale: fi })}
                       </p>
                     </div>
                   </div>
-                </div>
-              ))}
-              {combinedLogs.length === 0 && (
-                <div className="py-20 text-center border-2 border-dashed border-border rounded-xl text-muted-foreground italic text-xs">
-                  Ei viimeaikaisia tapahtumia.
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+                {combinedLogs.length === 0 && (
+                  <div className="py-20 text-center text-xs text-muted-foreground font-black uppercase tracking-widest opacity-30">
+                    Ei tapahtumia
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Suojaus ja kapasiteetti */}
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card className="bg-card border-border shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-0 group-hover:opacity-100 transition-opacity" />
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Tiimin koko</CardTitle>
-                <Users className="w-4 h-4 text-accent" />
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="industrial-card group overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 copper-gradient opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="p-4 pb-2">
+                <Users className="w-5 h-5 text-accent opacity-60" />
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-headline font-bold text-foreground">12</div>
-                <p className="text-[10px] text-green-500 font-bold uppercase tracking-tighter mt-1">Aktiivisessa vuorossa</p>
+              <CardContent className="p-4 pt-0">
+                <div className="text-3xl font-headline font-black text-foreground drop-shadow-md">12</div>
+                <p className="text-[10px] text-green-500 font-black uppercase tracking-widest mt-1">Tiimi Aktiivi</p>
               </CardContent>
             </Card>
             
-            <Card className="bg-card border-border shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-1 h-full copper-gradient opacity-0 group-hover:opacity-100 transition-opacity" />
-              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Arkisto</CardTitle>
-                <Cloud className="w-4 h-4 text-accent" />
+            <Card className="industrial-card group overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 steel-detail opacity-0 group-hover:opacity-100 transition-opacity" />
+              <CardHeader className="p-4 pb-2">
+                <Cloud className="w-5 h-5 text-accent opacity-60" />
               </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-headline font-bold text-foreground">84%</div>
-                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-tighter mt-1">Tallennustilaa jäljellä</p>
+              <CardContent className="p-4 pt-0">
+                <div className="text-3xl font-headline font-black text-foreground drop-shadow-md">84%</div>
+                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">Pilvidata</p>
               </CardContent>
             </Card>
           </div>
 
-          <Card className="bg-card border-border shadow-xl animate-breathing border-primary/20">
-            <CardHeader>
-              <CardTitle className="font-headline text-lg text-accent">Ydinjärjestelmän tila</CardTitle>
-              <CardDescription className="text-muted-foreground text-xs font-bold uppercase">Suojaus ja valvonta</CardDescription>
+          <Card className="industrial-card bg-primary/5">
+            <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
+            <CardHeader className="pb-4">
+              <CardTitle className="font-headline text-lg font-black text-accent uppercase tracking-widest">Suojaus-Hub</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-6">
-              <div className="flex items-center justify-between p-3 rounded-md bg-white/5 border border-border">
-                <span className="text-xs font-bold uppercase tracking-widest">RSA 4096 salaus</span>
-                <Badge variant="outline" className="border-green-500 text-green-500 font-bold bg-green-500/10">AKTIIVINEN</Badge>
-              </div>
-              <div className="flex items-center justify-between p-3 rounded-md bg-white/5 border border-border">
-                <span className="text-xs font-bold uppercase tracking-widest">Yhteyspalvelin</span>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                  <span className="text-xs font-bold text-green-500 uppercase">Yhdistetty</span>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-black/40 border border-white/5 shadow-inner">
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase font-black text-muted-foreground tracking-widest">Salaustaso</span>
+                  <span className="text-xs font-black text-foreground">RSA 4096-BIT</span>
                 </div>
+                <ShieldCheck className="w-5 h-5 text-green-500" />
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-xl bg-black/40 border border-white/5 shadow-inner">
+                <div className="flex flex-col">
+                  <span className="text-[9px] uppercase font-black text-muted-foreground tracking-widest">Yhteys</span>
+                  <span className="text-xs font-black text-foreground">SUOJATTU</span>
+                </div>
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,1)]" />
               </div>
             </CardContent>
           </Card>
