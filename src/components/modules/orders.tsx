@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -6,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { ShoppingBag, Calendar as CalendarIcon, Truck, AlertCircle, ArrowRight, Plus, Package, Bell, Clock, Trash2, Search } from "lucide-react"
+import { ShoppingBag, Calendar as CalendarIcon, Truck, Plus, Package, Bell, Clock, Trash2, Search, ArrowRight } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addDays, startOfWeek, endOfWeek, isSameMonth } from "date-fns"
@@ -170,27 +169,27 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-headline font-bold text-accent">Tilausten hallinta</h2>
-          <p className="text-muted-foreground">Seuraa saapuvia kuormia ja aseta muistutuksia.</p>
+          <h2 className="text-3xl font-headline font-bold text-accent uppercase tracking-tight">Tilausten hallinta</h2>
+          <p className="text-muted-foreground font-medium italic">Seuraa saapuvia kuormia ja aseta muistutuksia.</p>
         </div>
-        <Button variant="outline" onClick={onNavigateToSuppliers} className="gap-2 border-accent/20 text-accent hover:bg-accent/10">
+        <Button variant="outline" onClick={onNavigateToSuppliers} className="gap-2 border-white/10 bg-white/5 text-accent hover:bg-accent/10">
           Toimittajarekisteri <ArrowRight className="w-4 h-4" />
         </Button>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 space-y-6">
-          <Card className="bg-card border-border shadow-xl relative overflow-hidden">
+          <Card className="industrial-card overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
             <CardHeader>
-              <CardTitle className="text-lg font-headline flex items-center gap-2">
-                <ShoppingBag className="w-5 h-5 text-accent" />
+              <CardTitle className="text-lg font-headline flex items-center gap-2 text-accent">
+                <ShoppingBag className="w-5 h-5" />
                 Tee uusi tilaus
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Kirjoita tai valitse toimittaja</Label>
+                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Toimittaja</Label>
                 <div className="relative group">
                   <Input 
                     placeholder="Esim. Kesko, Valio..." 
@@ -199,7 +198,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                       setSupplierNameInput(e.target.value)
                       setSelectedSupplierId(null)
                     }}
-                    className="bg-muted/50 border-border pr-10"
+                    className="bg-black/40 border-white/10 h-11"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <Search className="w-4 h-4 text-muted-foreground" />
@@ -216,8 +215,8 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                           setSelectedSupplierId(s.id)
                         }}
                         className={cn(
-                          "px-2 py-1 rounded-md text-[10px] font-bold border transition-all",
-                          selectedSupplierId === s.id ? "bg-accent text-white border-accent" : "bg-muted/30 border-border text-muted-foreground hover:border-accent/40"
+                          "px-2 py-1 rounded-md text-[9px] font-black border transition-all uppercase tracking-tighter",
+                          selectedSupplierId === s.id ? "bg-accent text-white border-accent shadow-lg" : "bg-white/5 border-white/5 text-muted-foreground hover:border-accent/40"
                         )}
                       >
                         {s.name}
@@ -228,35 +227,39 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Toivottu saapuminen</Label>
+                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Toivottu saapuminen</Label>
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal bg-muted/50 border-border h-11">
+                    <Button variant="outline" className="w-full justify-start text-left font-bold bg-black/40 border-white/10 h-11">
                       <CalendarIcon className="mr-2 h-4 w-4 text-accent" />
                       {arrivalDate ? format(arrivalDate, 'dd.MM.yyyy', { locale: fi }) : <span>Valitse päivä</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0 bg-card border-border shadow-2xl" align="start">
+                  <PopoverContent 
+                    className="w-auto p-0 bg-card border-white/10 shadow-2xl z-[100]" 
+                    align="start"
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
                     <Calendar 
                       mode="single" 
                       selected={arrivalDate} 
                       onSelect={(d) => d && setArrivalDate(d)} 
                       initialFocus 
                       locale={fi}
-                      className="rounded-md border border-border"
+                      className="rounded-md border-none"
                     />
                   </PopoverContent>
                 </Popover>
               </div>
-              <Button onClick={handleMakeOrder} className="w-full copper-gradient text-white font-bold mt-2 h-11 shadow-lg">
+              <Button onClick={handleMakeOrder} className="w-full copper-gradient text-white font-black mt-2 h-12 shadow-lg metal-shine-overlay uppercase tracking-widest text-xs">
                 <Plus className="w-4 h-4 mr-2" /> Lähetä tilaus
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="bg-card border-border shadow-xl">
-            <CardHeader className="pb-3 border-b border-border/50">
-              <CardTitle className="text-sm font-headline uppercase tracking-widest text-accent flex items-center gap-2">
+          <Card className="industrial-card">
+            <CardHeader className="pb-3 border-b border-white/5">
+              <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-accent flex items-center gap-2">
                 <Package className="w-4 h-4" /> Aktiiviset tilaukset
               </CardTitle>
             </CardHeader>
@@ -264,11 +267,11 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
               <ScrollArea className="h-[350px]">
                 <div className="space-y-3 pr-4">
                   {orders.map(order => (
-                    <div key={order.id} className="p-3 rounded-xl border border-border bg-white/5 relative group animate-in slide-in-from-left-2 transition-all hover:border-accent/30 shadow-inner">
+                    <div key={order.id} className="p-4 rounded-xl border border-white/5 bg-black/40 relative group animate-in slide-in-from-left-2 transition-all hover:border-accent/30 shadow-inner">
                       <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className={cn("w-2 h-2 rounded-full", order.color)} />
-                          <span className="text-sm font-bold">{order.supplierName}</span>
+                        <div className="flex items-center gap-3">
+                          <div className={cn("w-2 h-2 rounded-full shadow-[0_0_8px_currentColor]", order.color)} />
+                          <span className="text-sm font-black uppercase tracking-tight">{order.supplierName}</span>
                         </div>
                         <Button 
                           variant="ghost" 
@@ -279,9 +282,9 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
-                      <div className="flex flex-col gap-1.5 text-[10px] text-muted-foreground uppercase font-bold tracking-tight">
+                      <div className="flex flex-col gap-2 mt-3 text-[9px] text-muted-foreground uppercase font-black tracking-widest">
                         <div className="flex items-center gap-2">
-                          <Clock className="w-3.5 h-3.5 text-accent/60" />
+                          <Clock className="w-3 h-3 text-accent/40" />
                           <span>Tilattu: {order.orderDate instanceof Timestamp ? format(order.orderDate.toDate(), 'd.M. HH:mm') : '---'}</span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -292,7 +295,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                     </div>
                   ))}
                   {orders.length === 0 && (
-                    <div className="py-20 text-center text-xs text-muted-foreground italic border-2 border-dashed border-border rounded-xl">Ei aktiivisia tilauksia.</div>
+                    <div className="py-20 text-center text-[10px] uppercase font-black tracking-widest text-muted-foreground/40 italic border-2 border-dashed border-white/5 rounded-2xl">Ei aktiivisia tilauksia</div>
                   )}
                 </div>
               </ScrollArea>
@@ -301,52 +304,55 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
         </div>
 
         <div className="lg:col-span-8">
-          <Card className="bg-card border-border shadow-2xl h-full overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-border/50 bg-secondary/10">
+          <Card className="industrial-card overflow-hidden h-full flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-white/5 bg-black/20">
               <div>
-                <CardTitle className="font-headline text-xl text-foreground">Toimituskalenteri</CardTitle>
-                <CardDescription className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest mt-1">
-                  {format(currentMonth, 'MMMM yyyy', { locale: fi })} • Klikkaa päivää asettaaksesi muistutuksen
+                <CardTitle className="font-headline text-xl font-black text-accent uppercase tracking-tight">Toimituskalenteri</CardTitle>
+                <CardDescription className="text-muted-foreground uppercase text-[10px] font-black tracking-widest mt-1">
+                  {format(currentMonth, 'MMMM yyyy', { locale: fi })}
                 </CardDescription>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="grid grid-cols-7 border-b border-border bg-muted/20">
+            <CardContent className="p-0 flex-1">
+              <div className="grid grid-cols-7 border-b border-white/5 bg-black/40">
                 {['Ma', 'Ti', 'Ke', 'To', 'Pe', 'La', 'Su'].map(day => (
-                  <div key={day} className="py-3 text-center text-[10px] font-bold text-muted-foreground uppercase border-r border-border last:border-0">{day}</div>
+                  <div key={day} className="py-3 text-center text-[9px] font-black text-muted-foreground uppercase border-r border-white/5 last:border-0 tracking-widest">{day}</div>
                 ))}
               </div>
-              <div className="grid grid-cols-7 auto-rows-fr">
+              <div className="grid grid-cols-7 auto-rows-fr flex-1">
                 {calendarDays.map((day, i) => {
                   const dayOrders = getOrdersForDay(day)
                   const dayReminders = getRemindersForDay(day)
-                  const hasOrders = dayOrders.length > 0
                   const hasReminders = dayReminders.length > 0
                   const isCurrentMonth = isSameMonth(day, currentMonth)
+                  const isToday = isSameDay(day, new Date())
 
                   return (
                     <div 
                       key={day.toISOString()} 
                       onClick={() => { setSelectedDay(day); setIsReminderDialogOpen(true); }}
                       className={cn(
-                        "min-h-[110px] border-r border-b border-border p-2 transition-all relative group cursor-pointer",
+                        "min-h-[120px] border-r border-b border-white/5 p-2 transition-all relative group cursor-pointer",
                         i % 7 === 6 ? "border-r-0" : "",
-                        !isCurrentMonth ? "opacity-30 bg-muted/5" : (isSameDay(day, new Date()) ? "bg-primary/5" : "hover:bg-white/5 shadow-inner")
+                        !isCurrentMonth ? "opacity-20 grayscale pointer-events-none" : (isToday ? "bg-accent/5 ring-1 ring-inset ring-accent/20" : "hover:bg-white/5")
                       )}
                     >
                       <div className="flex justify-between items-start">
-                        <span className={cn("text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full", isSameDay(day, new Date()) ? "bg-accent text-white" : "text-muted-foreground")}>{format(day, 'd')}</span>
-                        {hasReminders && <Bell className="w-3 h-3 text-accent animate-pulse" />}
+                        <span className={cn(
+                          "text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-lg shadow-sm transition-colors", 
+                          isToday ? "copper-gradient text-white" : "text-muted-foreground/60 bg-black/20"
+                        )}>{format(day, 'd')}</span>
+                        {hasReminders && <Bell className="w-3 h-3 text-accent animate-pulse shadow-[0_0_8px_rgba(184,115,51,0.6)]" />}
                       </div>
-                      <div className="space-y-1.5 mt-2">
+                      <div className="space-y-1.5 mt-3">
                         {dayOrders.map(order => (
-                          <div key={order.id} className={cn("px-2 py-0.5 rounded-md text-[9px] font-bold text-white shadow-md truncate border border-white/10", order.color)}>
+                          <div key={order.id} className={cn("px-2 py-1 rounded-md text-[8px] font-black text-white shadow-md truncate border border-white/10 uppercase tracking-tighter", order.color)}>
                             {order.supplierName}
                           </div>
                         ))}
                         {dayReminders.map(r => (
-                          <div key={r.id} className="bg-accent/20 border border-accent/30 text-[8px] text-accent p-1 rounded-sm truncate font-medium">
-                            <Clock className="w-2 h-2 inline mr-1" /> {r.time} {r.content}
+                          <div key={r.id} className="bg-primary/10 border border-primary/20 text-[8px] text-accent p-1.5 rounded-lg truncate font-black uppercase tracking-tighter shadow-sm">
+                            <Clock className="w-2 h-2 inline mr-1 text-accent/60" /> {r.time} {r.content}
                           </div>
                         ))}
                       </div>
@@ -360,27 +366,33 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
       </div>
 
       <Dialog open={isReminderDialogOpen} onOpenChange={setIsReminderDialogOpen}>
-        <DialogContent className="bg-card border-border text-foreground">
-          <DialogHeader><DialogTitle className="font-headline text-accent">Aseta muistutus: {selectedDay ? format(selectedDay, 'd.M.yyyy', { locale: fi }) : ''}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
+        <DialogContent className="bg-background border-white/10 text-foreground max-w-md" onPointerDown={(e) => e.stopPropagation()}>
+          <DialogHeader>
+            <DialogTitle className="font-headline text-accent text-xl uppercase tracking-tight flex items-center gap-3">
+              <Bell className="w-6 h-6" /> Muistutus: {selectedDay ? format(selectedDay, 'd.M.yyyy', { locale: fi }) : ''}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-6">
             <div className="space-y-2">
-              <Label>Mitä tilataan / Huomioitavaa</Label>
-              <Input placeholder="esim. Kalat, Vihannekset..." value={newReminder.content} onChange={(e) => setNewReminder({...newReminder, content: e.target.value})} className="bg-muted/50 border-border" />
+              <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Sisältö / Huomio</Label>
+              <Input placeholder="Esim. Tilaa kalat, tarkista varasto..." value={newReminder.content} onChange={(e) => setNewReminder({...newReminder, content: e.target.value})} className="bg-white/5 border-white/10 h-12 text-sm font-bold" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label>Kellonaika</Label>
-                <Input type="time" value={newReminder.time} onChange={(e) => setNewReminder({...newReminder, time: e.target.value})} className="bg-muted/50 border-border" />
+                <Label className="text-[10px] uppercase font-black tracking-widest text-muted-foreground">Kellonaika</Label>
+                <Input type="time" value={newReminder.time} onChange={(e) => setNewReminder({...newReminder, time: e.target.value})} className="bg-white/5 border-white/10 h-12 text-sm font-bold" />
               </div>
-              <div className="flex items-center justify-between pt-8">
-                <Label className="cursor-pointer" htmlFor="alert-switch">Hälytys käytössä</Label>
-                <Switch id="alert-switch" checked={newReminder.hasAlert} onCheckedChange={(checked) => setNewReminder({...newReminder, hasAlert: checked})} />
+              <div className="flex flex-col justify-center gap-3 bg-black/20 p-4 rounded-xl border border-white/5">
+                <div className="flex items-center justify-between">
+                  <Label className="cursor-pointer text-[10px] font-black uppercase tracking-widest" htmlFor="alert-switch">Hälytys</Label>
+                  <Switch id="alert-switch" checked={newReminder.hasAlert} onCheckedChange={(checked) => setNewReminder({...newReminder, hasAlert: checked})} className="data-[state=checked]:bg-accent" />
+                </div>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsReminderDialogOpen(false)}>Peruuta</Button>
-            <Button onClick={handleAddReminder} className="copper-gradient text-white">Tallenna</Button>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setIsReminderDialogOpen(false)} className="border-white/10 h-12 px-8">Peruuta</Button>
+            <Button onClick={handleAddReminder} className="copper-gradient text-white font-black h-12 px-8 shadow-lg metal-shine-overlay uppercase tracking-widest text-xs">TALLENNA</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
