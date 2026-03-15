@@ -6,8 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { ShoppingBag, Calendar as CalendarIcon, Truck, AlertCircle, ArrowRight, Plus, Package, Bell, Clock, Trash2 } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ShoppingBag, Calendar as CalendarIcon, Truck, AlertCircle, ArrowRight, Plus, Package, Bell, Clock, Trash2, Search } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, addDays, startOfWeek, endOfWeek, isSameMonth } from "date-fns"
@@ -16,13 +15,14 @@ import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, Timestamp } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, Timestamp, query, orderBy } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 type Order = {
   id: string
-  supplierId: string
+  supplierId: string | null
   supplierName: string
   color: string
   orderDate: any
@@ -56,10 +56,17 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   const remindersRef = useMemo(() => (firestore ? collection(firestore, 'orderReminders') : null), [firestore])
   
   const { data: suppliers = [] } = useCollection<Supplier>(suppliersRef)
-  const { data: orders = [] } = useCollection<Order>(ordersRef)
+  
+  const ordersQuery = useMemo(() => {
+    if (!ordersRef) return null
+    return query(ordersRef, orderBy('arrivalDate', 'desc'))
+  }, [ordersRef])
+  const { data: orders = [] } = useCollection<Order>(ordersQuery)
+  
   const { data: reminders = [] } = useCollection<Reminder>(remindersRef)
 
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string>("")
+  const [supplierNameInput, setSupplierNameInput] = useState("")
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null)
   const [arrivalDate, setArrivalDate] = useState<Date>(addDays(new Date(), 1))
   const [isReminderDialogOpen, setIsReminderDialogOpen] = useState(false)
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
@@ -72,17 +79,20 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   }, [])
 
   const handleMakeOrder = () => {
-    if (!selectedSupplierId || !firestore) return
-    const supplier = suppliers.find(s => s.id === selectedSupplierId)
-    if (!supplier) return
+    if (!supplierNameInput.trim() || !firestore) return
+    
+    // Etsitään väri: joko valitulta toimittajalta tai oletus "ruostumaton teräs"
+    const existingSupplier = suppliers.find(s => s.id === selectedSupplierId || s.name.toLowerCase() === supplierNameInput.toLowerCase())
+    const color = existingSupplier?.color || "bg-[#71717a]"
+    const supplierId = existingSupplier?.id || null
 
     const id = Math.random().toString(36).substr(2, 9)
     const docRef = doc(firestore, 'orders', id)
     const orderData = {
       id,
-      supplierId: supplier.id,
-      supplierName: supplier.name,
-      color: supplier.color || "#b87333",
+      supplierId: supplierId,
+      supplierName: supplierNameInput,
+      color: color,
       orderDate: Timestamp.now(),
       arrivalDate: Timestamp.fromDate(arrivalDate),
       status: 'pending'
@@ -95,6 +105,13 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
         requestResourceData: orderData
       }))
     })
+    setSupplierNameInput("")
+    setSelectedSupplierId(null)
+  }
+
+  const handleDeleteOrder = (id: string) => {
+    if (!firestore) return
+    deleteDoc(doc(firestore, 'orders', id))
   }
 
   const handleAddReminder = () => {
@@ -116,11 +133,6 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
     })
     setIsReminderDialogOpen(false)
     setNewReminder({ content: "", time: "08:00", hasAlert: true })
-  }
-
-  const removeReminder = (id: string) => {
-    if (!firestore) return
-    deleteDoc(doc(firestore, 'orderReminders', id))
   }
 
   const calendarDays = useMemo(() => {
@@ -149,7 +161,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   if (!currentMonth) return null
 
   return (
-    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-10">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-headline font-bold text-accent">Tilausten hallinta</h2>
@@ -172,23 +184,44 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Valitse toimittaja</Label>
-                <Select onValueChange={setSelectedSupplierId}>
-                  <SelectTrigger className="bg-muted/50 border-border">
-                    <SelectValue placeholder="Valitse toimittaja..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {suppliers.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        <div className="flex items-center gap-2">
-                          <div className={cn("w-2 h-2 rounded-full", s.color)} />
-                          {s.name}
-                        </div>
-                      </SelectItem>
+                <Label>Kirjoita tai valitse toimittaja</Label>
+                <div className="relative group">
+                  <Input 
+                    placeholder="Esim. Kesko, Valio..." 
+                    value={supplierNameInput}
+                    onChange={(e) => {
+                      setSupplierNameInput(e.target.value)
+                      setSelectedSupplierId(null)
+                    }}
+                    className="bg-muted/50 border-border pr-10"
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Search className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                </div>
+                
+                {/* Ehdotuslista toimittajille */}
+                {suppliers.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {suppliers.slice(0, 5).map(s => (
+                      <button 
+                        key={s.id}
+                        onClick={() => {
+                          setSupplierNameInput(s.name)
+                          setSelectedSupplierId(s.id)
+                        }}
+                        className={cn(
+                          "px-2 py-1 rounded-md text-[10px] font-bold border transition-all",
+                          selectedSupplierId === s.id ? "bg-accent text-white border-accent" : "bg-muted/30 border-border text-muted-foreground hover:border-accent/40"
+                        )}
+                      >
+                        {s.name}
+                      </button>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                )}
               </div>
+
               <div className="space-y-2">
                 <Label>Toivottu saapuminen</Label>
                 <Popover>
@@ -198,14 +231,57 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                       {arrivalDate ? format(arrivalDate, 'dd.MM.yyyy', { locale: fi }) : <span>Valitse päivä</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 bg-card border-border" align="start">
+                  <PopoverContent className="w-auto p-0 bg-card border-border shadow-2xl" align="start">
                     <Calendar mode="single" selected={arrivalDate} onSelect={(d) => d && setArrivalDate(d)} initialFocus locale={fi} />
                   </PopoverContent>
                 </Popover>
               </div>
-              <Button onClick={handleMakeOrder} className="w-full copper-gradient text-white font-bold mt-2">
+              <Button onClick={handleMakeOrder} className="w-full copper-gradient text-white font-bold mt-2 h-11">
                 <Plus className="w-4 h-4 mr-2" /> Lähetä tilaus
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border shadow-xl">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-headline uppercase tracking-widest text-accent">Aktiiviset tilaukset</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[300px]">
+                <div className="space-y-3 pr-4">
+                  {orders.map(order => (
+                    <div key={order.id} className="p-3 rounded-lg border border-border bg-white/5 relative group animate-in slide-in-from-left-2">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className={cn("w-2 h-2 rounded-full", order.color)} />
+                          <span className="text-sm font-bold">{order.supplierName}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDeleteOrder(order.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-col gap-1 text-[10px] text-muted-foreground uppercase font-bold">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-accent" />
+                          Tilattu: {order.orderDate instanceof Timestamp ? format(order.orderDate.toDate(), 'd.M. HH:mm') : '---'}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Truck className="w-3 h-3 text-accent" />
+                          Saapuu: {order.arrivalDate instanceof Timestamp ? format(order.arrivalDate.toDate(), 'd.M.yyyy') : '---'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {orders.length === 0 && (
+                    <div className="py-10 text-center text-xs text-muted-foreground italic">Ei aktiivisia tilauksia.</div>
+                  )}
+                </div>
+              </ScrollArea>
             </CardContent>
           </Card>
         </div>
@@ -223,7 +299,7 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
             <CardContent className="p-0">
               <div className="grid grid-cols-7 border-b border-border bg-muted/20">
                 {['Ma', 'Ti', 'Ke', 'To', 'Pe', 'La', 'Su'].map(day => (
-                  <div key={day} className="py-2 text-center text-[10px] font-bold text-muted-foreground uppercase border-r border-border last:border-0">{day}</div>
+                  <div key={day} className="py-3 text-center text-[10px] font-bold text-muted-foreground uppercase border-r border-border last:border-0">{day}</div>
                 ))}
               </div>
               <div className="grid grid-cols-7 auto-rows-fr">
@@ -248,16 +324,18 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
                         <span className={cn("text-xs font-bold", isSameDay(day, new Date()) ? "text-accent" : "text-muted-foreground")}>{format(day, 'd')}</span>
                         {hasReminders && <Bell className="w-3 h-3 text-accent animate-pulse" />}
                       </div>
-                      {hasOrders && (
-                        <div className="mt-1 p-1 rounded-md text-[9px] font-bold text-white shadow-lg bg-accent">
-                          {dayOrders.length} kuormaa
-                        </div>
-                      )}
-                      {dayReminders.map(r => (
-                        <div key={r.id} className="mt-1 bg-accent/20 border border-accent/30 text-[8px] text-accent p-0.5 rounded truncate">
-                          {r.time} {r.content}
-                        </div>
-                      ))}
+                      <div className="space-y-1 mt-1">
+                        {dayOrders.map(order => (
+                          <div key={order.id} className={cn("p-1 rounded-md text-[9px] font-bold text-white shadow-sm truncate", order.color)}>
+                            {order.supplierName}
+                          </div>
+                        ))}
+                        {dayReminders.map(r => (
+                          <div key={r.id} className="bg-accent/20 border border-accent/30 text-[8px] text-accent p-0.5 rounded truncate">
+                            {r.time} {r.content}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )
                 })}
