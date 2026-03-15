@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -235,7 +234,7 @@ export function WorkspaceModule() {
                 <div className="text-2xl font-black text-foreground leading-none">84%</div>
                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
               </CardContent>
-            </div>
+            </Card>
           </div>
         </div>
       </div>

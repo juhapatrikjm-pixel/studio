@@ -5,22 +5,19 @@ import { useRouter } from "next/navigation"
 import { useAuth, useUser, useFirestore } from "@/firebase"
 import { signInAnonymously, setPersistence, browserLocalPersistence } from "firebase/auth"
 import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore"
-import { Loader2, Zap } from "lucide-react"
+import { Loader2, Zap, AlertTriangle } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
-/**
- * Invisible Login Page
- * Kirjaa käyttäjän sisään anonyymisti ja ohjaa dashboardiin.
- * Jos kyseessä on uusi käyttäjä, asettaa rooliksi "admin" prototyyppausta varten.
- */
 export default function LoginPage() {
-  const { user, loading } = useUser()
+  const { user, loading: authLoading } = useUser()
   const auth = useAuth()
   const firestore = useFirestore()
   const router = useRouter()
   const [status, setStatus] = useState("Alustetaan järjestelmää...")
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!auth || !firestore || loading) return
+    if (!auth || !firestore || authLoading) return
 
     const handleAutoLogin = async () => {
       try {
@@ -29,7 +26,6 @@ export default function LoginPage() {
           await setPersistence(auth, browserLocalPersistence)
           const cred = await signInAnonymously(auth)
           
-          // Tarkistetaan onko profiili jo olemassa
           const profileRef = doc(firestore, 'userProfiles', cred.user.uid)
           const snap = await getDoc(profileRef)
           
@@ -47,14 +43,41 @@ export default function LoginPage() {
         
         setStatus("Yhteys muodostettu.")
         router.push('/dashboard')
-      } catch (err) {
+      } catch (err: any) {
         console.error("Auth error:", err)
-        setStatus("Virhe kirjautumisessa. Tarkista verkkoyhteys.")
+        if (err.code === 'auth/admin-restricted-operation') {
+          setError("ANONYMOUS_AUTH_DISABLED")
+        } else {
+          setError(err.message || "Tuntematon virhe kirjautumisessa.")
+        }
       }
     }
 
     handleAutoLogin()
-  }, [user, auth, firestore, loading, router])
+  }, [user, auth, firestore, authLoading, router])
+
+  if (error === "ANONYMOUS_AUTH_DISABLED") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <Alert variant="destructive" className="max-w-md border-accent/50 bg-accent/5">
+          <AlertTriangle className="h-5 w-5" />
+          <AlertTitle className="font-headline font-black uppercase tracking-tight">Toiminto vaaditaan</AlertTitle>
+          <AlertDescription className="space-y-4 pt-2">
+            <p className="text-xs font-bold leading-relaxed">
+              Invisible Login vaatii, että **Anonymous Authentication** on päällä Firebase-projektissasi.
+            </p>
+            <div className="bg-black/40 p-3 rounded-lg border border-white/10 text-[10px] font-mono space-y-2">
+              <p>1. Mene Firebase Consoleen</p>
+              <p>2. Build &rarr; Authentication</p>
+              <p>3. Sign-in method &rarr; Add new provider</p>
+              <p>4. Valitse "Anonymous" ja klikka "Enable"</p>
+            </div>
+            <p className="text-[10px] opacity-60 italic">Kun olet tehnyt tämän, päivitä sivu.</p>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-6 p-4 text-center">
@@ -64,8 +87,14 @@ export default function LoginPage() {
       <div className="space-y-2">
         <h1 className="text-2xl font-headline font-black copper-text-glow uppercase tracking-tighter">Wisemisa Intelligence</h1>
         <div className="flex items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin text-accent" />
-          <p className="text-[10px] font-black uppercase tracking-widest">{status}</p>
+          {error ? (
+            <p className="text-[10px] font-black uppercase tracking-widest text-destructive">{error}</p>
+          ) : (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-accent" />
+              <p className="text-[10px] font-black uppercase tracking-widest">{status}</p>
+            </>
+          )}
         </div>
       </div>
     </div>
