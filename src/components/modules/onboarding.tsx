@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
@@ -17,15 +18,13 @@ import {
   Wrench, 
   Plus, 
   Trash2, 
-  FileCheck,
-  UserCheck,
-  MessageSquare,
-  RefreshCw,
   Save,
+  RefreshCw,
+  MessageSquare,
   Loader2
 } from "lucide-react"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, where, writeBatch } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, where, writeBatch, updateDoc } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -85,7 +84,7 @@ export function OnboardingModule() {
   const { toast } = useToast()
   
   const currentUserId = user?.uid || "guest"
-  const isAdmin = true // Todellisuudessa: profile?.role === 'admin'
+  const isAdmin = true // Testivaiheessa aina Admin
 
   // Firestore Refs
   const tasksRef = useMemo(() => (firestore ? collection(firestore, 'onboardingTasks') : null), [firestore])
@@ -109,12 +108,15 @@ export function OnboardingModule() {
   const { data: currentMeta } = useDoc<CategoryMeta>(categoryMetaRef)
 
   const [localQuestion, setLocalQuestion] = useState("")
+  const [localGoal, setLocalGoal] = useState("")
 
   useEffect(() => {
     if (currentMeta) {
       setLocalQuestion(currentMeta.masterQuestion || "")
+      setLocalGoal(currentMeta.goal || "")
     } else {
       setLocalQuestion(DEFAULT_DATA[activeCategory]?.masterQuestion || "")
+      setLocalGoal(DEFAULT_DATA[activeCategory]?.goal || "")
     }
   }, [currentMeta, activeCategory])
 
@@ -165,11 +167,8 @@ export function OnboardingModule() {
     setIsSeeding(true)
     try {
       const batch = writeBatch(firestore)
-      
-      // Poista vanhat tehtävät (valinnainen, mutta siistimpi jos halutaan täysi reset)
       allTasks.forEach(t => batch.delete(doc(tasksRef, t.id)))
 
-      // Lisää uudet tehtävät ja meta-data
       Object.entries(DEFAULT_DATA).forEach(([catId, data]) => {
         data.tasks.forEach((title, i) => {
           const id = Math.random().toString(36).substr(2, 9)
@@ -188,19 +187,20 @@ export function OnboardingModule() {
       })
 
       await batch.commit()
-      toast({ title: "Oletuspohja ladattu onnistuneesti" })
+      toast({ title: "Oletuspohja ladattu" })
     } catch (e) {
-      console.error(e)
-      toast({ variant: "destructive", title: "Virhe pohjan latauksessa" })
+      toast({ variant: "destructive", title: "Virhe latauksessa" })
     } finally {
       setIsSeeding(false)
     }
   }
 
-  const saveMasterQuestion = () => {
+  const saveMeta = () => {
     if (!categoryMetaRef) return
-    setDoc(categoryMetaRef, { masterQuestion: localQuestion }, { merge: true })
-      .then(() => toast({ title: "Mestarin kysymys tallennettu" }))
+    updateDoc(categoryMetaRef, { 
+      masterQuestion: localQuestion,
+      goal: localGoal
+    }).then(() => toast({ title: "Kategorian tiedot tallennettu" }))
   }
 
   const addTask = () => {
@@ -216,6 +216,11 @@ export function OnboardingModule() {
     setNewTask({ title: "", description: "" })
   }
 
+  const updateTaskTitle = (taskId: string, newTitle: string) => {
+    if (!firestore) return
+    updateDoc(doc(firestore, 'onboardingTasks', taskId), { title: newTitle })
+  }
+
   const deleteTask = (id: string) => {
     if (!firestore) return
     deleteDoc(doc(firestore, 'onboardingTasks', id))
@@ -229,7 +234,7 @@ export function OnboardingModule() {
             <div className="w-12 h-12 rounded-xl copper-gradient flex items-center justify-center shadow-lg metal-shine-overlay">
               <GraduationCap className="w-7 h-7 text-white" />
             </div>
-            <h2 className="text-4xl font-headline font-black copper-text-glow uppercase tracking-tight">Perehdytys & Koulutus</h2>
+            <h2 className="text-4xl font-headline font-black copper-text-glow uppercase tracking-tight">Perehdytys</h2>
           </div>
           <p className="text-muted-foreground font-medium italic">Varmista tiimin osaaminen ja työturvallisuus jokaisessa vuorossa.</p>
         </div>
@@ -302,10 +307,10 @@ export function OnboardingModule() {
               <CardHeader className="p-4 pb-2"><CardTitle className="text-xs font-black uppercase text-accent">LISÄÄ TEHTÄVÄ</CardTitle></CardHeader>
               <CardContent className="p-4 space-y-4">
                 <div className="space-y-2">
-                  <Label className="text-[9px] font-bold uppercase">Tehtävä</Label>
+                  <Label className="text-[9px] font-bold uppercase">Uusi tehtävä</Label>
                   <Input value={newTask.title} onChange={(e) => setNewTask({...newTask, title: e.target.value})} className="bg-black/40 border-white/10 h-10 text-xs" />
                 </div>
-                <Button onClick={addTask} className="w-full copper-gradient text-white font-black text-[10px] uppercase h-10">TALLENNA</Button>
+                <Button onClick={addTask} className="w-full copper-gradient text-white font-black text-[10px] uppercase h-10">LISÄÄ LISTAAN</Button>
               </CardContent>
             </Card>
           )}
@@ -315,13 +320,24 @@ export function OnboardingModule() {
           <Card className="industrial-card min-h-[500px] flex flex-col">
             <CardHeader className="bg-black/20 border-b border-white/5">
               <div className="flex items-center justify-between">
-                <div>
+                <div className="flex-1 mr-4">
                   <CardTitle className="text-xl font-headline font-black text-accent uppercase">{CATEGORIES.find(c => c.id === activeCategory)?.label}</CardTitle>
-                  <CardDescription className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-widest italic">
-                    Tavoite: {currentMeta?.goal || DEFAULT_DATA[activeCategory]?.goal}
-                  </CardDescription>
+                  {isManaging ? (
+                    <div className="mt-2 space-y-1">
+                      <Label className="text-[8px] uppercase font-bold text-accent/60">Kategorian tavoite</Label>
+                      <Input 
+                        value={localGoal} 
+                        onChange={(e) => setLocalGoal(e.target.value)} 
+                        className="h-8 bg-black/40 border-white/10 text-[10px] font-bold"
+                      />
+                    </div>
+                  ) : (
+                    <CardDescription className="text-[10px] font-bold text-muted-foreground mt-1 uppercase tracking-widest italic">
+                      Tavoite: {localGoal}
+                    </CardDescription>
+                  )}
                 </div>
-                <div className="p-3 rounded-xl bg-black/40 border border-white/5">
+                <div className="p-3 rounded-xl bg-black/40 border border-white/5 h-fit">
                   <span className="text-lg font-black text-accent">{stats.catStats[activeCategory]?.percent.toFixed(0)}%</span>
                 </div>
               </div>
@@ -334,7 +350,15 @@ export function OnboardingModule() {
                     <div key={task.id} className={cn("flex items-center justify-between p-4 rounded-2xl border transition-all group", completedTaskIds.has(task.id) ? "bg-green-500/5 border-green-500/20" : "bg-white/5 border-white/5 hover:border-white/10")}>
                       <div className="flex items-center gap-4 flex-1">
                         <Checkbox checked={completedTaskIds.has(task.id)} onCheckedChange={() => toggleTask(task.id)} className="w-6 h-6 border-white/20 data-[state=checked]:bg-green-500" />
-                        <span className={cn("text-sm font-black uppercase tracking-tight", completedTaskIds.has(task.id) ? "text-muted-foreground/60 line-through" : "text-foreground")}>{task.title}</span>
+                        {isManaging ? (
+                          <Input 
+                            value={task.title} 
+                            onChange={(e) => updateTaskTitle(task.id, e.target.value)}
+                            className="bg-transparent border-none p-0 text-sm font-black uppercase tracking-tight focus-visible:ring-0"
+                          />
+                        ) : (
+                          <span className={cn("text-sm font-black uppercase tracking-tight", completedTaskIds.has(task.id) ? "text-muted-foreground/60 line-through" : "text-foreground")}>{task.title}</span>
+                        )}
                       </div>
                       {isManaging && <Button variant="ghost" size="icon" onClick={() => deleteTask(task.id)} className="text-destructive/40 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>}
                     </div>
@@ -348,20 +372,21 @@ export function OnboardingModule() {
                     <h4 className="text-[10px] font-black uppercase text-accent tracking-[0.2em] flex items-center gap-2">
                       <MessageSquare className="w-4 h-4" /> Mestarin kysymys
                     </h4>
-                    {isAdmin && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-accent hover:bg-accent/10" onClick={saveMasterQuestion}>
+                    {isAdmin && isManaging && (
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-accent hover:bg-accent/10" onClick={saveMeta}>
                         <Save className="w-3.5 h-3.5" />
                       </Button>
                     )}
                   </div>
-                  {isAdmin ? (
-                    <Input 
+                  {isManaging ? (
+                    <Textarea 
                       value={localQuestion} 
                       onChange={(e) => setLocalQuestion(e.target.value)}
-                      className="bg-transparent border-none p-0 text-sm font-bold text-foreground focus-visible:ring-0 italic"
+                      className="bg-black/40 border-white/10 min-h-[80px] text-sm font-bold text-foreground italic leading-relaxed"
+                      placeholder="Kirjoita kysymys tähän..."
                     />
                   ) : (
-                    <p className="text-sm font-bold text-foreground leading-relaxed italic">"{localQuestion}"</p>
+                    <p className="text-sm font-bold text-foreground leading-relaxed italic whitespace-pre-wrap">"{localQuestion}"</p>
                   )}
                 </div>
               </div>
