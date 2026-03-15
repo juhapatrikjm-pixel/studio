@@ -22,6 +22,19 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "AppSetting": {
+      "title": "AppSetting",
+      "description": "Sovelluksen globaalit asetukset",
+      "type": "object",
+      "properties": {
+        "targetMargin": { "type": "number" },
+        "hourlyRate": { "type": "number" },
+        "cheerMessages": { "type": "array", "items": { "type": "string" } },
+        "language": { "type": "string", "enum": ["fi", "en", "sv", "et", "ru"] },
+        "currency": { "type": "string", "enum": ["EUR", "USD", "GBP", "SEK", "RUB"] },
+        "weightUnit": { "type": "string", "enum": ["kg/g", "lb/oz", "g", "oz"] }
+      }
+    },
     "Contact": {
       "title": "Contact",
       "description": "Tiimin ja yhteistyökumppaneiden yhteystiedot",

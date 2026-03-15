@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Shield, Settings, Lock, Percent, Smile, Plus, Trash2, Banknote, Clock, Users2, CreditCard, LayoutGrid, ChevronUp, ChevronDown } from "lucide-react"
+import { Shield, Settings, Lock, Percent, Smile, Plus, Trash2, Banknote, Clock, Users2, CreditCard, LayoutGrid, ChevronUp, ChevronDown, Globe, Coins, Scale } from "lucide-react"
 import { useFirestore, useDoc, useCollection } from "@/firebase"
 import { doc, setDoc, collection, serverTimestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { BASE_MENU_ITEMS } from "@/app/page"
 import { cn } from "@/lib/utils"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 const ROLES = [
   { 
@@ -52,6 +53,29 @@ const ROLES = [
   },
 ]
 
+const LANGUAGES = [
+  { id: 'fi', name: 'Suomi' },
+  { id: 'en', name: 'English' },
+  { id: 'sv', name: 'Svenska' },
+  { id: 'et', name: 'Eesti' },
+  { id: 'ru', name: 'Pусский' },
+]
+
+const CURRENCIES = [
+  { id: 'EUR', name: 'Euro (€)', symbol: '€' },
+  { id: 'USD', name: 'US Dollar ($)', symbol: '$' },
+  { id: 'GBP', name: 'British Pound (£)', symbol: '£' },
+  { id: 'SEK', name: 'Swedish Krona (kr)', symbol: 'kr' },
+  { id: 'RUB', name: 'Russian Ruble (₽)', symbol: '₽' },
+]
+
+const WEIGHT_UNITS = [
+  { id: 'kg/g', name: 'Kilogrammat & Grammat (kg/g)' },
+  { id: 'lb/oz', name: 'Pounds & Ounces (lb/oz)' },
+  { id: 'g', name: 'Grammat (g)' },
+  { id: 'oz', name: 'Ounces (oz)' },
+]
+
 export function AdminModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
@@ -68,6 +92,9 @@ export function AdminModule() {
 
   const [targetMargin, setTargetMargin] = useState(75)
   const [hourlyRate, setHourlyRate] = useState(22)
+  const [language, setLanguage] = useState('fi')
+  const [currency, setCurrency] = useState('EUR')
+  const [weightUnit, setWeightUnit] = useState('kg/g')
   const [messages, setMessages] = useState<string[]>([])
   const [newMessage, setNewMessage] = useState("")
   const [moduleOrder, setModuleOrder] = useState<string[]>([])
@@ -77,6 +104,9 @@ export function AdminModule() {
       if (settings.targetMargin) setTargetMargin(settings.targetMargin)
       if (settings.hourlyRate) setHourlyRate(settings.hourlyRate)
       if (settings.cheerMessages) setMessages(settings.cheerMessages)
+      if (settings.language) setLanguage(settings.language)
+      if (settings.currency) setCurrency(settings.currency)
+      if (settings.weightUnit) setWeightUnit(settings.weightUnit)
     }
   }, [settings])
 
@@ -114,6 +144,9 @@ export function AdminModule() {
     setDoc(settingsRef, { 
       targetMargin: Number(targetMargin),
       hourlyRate: Number(hourlyRate),
+      language,
+      currency,
+      weightUnit,
       cheerMessages: messages
     }, { merge: true })
       .then(() => {
@@ -164,7 +197,7 @@ export function AdminModule() {
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
       <header>
         <h2 className="text-3xl font-headline font-bold text-primary">Hallinta</h2>
-        <p className="text-muted-foreground">Hallitse tiimejä, käyttöoikeuksia ja asetuksia.</p>
+        <p className="text-muted-foreground">Hallitse tiimejä, käyttöoikeuksia ja sovelluksen asetuksia.</p>
       </header>
 
       <Tabs defaultValue="settings" className="w-full">
@@ -195,43 +228,98 @@ export function AdminModule() {
             <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
             <CardHeader>
               <CardTitle className="font-headline text-accent">Sovelluksen asetukset</CardTitle>
-              <CardDescription>Määritä koko järjestelmän kattavia parametreja.</CardDescription>
+              <CardDescription>Määritä koko järjestelmän kattavia parametreja ja kieli-asetuksia.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
-              <div className="space-y-4 max-w-sm">
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-[10px] uppercase font-black text-muted-foreground tracking-widest">
-                    <Percent className="w-4 h-4 text-accent" />
-                    Reseptiikan tavoitekatetuotto (%)
-                  </Label>
-                  <Input 
-                    type="number" 
-                    value={targetMargin} 
-                    onChange={(e) => setTargetMargin(Number(e.target.value))}
-                    className="bg-black/40 border-white/10 h-12 font-black text-xl text-accent"
-                  />
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Käytetään annosten hinnoittelun seurannassa.</p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="flex items-center gap-2 text-[10px] uppercase font-black text-muted-foreground tracking-widest">
-                    <Clock className="w-4 h-4 text-accent" />
-                    Tuntipalkka kuluineen (€/h)
-                  </Label>
-                  <div className="relative">
-                    <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-[10px] uppercase font-black text-muted-foreground tracking-widest">
+                      <Percent className="w-4 h-4 text-accent" />
+                      Reseptiikan tavoitekatetuotto (%)
+                    </Label>
                     <Input 
                       type="number" 
-                      value={hourlyRate} 
-                      onChange={(e) => setHourlyRate(Number(e.target.value))}
-                      className="pl-10 bg-black/40 border-white/10 h-12 font-black text-xl text-accent"
+                      value={targetMargin} 
+                      onChange={(e) => setTargetMargin(Number(e.target.value))}
+                      className="bg-black/40 border-white/10 h-12 font-black text-xl text-accent"
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-bold">Käytetään palkkakulujen laskentaan Tulos-sivulla.</p>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-[10px] uppercase font-black text-muted-foreground tracking-widest">
+                      <Clock className="w-4 h-4 text-accent" />
+                      Tuntipalkka kuluineen (€/h)
+                    </Label>
+                    <div className="relative">
+                      <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input 
+                        type="number" 
+                        value={hourlyRate} 
+                        onChange={(e) => setHourlyRate(Number(e.target.value))}
+                        className="pl-10 bg-black/40 border-white/10 h-12 font-black text-xl text-accent"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <Button onClick={saveSettings} className="w-full copper-gradient text-white font-black h-12 shadow-lg">TALLENNA ASETUKSET</Button>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-[10px] uppercase font-black text-muted-foreground tracking-widest">
+                      <Globe className="w-4 h-4 text-accent" />
+                      Sovelluksen kieli
+                    </Label>
+                    <Select value={language} onValueChange={setLanguage}>
+                      <SelectTrigger className="bg-black/40 border-white/10 h-12 font-bold text-foreground">
+                        <SelectValue placeholder="Valitse kieli" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border-white/10">
+                        {LANGUAGES.map(lang => (
+                          <SelectItem key={lang.id} value={lang.id} className="text-sm font-bold">{lang.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-[10px] uppercase font-black text-muted-foreground tracking-widest">
+                      <Coins className="w-4 h-4 text-accent" />
+                      Käytettävä valuutta
+                    </Label>
+                    <Select value={currency} onValueChange={setCurrency}>
+                      <SelectTrigger className="bg-black/40 border-white/10 h-12 font-bold text-foreground">
+                        <SelectValue placeholder="Valitse valuutta" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border-white/10">
+                        {CURRENCIES.map(curr => (
+                          <SelectItem key={curr.id} value={curr.id} className="text-sm font-bold">{curr.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-[10px] uppercase font-black text-muted-foreground tracking-widest">
+                      <Scale className="w-4 h-4 text-accent" />
+                      Painomittojen yksikkö
+                    </Label>
+                    <Select value={weightUnit} onValueChange={setWeightUnit}>
+                      <SelectTrigger className="bg-black/40 border-white/10 h-12 font-bold text-foreground">
+                        <SelectValue placeholder="Valitse yksikkö" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border-white/10">
+                        {WEIGHT_UNITS.map(unit => (
+                          <SelectItem key={unit.id} value={unit.id} className="text-sm font-bold">{unit.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
+
+              <Button onClick={saveSettings} className="w-full max-w-sm mx-auto flex copper-gradient text-white font-black h-14 shadow-lg metal-shine-overlay uppercase tracking-widest mt-8">
+                TALLENNA KAIKKI ASETUKSET
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
