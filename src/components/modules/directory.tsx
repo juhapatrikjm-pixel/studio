@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo } from "react"
@@ -5,11 +6,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Phone, MessageCircle, MoreHorizontal, Search, UserPlus, Mail, Trash2, ShieldCheck, QrCode, X, Check, Users, UserMinus, UserCog } from "lucide-react"
+import { Phone, MessageCircle, MoreHorizontal, Search, UserPlus, Mail, Trash2, ShieldCheck, QrCode, X, Check, Users, UserMinus, UserCog, Save } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, doc, setDoc, deleteDoc, query, orderBy } from "firebase/firestore"
-import { errorEmitter } from "@/firebase/error-emitter"
-import { FirestorePermissionError } from "@/firebase/errors"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -356,8 +355,8 @@ export function DirectoryModule() {
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-6 py-8 animate-in zoom-in-95 duration-500">
-              <div className="relative group cursor-pointer">
+            <div className="flex flex-col items-center gap-6 py-8 animate-in zoom-in-95 duration-500 text-center">
+              <div className="relative group cursor-pointer mx-auto">
                 <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full group-hover:bg-accent/40 transition-all" />
                 <div className="relative w-48 h-48 bg-white p-4 rounded-3xl shadow-2xl metal-shine-overlay">
                   <div className="w-full h-full border-4 border-black/5 flex flex-col items-center justify-center gap-2">
@@ -371,7 +370,7 @@ export function DirectoryModule() {
                 </div>
               </div>
               
-              <div className="text-center space-y-2">
+              <div className="space-y-2">
                 <div className="flex items-center justify-center gap-2 text-green-500 font-black uppercase text-xs tracking-widest">
                   <Check className="w-4 h-4" /> Kutsu Lähetetty
                 </div>
