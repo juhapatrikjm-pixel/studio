@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -167,14 +168,28 @@ export function AdminModule() {
       </header>
 
       <Tabs defaultValue="settings" className="w-full">
-        <TabsList className="grid w-full grid-cols-6 mb-6 bg-black/40 border border-white/5 p-1 h-12 overflow-x-auto">
-          <TabsTrigger value="settings" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Settings className="w-4 h-4" /> Yleiset</TabsTrigger>
-          <TabsTrigger value="order" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><LayoutGrid className="w-4 h-4" /> Järjestys</TabsTrigger>
-          <TabsTrigger value="cheers" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Smile className="w-4 h-4" /> Tsempit</TabsTrigger>
-          <TabsTrigger value="teams" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Users2 className="w-4 h-4" /> Tiimi</TabsTrigger>
-          <TabsTrigger value="roles" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Shield className="w-4 h-4" /> Oikeudet</TabsTrigger>
-          <TabsTrigger value="security" className="gap-2 font-black uppercase text-[10px] tracking-widest data-[state=active]:bg-primary/20 data-[state=active]:text-accent"><Lock className="w-4 h-4" /> Suojaus</TabsTrigger>
-        </TabsList>
+        <div className="relative w-full mb-8">
+          <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-background to-transparent pointer-events-none z-10 md:hidden" />
+          <TabsList className="flex w-full overflow-x-auto no-scrollbar bg-black/40 border border-white/5 p-1 h-auto min-h-[72px] justify-start md:justify-between items-stretch">
+            {[
+              { id: 'settings', icon: Settings, label: 'Yleiset' },
+              { id: 'order', icon: LayoutGrid, label: 'Järjestys' },
+              { id: 'cheers', icon: Smile, label: 'Tsempit' },
+              { id: 'teams', icon: Users2, label: 'Tiimi' },
+              { id: 'roles', icon: Shield, label: 'Oikeudet' },
+              { id: 'security', icon: Lock, label: 'Suojaus' },
+            ].map((tab) => (
+              <TabsTrigger 
+                key={tab.id}
+                value={tab.id} 
+                className="flex-1 flex flex-col items-center justify-center gap-1.5 px-4 py-3 min-w-[80px] data-[state=active]:bg-primary/20 data-[state=active]:text-accent transition-all group"
+              >
+                <tab.icon className="w-5 h-5 group-data-[state=active]:scale-110 transition-transform" />
+                <span className="font-black uppercase text-[8px] tracking-[0.15em]">{tab.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
         <TabsContent value="settings">
           <Card className="industrial-card">
