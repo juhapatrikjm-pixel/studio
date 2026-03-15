@@ -35,93 +35,14 @@
         "weightUnit": { "type": "string", "enum": ["kg/g", "lb/oz", "g", "oz"] }
       }
     },
-    "Contact": {
-      "title": "Contact",
-      "description": "Tiimin ja yhteistyökumppaneiden yhteystiedot",
+    "WasteGroup": {
+      "title": "WasteGroup",
+      "description": "Hävikkiryhmät (esim. Kala, Liha)",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
-        "phone": { "type": "string" },
-        "email": { "type": "string" },
-        "role": { "type": "string" },
-        "isTeamMember": { "type": "boolean" },
-        "invitedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["name", "phone", "email"]
-    },
-    "OnboardingTask": {
-      "title": "OnboardingTask",
-      "description": "Perehdytysohjelman tehtävät",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "description": { "type": "string" },
-        "category": { "type": "string", "enum": ["general", "hygiene", "safety", "tech", "quality"] },
-        "order": { "type": "number" }
-      },
-      "required": ["title", "category"]
-    },
-    "OnboardingProgress": {
-      "title": "OnboardingProgress",
-      "description": "Käyttäjän edistyminen perehdytyksessä",
-      "type": "object",
-      "properties": {
-        "userId": { "type": "string" },
-        "taskId": { "type": "string" },
-        "completedAt": { "type": "string", "format": "date-time" },
-        "completedBy": { "type": "string" }
-      }
-    },
-    "MisaList": {
-      "title": "MisaList",
-      "description": "Keittiön prep- ja valmistelulistat",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "category": { "type": "string", "enum": ["prep", "tukku", "puute"] },
-        "startDate": { "type": "string", "format": "date" },
-        "endDate": { "type": "string", "format": "date" },
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": { "type": "string" },
-              "text": { "type": "string" },
-              "quantity": { "type": "string" },
-              "completed": { "type": "boolean" }
-            }
-          }
-        }
-      },
-      "required": ["title"]
-    },
-    "Supplier": {
-      "title": "Supplier",
-      "description": "Tukkutoimittajat ja yhteistyökumppanit",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "url": { "type": "string" },
-        "phone": { "type": "string" },
-        "email": { "type": "string" },
-        "color": { "type": "string" }
-      },
-      "required": ["name"]
-    },
-    "Order": {
-      "title": "Order",
-      "description": "Tehdyt tilaukset ja toimitukset",
-      "type": "object",
-      "properties": {
-        "supplierId": { "type": "string" },
-        "supplierName": { "type": "string" },
-        "color": { "type": "string" },
-        "orderDate": { "type": "string", "format": "date-time" },
-        "arrivalDate": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["pending", "shipped", "arrived"] }
+        "index": { "type": "number" }
       }
     },
     "WasteProduct": {
@@ -129,6 +50,8 @@
       "description": "Hävikkiseurannassa käytettävät raaka-aineet",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
+        "groupId": { "type": "string" },
         "name": { "type": "string" },
         "pricePerKg": { "type": "number" }
       },
@@ -158,102 +81,19 @@
         "totalWasteCost": { "type": "number" },
         "totalPrepCost": { "type": "number" }
       }
-    },
-    "Equipment": {
-      "title": "Equipment",
-      "description": "Keittiön laitekanta",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "code": { "type": "string" }
-      }
-    },
-    "MaintenanceNote": {
-      "title": "MaintenanceNote",
-      "description": "Huoltoilmoitukset ja muistiinpanot",
-      "type": "object",
-      "properties": {
-        "text": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "createdBy": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "resolved"] }
-      },
-      "required": ["text"]
-    },
-    "Recipe": {
-      "title": "Recipe",
-      "description": "Keittiön reseptit",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "portions": { "type": "number" },
-        "ingredients": { "type": "array" },
-        "steps": { "type": "array" }
-      }
-    },
-    "FinancialRecord": {
-      "title": "FinancialRecord",
-      "description": "Päivittäiset talousluvut",
-      "type": "object",
-      "properties": {
-        "date": { "type": "string", "format": "date" },
-        "revenue": { "type": "number" },
-        "foodCost": { "type": "number" },
-        "laborCost": { "type": "number" }
-      },
-      "required": ["date", "revenue"]
-    },
-    "CalendarEvent": {
-      "title": "CalendarEvent",
-      "description": "Kalenterimerkinnät ja muistutukset",
-      "type": "object",
-      "properties": {
-        "title": { "type": "string" },
-        "date": { "type": "string", "format": "date" },
-        "color": { "type": "string" }
-      }
-    },
-    "TodoTask": {
-      "title": "TodoTask",
-      "description": "Yleiset tehtävälistat",
-      "type": "object",
-      "properties": {
-        "text": { "type": "string" },
-        "completed": { "type": "boolean" }
-      }
     }
   },
   "auth": {
-    "providers": ["google.com"]
+    "providers": ["google.com", "anonymous"]
   },
   "firestore": {
     "/userProfiles/{userId}": {
       "schema": "UserProfile",
       "description": "Käyttäjäprofiilit"
     },
-    "/contacts/{contactId}": {
-      "schema": "Contact",
-      "description": "Yhteystiedot"
-    },
-    "/onboardingTasks/{taskId}": {
-      "schema": "OnboardingTask",
-      "description": "Perehdytystehtävät"
-    },
-    "/onboardingProgress/{progressId}": {
-      "schema": "OnboardingProgress",
-      "description": "Käyttäjien perehdytysmerkinnät"
-    },
-    "/misaLists/{listId}": {
-      "schema": "MisaList",
-      "description": "Keittiön listat"
-    },
-    "/suppliers/{supplierId}": {
-      "schema": "Supplier",
-      "description": "Toimittajat"
-    },
-    "/orders/{orderId}": {
-      "schema": "Order",
-      "description": "Tilaukset"
+    "/wasteGroups/{groupId}": {
+      "schema": "WasteGroup",
+      "description": "Hävikkiryhmät"
     },
     "/wasteProducts/{productId}": {
       "schema": "WasteProduct",
@@ -267,37 +107,9 @@
       "schema": "MonthlyWaste",
       "description": "Kuukausiyhteenvedot"
     },
-    "/equipment/{equipId}": {
-      "schema": "Equipment",
-      "description": "Laitteet"
-    },
-    "/maintenanceNotes/{noteId}": {
-      "schema": "MaintenanceNote",
-      "description": "Huoltoilmoitukset"
-    },
-    "/recipes/{recipeId}": {
-      "schema": "Recipe",
-      "description": "Reseptit"
-    },
-    "/dishes/{dishId}": {
-      "schema": "Dish",
-      "description": "Annokset"
-    },
     "/settings/global": {
       "schema": "AppSetting",
       "description": "Yleiset asetukset"
-    },
-    "/financialRecords/{recordId}": {
-      "schema": "FinancialRecord",
-      "description": "Talousmerkinnät"
-    },
-    "/calendarEvents/{eventId}": {
-      "schema": "CalendarEvent",
-      "description": "Kalenteritapahtumat"
-    },
-    "/todoTasks/{taskId}": {
-      "schema": "TodoTask",
-      "description": "Yleiset tehtävät"
     }
   }
 }

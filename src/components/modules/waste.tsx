@@ -165,7 +165,8 @@ export function WasteModule() {
   const monthlyRef = useMemo(() => (firestore && currentMonthId ? doc(firestore, 'monthlyWaste', currentMonthId) : null), [firestore, currentMonthId])
   const entriesRef = useMemo(() => (firestore ? collection(firestore, 'wasteEntries') : null), [firestore])
 
-  const { data: groups = [] } = useCollection<WasteGroup>(groupsRef ? query(groupsRef, orderBy('index', 'asc')) : null)
+  const groupsQuery = useMemo(() => groupsRef ? query(groupsRef, orderBy('index', 'asc')) : null, [groupsRef])
+  const { data: groups = [] } = useCollection<WasteGroup>(groupsQuery)
   const { data: products = [] } = useCollection<WasteProduct>(productsRef)
   const { data: monthlyStats } = useDoc<MonthlyWaste>(monthlyRef)
   
@@ -202,7 +203,7 @@ export function WasteModule() {
       // Seed Products
       Object.entries(DEFAULT_PRODUCTS).forEach(([groupId, items]) => {
         items.forEach(item => {
-          const id = `${groupId}_${item.name.replace(/\s+/g, '_').toLowerCase()}`
+          const id = `${groupId}_${item.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}`
           batch.set(doc(productsRef, id), {
             id,
             groupId,
@@ -213,9 +214,10 @@ export function WasteModule() {
       })
 
       await batch.commit()
-      toast({ title: "Tiedot alustettu", description: "160+ tuotetta ladattu järjestelmään." })
-    } catch (e) {
-      toast({ variant: "destructive", title: "Virhe alustuksessa" })
+      toast({ title: "Tiedot alustettu", description: "Yli 160 tuotetta ladattu onnistuneesti." })
+    } catch (e: any) {
+      console.error("Seed error:", e)
+      toast({ variant: "destructive", title: "Virhe alustuksessa", description: e.message || "Tarkista verkkoasetukset." })
     } finally {
       setIsSeeding(false)
     }
@@ -315,7 +317,11 @@ export function WasteModule() {
     deleteDoc(doc(firestore, 'wasteProducts', id))
   }
 
-  if (!currentMonthId) return null;
+  if (!currentMonthId) return (
+    <div className="flex items-center justify-center p-20">
+      <Loader2 className="w-10 h-10 animate-spin text-accent" />
+    </div>
+  );
 
   return (
     <div className="flex flex-col gap-4 animate-in fade-in duration-700 pb-20">

@@ -3,10 +3,8 @@ import { z } from "zod";
 
 /**
  * @fileOverview Keskitetyt Zod-skeemat datan validointiin.
- * Auttaa estämään syöttövirheet ja varmistaa Firestore-datan laadun.
  */
 
-// Apuohjelma, joka hyväksyy numeron tai merkkijonon ja muuntaa sen validiksi numeroksi
 const numericValue = z.union([
   z.number(),
   z.string().transform((val) => {
@@ -31,12 +29,15 @@ export const wasteEntrySchema = z.object({
   productName: z.string().min(1),
   weight: z.union([
     z.number(),
-    z.string().transform((val) => Number(val.replace(',', '.')))
+    z.string().transform((val) => {
+      const n = Number(val.replace(',', '.'));
+      return isNaN(n) ? 0 : n;
+    })
   ]).pipe(z.number().gt(0, "Painon on oltava suurempi kuin 0")),
   cost: z.number().nonnegative(),
   type: z.enum(['prep', 'waste']),
   monthId: z.string().min(1),
-  date: z.any() // Firestore timestamp
+  date: z.any()
 });
 
 export const userProfileSchema = z.object({
