@@ -1,18 +1,20 @@
 'use client';
 
 /**
- * @fileOverview Firebase-konfiguraatio.
+ * @fileOverview Firebase-konfiguraatio projektille: workhub-industrial
  * 
- * NÄIN SAAT OIKEAN API-AVAIMEN:
- * 1. Mene osoitteeseen: https://console.firebase.google.com
+ * NÄIN SAAT SOVELLUKSEN LINKITETTYÄ:
+ * 1. Mene Firebase Consoleen (https://console.firebase.google.com)
  * 2. Valitse projektisi: workhub-industrial
  * 3. Klikkaa ratas-ikonia -> Project Settings
- * 4. Kopioi "Web API Key" ja sijoita se alla olevaan 'apiKey' kenttään.
+ * 4. Kopioi "Web API Key" ja liitä se alla olevaan 'apiKey' kenttään.
+ * 
+ * Jos projektia ei ole vielä luotu Firebaseen, sovellus toimii 'Demo-tilassa'.
  */
 
 export const firebaseConfig = {
-  // KORVAA TÄMÄ FIREBASE-KONSOLISTA SAATAVALLA AVAIMELLA
-  apiKey: "AIzaSyB-actual-api-key-from-your-project-settings", 
+  // TÄRKEÄÄ: Kopioi tähän API-avain Firebase-konsolista
+  apiKey: "AIzaSyB-varmista-api-avain-firebase-konsolista", 
   authDomain: "workhub-industrial.firebaseapp.com",
   projectId: "workhub-industrial",
   storageBucket: "workhub-industrial.firebasestorage.app",
