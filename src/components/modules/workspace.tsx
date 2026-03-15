@@ -104,7 +104,11 @@ export function WorkspaceModule() {
         icon: CookingPot
       }))
     ]
-    return logs.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 8)
+    return logs.sort((a, b) => {
+      const timeA = a.time ? new Date(a.time).getTime() : 0
+      const timeB = b.time ? new Date(b.time).getTime() : 0
+      return timeB - timeA
+    }).slice(0, 8)
   }, [latestRecipes, latestDishes])
 
   return (
@@ -235,7 +239,7 @@ export function WorkspaceModule() {
                 <div className="text-2xl font-black text-foreground leading-none">84%</div>
                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
               </CardContent>
-            </Card>
+            </div>
           </div>
         </div>
       </div>
