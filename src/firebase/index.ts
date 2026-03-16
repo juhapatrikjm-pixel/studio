@@ -13,10 +13,6 @@ export type FirebaseServices = {
   storage: FirebaseStorage;
 };
 
-/**
- * Alustaa Firebase-palvelut singleton-mallilla.
- * Varmistaa, ettei useita instansseja luoda uudelleenrenderöinnin yhteydessä.
- */
 export function initializeFirebase(): FirebaseServices {
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   const firestore = getFirestore(firebaseApp);

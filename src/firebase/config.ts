@@ -1,10 +1,4 @@
-
 'use client';
-
-/**
- * @fileOverview Firebase-konfiguraatio Wisemisa Bistro -projektille.
- * Käyttää NEXT_PUBLIC_ etuliitettä varmistaakseen näkyvyyden asiakaspuolella.
- */
 
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

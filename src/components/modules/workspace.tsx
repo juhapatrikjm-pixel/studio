@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -19,8 +20,10 @@ export function WorkspaceModule() {
   const currentUser = user?.displayName || (user?.isAnonymous ? "Demo-käyttäjä" : "Käyttäjä")
 
   const [todayDate, setTodayDate] = useState<string | null>(null)
+  const [isMounted, setIsMounted] = useState(false)
 
   useEffect(() => {
+    setIsMounted(true)
     setTodayDate(format(new Date(), 'yyyy-MM-dd'))
   }, [])
 
@@ -109,6 +112,8 @@ export function WorkspaceModule() {
       return timeB - timeA
     }).slice(0, 8)
   }, [latestRecipes, latestDishes])
+
+  if (!isMounted) return null
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-700">

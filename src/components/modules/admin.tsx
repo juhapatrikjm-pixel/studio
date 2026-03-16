@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -30,11 +31,11 @@ export function AdminModule() {
 
   useEffect(() => {
     if (settings) {
-      setTargetMargin(settings.targetMargin || 75)
-      setHourlyRate(settings.hourlyRate || 22)
-      setLanguage(settings.language || "fi")
-      setUnits(settings.units || "metric")
-      setCurrency(settings.currency || "EUR")
+      setTargetMargin(settings.targetMargin ?? 75)
+      setHourlyRate(settings.hourlyRate ?? 22)
+      setLanguage(settings.language ?? "fi")
+      setUnits(settings.units ?? "metric")
+      setCurrency(settings.currency ?? "EUR")
     }
   }, [settings])
 
@@ -113,7 +114,7 @@ export function AdminModule() {
                 <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Globe className="w-3 h-3" /> Kieli</Label>
                 <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
-                    <SelectValue />
+                    <SelectValue placeholder="Valitse kieli" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="fi">Suomi</SelectItem>
@@ -126,7 +127,7 @@ export function AdminModule() {
                 <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Scale className="w-3 h-3" /> Yksiköt</Label>
                 <Select value={units} onValueChange={setUnits}>
                   <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
-                    <SelectValue />
+                    <SelectValue placeholder="Valitse yksikkö" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="metric">Metrinen (kg/l)</SelectItem>
@@ -138,7 +139,7 @@ export function AdminModule() {
                 <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Coins className="w-3 h-3" /> Valuutta</Label>
                 <Select value={currency} onValueChange={setCurrency}>
                   <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
-                    <SelectValue />
+                    <SelectValue placeholder="Valitse valuutta" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="EUR">Euro (€)</SelectItem>
