@@ -153,6 +153,34 @@
       "schema": "object",
       "description": "Tilausseuranta"
     },
+    "/orderReminders/{reminderId}": {
+      "schema": "object",
+      "description": "Tilausmuistutukset"
+    },
+    "/archiveFolders/{folderId}": {
+      "schema": "object",
+      "description": "Arkiston kansionhallinta"
+    },
+    "/equipment/{equipId}": {
+      "schema": "object",
+      "description": "Keittiön laitelista"
+    },
+    "/maintenanceContacts/{contactId}": {
+      "schema": "object",
+      "description": "Huoltoliikkeiden yhteystiedot"
+    },
+    "/selfMonitoringTasks/{taskId}": {
+      "schema": "object",
+      "description": "Omavalvonnan tehtävämääritykset"
+    },
+    "/selfMonitoringRecords/{recordId}": {
+      "schema": "object",
+      "description": "Omavalvonnan päivittäiset kirjaukset"
+    },
+    "/misaLists/{listId}": {
+      "schema": "object",
+      "description": "MISA-, haku- ja puutelistat"
+    },
     "/settings/global": {
       "schema": "object",
       "description": "Keittiön globaalit asetukset"
