@@ -61,11 +61,11 @@ export function WorkspaceModule() {
 
   const isRead = useMemo(() => {
     if (!shiftInfo) return false
-    return (shiftInfo.acknowledgedBy || []).includes(currentUser) || readInfoIds.includes(shiftInfo.id)
+    return (shiftInfo.acknowledgedBy || []).includes(currentUser) || (shiftInfo.id && readInfoIds.includes(shiftInfo.id))
   }, [shiftInfo, currentUser, readInfoIds])
 
   const markAsRead = () => {
-    if (!firestore || !shiftInfo) return
+    if (!firestore || !shiftInfo || !shiftInfo.id) return
     setReadInfoIds(prev => [...prev, shiftInfo.id])
     const docRef = doc(firestore, 'shiftInfos', shiftInfo.id)
     updateDoc(docRef, {
@@ -85,7 +85,7 @@ export function WorkspaceModule() {
   }
 
   const deleteMaintenanceNote = (id: string) => {
-    if (!firestore) return
+    if (!firestore || !id) return
     deleteDoc(doc(firestore, 'maintenanceNotes', id))
   }
 
@@ -191,7 +191,9 @@ export function WorkspaceModule() {
                         <div className="w-1.5 h-8 copper-gradient rounded-full shrink-0" />
                         <div className="truncate">
                           <p className="text-sm font-bold text-foreground truncate">{note.text}</p>
-                          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">{note.createdAt ? format(note.createdAt.toDate(), 'd.M. HH:mm') : 'Nyt'}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">
+                            {note.createdAt ? format(note.createdAt.toDate(), 'd.M. HH:mm') : 'Nyt'}
+                          </p>
                         </div>
                       </div>
                       <Button variant="ghost" size="icon" onClick={() => deleteMaintenanceNote(note.id)} className="h-10 w-10 text-destructive/40 hover:text-destructive opacity-0 group-hover:opacity-100 shrink-0">
