@@ -1,4 +1,3 @@
-
 'use client';
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
@@ -19,11 +18,7 @@ export type FirebaseServices = {
  * Käyttää Singleton-mallia varmistaakseen, ettei useita instansseja luoda.
  */
 export function initializeFirebase(): FirebaseServices {
-  // Tarkistetaan, onko ympäristömuuttujat ladattu
-  if (!firebaseConfig.apiKey) {
-    console.warn("Firebase config is missing API key. Environment variables might not be loaded yet.");
-  }
-
+  // Varmistetaan, että alustus tapahtuu vain kerran
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   const firestore = getFirestore(firebaseApp);
   const auth = getAuth(firebaseApp);

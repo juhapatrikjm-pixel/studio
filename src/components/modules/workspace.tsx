@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -7,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Info, ChefHat, CookingPot, Wrench, Send, Trash2, CheckCircle, Zap, Users, Cloud } from "lucide-react"
 import { OmavalvontaStatusHeader } from "./omavalvonta"
 import { useUser, useFirestore, useCollection } from "@/firebase"
-import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
+import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc, Timestamp } from "firebase/firestore"
 import { format, formatDistanceToNow } from "date-fns"
 import { fi } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -89,26 +88,37 @@ export function WorkspaceModule() {
     deleteDoc(doc(firestore, 'maintenanceNotes', id))
   }
 
+  const safeFormatDate = (date: any) => {
+    if (!date) return "Äsken"
+    try {
+      const d = date instanceof Timestamp ? date.toDate() : new Date(date)
+      if (!d || isNaN(d.getTime())) return "Äsken"
+      return formatDistanceToNow(d, { addSuffix: true, locale: fi })
+    } catch (e) {
+      return "Äsken"
+    }
+  }
+
   const combinedLogs = useMemo(() => {
     const logs = [
       ...latestRecipes.map(r => ({
-        id: r.id,
-        text: `Uusi resepti: ${r.name}`,
+        id: r.id || Math.random().toString(),
+        text: `Uusi resepti: ${r.name || 'Nimetön'}`,
         time: r.createdAt,
         type: 'recipe',
         icon: ChefHat
       })),
       ...latestDishes.map(d => ({
-        id: d.id,
-        text: `Uusi annos: ${d.name}`,
+        id: d.id || Math.random().toString(),
+        text: `Uusi annos: ${d.name || 'Nimetön'}`,
         time: d.createdAt,
         type: 'dish',
         icon: CookingPot
       }))
     ]
     return logs.sort((a, b) => {
-      const timeA = a.time ? new Date(a.time).getTime() : 0
-      const timeB = b.time ? new Date(b.time).getTime() : 0
+      const timeA = a.time instanceof Timestamp ? a.time.toMillis() : (a.time ? new Date(a.time).getTime() : 0)
+      const timeB = b.time instanceof Timestamp ? b.time.toMillis() : (b.time ? new Date(b.time).getTime() : 0)
       return timeB - timeA
     }).slice(0, 8)
   }, [latestRecipes, latestDishes])
@@ -124,7 +134,7 @@ export function WorkspaceModule() {
         </div>
         <div className="flex items-center gap-3 opacity-60">
           <Badge variant="outline" className="border-green-500/50 text-green-500 font-black tracking-widest bg-green-500/5 px-2 py-0.5 h-5 text-[10px]">SYSTEM OK</Badge>
-          <span className="text-[10px] uppercase font-bold tracking-widest">ID: wisemisa-d2b98</span>
+          <span className="text-[10px] uppercase font-bold tracking-widest">ID: {user?.uid?.slice(0, 8) || 'wisemisa'}</span>
         </div>
       </header>
 
@@ -192,7 +202,7 @@ export function WorkspaceModule() {
                         <div className="truncate">
                           <p className="text-sm font-bold text-foreground truncate">{note.text}</p>
                           <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">
-                            {note.createdAt ? format(note.createdAt.toDate(), 'd.M. HH:mm') : 'Nyt'}
+                            {safeFormatDate(note.createdAt)}
                           </p>
                         </div>
                       </div>
@@ -214,19 +224,22 @@ export function WorkspaceModule() {
             </CardHeader>
             <CardContent className="p-6 pt-0">
               <div className="space-y-3">
-                {combinedLogs.map((log) => (
-                  <div key={log.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-transparent hover:bg-white/10 transition-all group">
-                    <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center border border-white/10 shrink-0">
-                      <log.icon className="w-5 h-5 text-accent" />
+                {combinedLogs.map((log) => {
+                  const IconComponent = log.icon;
+                  return (
+                    <div key={log.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-transparent hover:bg-white/10 transition-all group">
+                      <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center border border-white/10 shrink-0">
+                        <IconComponent className="w-5 h-5 text-accent" />
+                      </div>
+                      <div className="flex-1 overflow-hidden">
+                        <p className="text-sm font-black text-foreground leading-tight truncate">{log.text}</p>
+                        <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
+                          {safeFormatDate(log.time)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="flex-1 overflow-hidden">
-                      <p className="text-sm font-black text-foreground leading-tight truncate">{log.text}</p>
-                      <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
-                        {log.time ? formatDistanceToNow(new Date(log.time), { addSuffix: true, locale: fi }) : 'Äsken'}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </CardContent>
           </Card>

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -7,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Shield, Settings, Banknote, Users2, CreditCard, Info, Globe, Scale, Coins } from "lucide-react"
+import { Shield, Settings, Banknote, Users2, CreditCard, Info, Globe, Scale, Coins, Save } from "lucide-react"
 import { useFirestore, useDoc, useCollection, useUser } from "@/firebase"
 import { doc, setDoc, collection } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -56,7 +55,12 @@ export function AdminModule() {
       units, 
       currency 
     }, { merge: true })
-      .then(() => toast({ title: "Asetukset tallennettu" }))
+      .then(() => {
+        toast({ 
+          title: "Asetukset tallennettu",
+          description: "Keittiön parametrit on päivitetty onnistuneesti."
+        })
+      })
   }
 
   return (
@@ -77,7 +81,7 @@ export function AdminModule() {
         <Card className="industrial-card border-primary/20 bg-primary/5">
           <CardContent className="p-4 flex flex-col items-center text-center gap-1">
             <Banknote className="w-6 h-6 text-accent" />
-            <div className="text-2xl font-black text-foreground">{billing.total.toFixed(2)} €</div>
+            <div className="text-2xl font-black text-foreground">{billing.total.toFixed(2)} {currency}</div>
             <p className="text-[9px] font-black uppercase text-muted-foreground tracking-widest">ARVIOITU KK-HINTA</p>
           </CardContent>
         </Card>
@@ -114,7 +118,7 @@ export function AdminModule() {
                 <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Globe className="w-3 h-3" /> Kieli</Label>
                 <Select value={language} onValueChange={setLanguage}>
                   <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
-                    <SelectValue placeholder="Valitse kieli" />
+                    <SelectValue placeholder="Kieli" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="fi">Suomi</SelectItem>
@@ -127,7 +131,7 @@ export function AdminModule() {
                 <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Scale className="w-3 h-3" /> Yksiköt</Label>
                 <Select value={units} onValueChange={setUnits}>
                   <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
-                    <SelectValue placeholder="Valitse yksikkö" />
+                    <SelectValue placeholder="Yksiköt" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="metric">Metrinen (kg/l)</SelectItem>
@@ -139,7 +143,7 @@ export function AdminModule() {
                 <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Coins className="w-3 h-3" /> Valuutta</Label>
                 <Select value={currency} onValueChange={setCurrency}>
                   <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
-                    <SelectValue placeholder="Valitse valuutta" />
+                    <SelectValue placeholder="Valuutta" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="EUR">Euro (€)</SelectItem>
@@ -150,8 +154,8 @@ export function AdminModule() {
               </div>
             </div>
 
-            <Button onClick={saveSettings} className="w-full copper-gradient text-white font-black h-10 uppercase tracking-widest text-[10px] mt-2">
-              TALLENNA MUUTOKSET
+            <Button onClick={saveSettings} className="w-full copper-gradient text-white font-black h-12 uppercase tracking-widest text-[10px] mt-2 gap-2">
+              <Save className="w-4 h-4" /> TALLENNA MUUTOKSET
             </Button>
           </CardContent>
         </Card>
