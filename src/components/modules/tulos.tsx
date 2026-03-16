@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Euro, 
@@ -65,7 +66,6 @@ export function TulosModule() {
     comment: ""
   })
 
-  // KÄYTETÄÄN PALVELUKERROSTA LASKENTAAN
   const monthlyStats = useMemo(() => {
     const now = new Date()
     const currentMonthRecords = records.filter(r => {
@@ -146,11 +146,26 @@ export function TulosModule() {
               <Tabs value={entryType} onValueChange={(v: any) => setEntryType(v)}>
                 <TabsList className="grid w-full grid-cols-2 mb-4 bg-black/40"><TabsTrigger value="daily" className="text-[10px] font-black uppercase">PÄIVÄ</TabsTrigger><TabsTrigger value="monthly" className="text-[10px] font-black uppercase">KUUKAUSI</TabsTrigger></TabsList>
                 <div className="space-y-4">
-                  <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Päivämäärä</Label><Input type={entryType === 'daily' ? 'date' : 'month'} value={entryType === 'daily' ? formData.date : formData.month} onChange={(e) => setFormData({...formData, [entryType === 'daily' ? 'date' : 'month']: e.target.value})} className="bg-black/40 font-bold" /></div>
-                  <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Myynti</Label><div className="relative"><Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="0,00" value={formData.revenue} onChange={(e) => setFormData({...formData, revenue: e.target.value})} className="pl-10 text-lg font-black" /></div></div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Päivämäärä</Label>
+                    <Input type={entryType === 'daily' ? 'date' : 'month'} value={entryType === 'daily' ? formData.date : formData.month} onChange={(e) => setFormData({...formData, [entryType === 'daily' ? 'date' : 'month']: e.target.value})} className="bg-black/40 font-bold" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Myynti</Label>
+                    <div className="relative">
+                      <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input placeholder="0,00" value={formData.revenue} onChange={(e) => setFormData({...formData, revenue: e.target.value})} className="pl-10 text-lg font-black" />
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Ainekset €</Label><Input placeholder="0,00" value={formData.foodCost} onChange={(e) => setFormData({...formData, foodCost: e.target.value})} /></div>
-                    <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Tunnit (h)</Label><Input placeholder="0" value={formData.workHours} onChange={(e) => setFormData({...formData, workHours: e.target.value})} /></div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Ainekset €</Label>
+                      <Input placeholder="0,00" value={formData.foodCost} onChange={(e) => setFormData({...formData, foodCost: e.target.value})} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Tunnit (h)</Label>
+                      <Input placeholder="0" value={formData.workHours} onChange={(e) => setFormData({...formData, workHours: e.target.value})} />
+                    </div>
                   </div>
                 </div>
               </Tabs>
