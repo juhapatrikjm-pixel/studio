@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -49,9 +48,17 @@ export function OmavalvontaStatusHeader({ record }: { record: SMRecord | null })
     </Card>
   )
 
-  const recordDate = record?.date instanceof Timestamp ? record.date.toDate() : null
+  const getRecordDate = () => {
+    if (!record?.date) return null
+    if (record.date instanceof Timestamp) return record.date.toDate()
+    if (record.date?.seconds) return new Timestamp(record.date.seconds, record.date.nanoseconds || 0).toDate()
+    const d = new Date(record.date)
+    return isNaN(d.getTime()) ? null : d
+  }
+
+  const recordDate = getRecordDate()
   const daysSince = recordDate 
-    ? differenceInDays(new Date(), recordDate) 
+    ? Math.abs(differenceInDays(new Date(), recordDate)) 
     : (record ? 0 : 999)
   
   const isCritical = daysSince >= 7
@@ -77,10 +84,8 @@ export function OmavalvontaStatusHeader({ record }: { record: SMRecord | null })
             </h3>
             <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">
               {recordDate 
-                ? `Viimeisin kirjaus: ${format(recordDate, 'd.M.yyyy')} - ${record?.completedBy}` 
-                : record 
-                  ? "Päivitetään..." 
-                  : "Ei aiempia kirjauksia"}
+                ? `Viimeisin kirjaus: ${format(recordDate, 'd.M.yyyy')} - ${record?.completedBy || 'Tiimi'}` 
+                : "Ei aiempia kirjauksia"}
             </p>
           </div>
         </div>
@@ -115,18 +120,19 @@ export function OmavalvontaModule() {
   const latestRecord = records[0] || null
   const [currentValues, setCurrentValues] = useState<Record<string, string>>({})
   const [isCompletedToday, setIsCompletedToday] = useState(false)
-  const [userName, setUserName] = useState("John Smith")
-
-  const [newTaskName, setNewTaskName] = useState("")
-  const [newTaskType, setNewTaskType] = useState<'fridge' | 'task'>('fridge')
+  const [userName, setUserName] = useState("Käyttäjä")
 
   useEffect(() => {
-    if (latestRecord && latestRecord.date instanceof Timestamp) {
-      const date = latestRecord.date.toDate()
-      if (differenceInDays(new Date(), date) === 0) {
+    if (latestRecord?.date) {
+      let date: Date | null = null
+      if (latestRecord.date instanceof Timestamp) date = latestRecord.date.toDate()
+      else if (latestRecord.date?.seconds) date = new Timestamp(latestRecord.date.seconds, latestRecord.date.nanoseconds).toDate()
+      else date = new Date(latestRecord.date)
+
+      if (date && !isNaN(date.getTime()) && differenceInDays(new Date(), date) === 0) {
         setIsCompletedToday(latestRecord.status)
         setCurrentValues(latestRecord.values || {})
-        setUserName(latestRecord.completedBy)
+        setUserName(latestRecord.completedBy || "Käyttäjä")
       } else {
         setIsCompletedToday(false)
         setCurrentValues({})
@@ -185,6 +191,9 @@ export function OmavalvontaModule() {
   const updateValue = (taskId: string, val: string) => {
     setCurrentValues(prev => ({ ...prev, [taskId]: val }))
   }
+
+  const [newTaskName, setNewTaskName] = useState("")
+  const [newTaskType, setNewTaskType] = useState<'fridge' | 'task'>('fridge')
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">

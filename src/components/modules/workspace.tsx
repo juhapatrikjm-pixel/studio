@@ -91,7 +91,7 @@ export function WorkspaceModule() {
   const safeFormatDate = (date: any) => {
     if (!date) return "Äsken"
     try {
-      const d = date instanceof Timestamp ? date.toDate() : new Date(date)
+      const d = (date instanceof Timestamp) ? date.toDate() : new Date(date)
       if (!d || isNaN(d.getTime())) return "Äsken"
       return formatDistanceToNow(d, { addSuffix: true, locale: fi })
     } catch (e) {
@@ -102,14 +102,14 @@ export function WorkspaceModule() {
   const combinedLogs = useMemo(() => {
     const logs = [
       ...latestRecipes.map(r => ({
-        id: r.id || Math.random().toString(),
+        id: r.id || `recipe-${Math.random()}`,
         text: `Uusi resepti: ${r.name || 'Nimetön'}`,
         time: r.createdAt,
         type: 'recipe',
         icon: ChefHat
       })),
       ...latestDishes.map(d => ({
-        id: d.id || Math.random().toString(),
+        id: d.id || `dish-${Math.random()}`,
         text: `Uusi annos: ${d.name || 'Nimetön'}`,
         time: d.createdAt,
         type: 'dish',
@@ -117,9 +117,15 @@ export function WorkspaceModule() {
       }))
     ]
     return logs.sort((a, b) => {
-      const timeA = a.time instanceof Timestamp ? a.time.toMillis() : (a.time ? new Date(a.time).getTime() : 0)
-      const timeB = b.time instanceof Timestamp ? b.time.toMillis() : (b.time ? new Date(b.time).getTime() : 0)
-      return timeB - timeA
+      const getTime = (val: any) => {
+        if (val instanceof Timestamp) return val.toMillis()
+        if (val) {
+          const d = new Date(val)
+          return isNaN(d.getTime()) ? 0 : d.getTime()
+        }
+        return 0
+      }
+      return getTime(b.time) - getTime(a.time)
     }).slice(0, 8)
   }, [latestRecipes, latestDishes])
 

@@ -14,11 +14,9 @@ export type FirebaseServices = {
 };
 
 /**
- * Alustaa Firebase-palvelut vikasietoisesti.
- * Käyttää Singleton-mallia varmistaakseen, ettei useita instansseja luoda.
+ * Alustaa Firebase-palvelut Singleton-mallilla.
  */
 export function initializeFirebase(): FirebaseServices {
-  // Varmistetaan, että alustus tapahtuu vain kerran
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   const firestore = getFirestore(firebaseApp);
   const auth = getAuth(firebaseApp);
