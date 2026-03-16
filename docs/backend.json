@@ -69,17 +69,6 @@
         "createdAt": { "type": "string", "format": "date-time" }
       }
     },
-    "OnboardingTask": {
-      "title": "OnboardingTask",
-      "description": "Perehdytystehtävä",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
-        "category": { "type": "string" },
-        "order": { "type": "number" }
-      }
-    },
     "CloudFolder": {
       "title": "CloudFolder",
       "description": "Pilvitallennuksen kansio",
@@ -131,78 +120,6 @@
       "schema": "ShiftInfo",
       "description": "INFO-sivun tiedotteet"
     },
-    "/onboardingTasks/{taskId}": {
-      "schema": "OnboardingTask",
-      "description": "Perehdytyslistan tehtävät"
-    },
-    "/onboardingProgress/{progressId}": {
-      "schema": "object",
-      "description": "Käyttäjien perehdytymisen edistyminen"
-    },
-    "/onboardingMeta/{catId}": {
-      "schema": "object",
-      "description": "Perehdytyskategorioiden tavoitteet ja kysymykset"
-    },
-    "/recipes/{recipeId}": {
-      "schema": "object",
-      "description": "Reseptikirjasto"
-    },
-    "/dishes/{dishId}": {
-      "schema": "object",
-      "description": "Annoskortit"
-    },
-    "/financialRecords/{recordId}": {
-      "schema": "object",
-      "description": "Tulos-sivun talousdatan kirjaukset"
-    },
-    "/maintenanceNotes/{noteId}": {
-      "schema": "object",
-      "description": "Huoltopyynnöt ja ilmoitukset"
-    },
-    "/todoTasks/{taskId}": {
-      "schema": "object",
-      "description": "Yleinen tehtävälista"
-    },
-    "/calendarEvents/{eventId}": {
-      "schema": "object",
-      "description": "Kalenterimerkinnät"
-    },
-    "/suppliers/{supplierId}": {
-      "schema": "object",
-      "description": "Toimittajarekisteri"
-    },
-    "/orders/{orderId}": {
-      "schema": "object",
-      "description": "Tilausseuranta"
-    },
-    "/orderReminders/{reminderId}": {
-      "schema": "object",
-      "description": "Tilau s muistutukset"
-    },
-    "/archiveFolders/{folderId}": {
-      "schema": "object",
-      "description": "Arkiston kansionhallinta"
-    },
-    "/equipment/{equipId}": {
-      "schema": "object",
-      "description": "Keittiön laitelista"
-    },
-    "/maintenanceContacts/{contactId}": {
-      "schema": "object",
-      "description": "Huoltoliikkeiden yhteystiedot"
-    },
-    "/selfMonitoringTasks/{taskId}": {
-      "schema": "object",
-      "description": "Omavalvonnan tehtävämääritykset"
-    },
-    "/selfMonitoringRecords/{recordId}": {
-      "schema": "object",
-      "description": "Omavalvonnan päivittäiset kirjaukset"
-    },
-    "/misaLists/{listId}": {
-      "schema": "object",
-      "description": "MISA-, haku- ja puutelistat"
-    },
     "/cloudFolders/{folderId}": {
       "schema": "CloudFolder",
       "description": "Pilvitallennuksen kansiot"
@@ -215,9 +132,9 @@
       "schema": "object",
       "description": "Arkistoon ladatut reseptitiedostot"
     },
-    "/settings/global": {
+    "/maintenanceNotes/{noteId}": {
       "schema": "object",
-      "description": "Keittiön globaalit asetukset"
+      "description": "Huoltopyynnöt ja huomiot"
     }
   }
 }
