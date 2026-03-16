@@ -20,7 +20,7 @@ export const BASE_MENU_ITEMS = [
   { id: 'waste', path: '/dashboard/waste', icon: Trash2, label: 'Hävikki' },
   { id: 'onboarding', path: '/dashboard/onboarding', icon: GraduationCap, label: 'Perehdytys' },
   { id: 'todo-calendar', path: '/dashboard/todo-calendar', icon: CalendarDays, label: 'To do' },
-  { id: 'omavalvonta', path: '/dashboard/omavalvonta', icon: ShieldAlert, label: 'Valvonta' },
+  { id: 'omavalvonta', path: '/dashboard/omavalvonta', icon: ShieldAlert, label: 'OMAVALVONTA' },
   { id: 'misa', path: '/dashboard/misa', icon: ClipboardList, label: 'Misa' },
   { id: 'recipes', path: '/dashboard/recipes', icon: ChefHat, label: 'Reseptit' },
   { id: 'suppliers', path: '/dashboard/suppliers', icon: Truck, label: 'Tukut' },
