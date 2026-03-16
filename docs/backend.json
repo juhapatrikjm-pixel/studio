@@ -177,7 +177,7 @@
     },
     "/orderReminders/{reminderId}": {
       "schema": "object",
-      "description": "Tilausmuistutukset"
+      "description": "Tilau s muistutukset"
     },
     "/archiveFolders/{folderId}": {
       "schema": "object",
@@ -210,6 +210,10 @@
     "/cloudFiles/{fileId}": {
       "schema": "CloudFile",
       "description": "Pilvitallennuksen tiedostot"
+    },
+    "/uploadedRecipes/{fileId}": {
+      "schema": "object",
+      "description": "Arkistoon ladatut reseptitiedostot"
     },
     "/settings/global": {
       "schema": "object",
