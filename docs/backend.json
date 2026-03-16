@@ -16,23 +16,10 @@
         "logoUrl": { "type": "string" },
         "moduleOrder": { 
           "type": "array",
-          "items": { "type": "string" },
-          "description": "Käyttäjän järjestämä moduulijärjestys"
+          "items": { "type": "string" }
         },
+        "role": { "type": "string", "enum": ["admin", "worker"] },
         "updatedAt": { "type": "string", "format": "date-time" }
-      }
-    },
-    "AppSetting": {
-      "title": "AppSetting",
-      "description": "Sovelluksen globaalit asetukset",
-      "type": "object",
-      "properties": {
-        "targetMargin": { "type": "number" },
-        "hourlyRate": { "type": "number" },
-        "cheerMessages": { "type": "array", "items": { "type": "string" } },
-        "language": { "type": "string", "enum": ["fi", "en", "sv", "et", "ru"] },
-        "currency": { "type": "string", "enum": ["EUR", "USD", "GBP", "SEK", "RUB"] },
-        "weightUnit": { "type": "string", "enum": ["kg/g", "lb/oz", "g", "oz"] }
       }
     },
     "WasteGroup": {
@@ -47,15 +34,14 @@
     },
     "WasteProduct": {
       "title": "WasteProduct",
-      "description": "Hävikkiseurannassa käytettävät raaka-aineet",
+      "description": "Hävikkiraaka-aineet tukkuhinnoilla",
       "type": "object",
       "properties": {
         "id": { "type": "string" },
         "groupId": { "type": "string" },
         "name": { "type": "string" },
         "pricePerKg": { "type": "number" }
-      },
-      "required": ["name", "pricePerKg"]
+      }
     },
     "WasteEntry": {
       "title": "WasteEntry",
@@ -71,15 +57,27 @@
         "date": { "type": "string", "format": "date-time" }
       }
     },
-    "MonthlyWaste": {
-      "title": "MonthlyWaste",
-      "description": "Kuukausittainen hävikkiyhteenveto",
+    "ShiftInfo": {
+      "title": "ShiftInfo",
+      "description": "Päivittäiset INFO-tiedotteet",
       "type": "object",
       "properties": {
-        "monthId": { "type": "string" },
-        "monthName": { "type": "string" },
-        "totalWasteCost": { "type": "number" },
-        "totalPrepCost": { "type": "number" }
+        "date": { "type": "string" },
+        "bulletPoints": { "type": "array", "items": { "type": "string" } },
+        "freeText": { "type": "string" },
+        "acknowledgedBy": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "OnboardingTask": {
+      "title": "OnboardingTask",
+      "description": "Perehdytystehtävä",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "order": { "type": "number" }
       }
     }
   },
@@ -89,7 +87,7 @@
   "firestore": {
     "/userProfiles/{userId}": {
       "schema": "UserProfile",
-      "description": "Käyttäjäprofiilit"
+      "description": "Käyttäjien profiilit"
     },
     "/wasteGroups/{groupId}": {
       "schema": "WasteGroup",
@@ -104,12 +102,60 @@
       "description": "Hävikkikirjaukset"
     },
     "/monthlyWaste/{monthId}": {
-      "schema": "MonthlyWaste",
-      "description": "Kuukausiyhteenvedot"
+      "schema": "object",
+      "description": "Kuukausittaiset hävikkiyhteenvedot"
+    },
+    "/shiftInfos/{infoId}": {
+      "schema": "ShiftInfo",
+      "description": "INFO-sivun tiedotteet"
+    },
+    "/onboardingTasks/{taskId}": {
+      "schema": "OnboardingTask",
+      "description": "Perehdytyslistan tehtävät"
+    },
+    "/onboardingProgress/{progressId}": {
+      "schema": "object",
+      "description": "Käyttäjien perehdytymisen edistyminen"
+    },
+    "/onboardingMeta/{catId}": {
+      "schema": "object",
+      "description": "Perehdytyskategorioiden tavoitteet ja kysymykset"
+    },
+    "/recipes/{recipeId}": {
+      "schema": "object",
+      "description": "Reseptikirjasto"
+    },
+    "/dishes/{dishId}": {
+      "schema": "object",
+      "description": "Annoskortit"
+    },
+    "/financialRecords/{recordId}": {
+      "schema": "object",
+      "description": "Tulos-sivun talousdatan kirjaukset"
+    },
+    "/maintenanceNotes/{noteId}": {
+      "schema": "object",
+      "description": "Huoltopyynnöt ja ilmoitukset"
+    },
+    "/todoTasks/{taskId}": {
+      "schema": "object",
+      "description": "Yleinen tehtävälista"
+    },
+    "/calendarEvents/{eventId}": {
+      "schema": "object",
+      "description": "Kalenterimerkinnät"
+    },
+    "/suppliers/{supplierId}": {
+      "schema": "object",
+      "description": "Toimittajarekisteri"
+    },
+    "/orders/{orderId}": {
+      "schema": "object",
+      "description": "Tilausseuranta"
     },
     "/settings/global": {
-      "schema": "AppSetting",
-      "description": "Yleiset asetukset"
+      "schema": "object",
+      "description": "Keittiön globaalit asetukset"
     }
   }
 }
