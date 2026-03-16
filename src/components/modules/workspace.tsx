@@ -162,13 +162,13 @@ export function WorkspaceModule() {
             <div className="absolute top-0 left-0 w-full h-1 steel-detail metal-shine-overlay" />
             <CardHeader className="p-6 pb-2">
               <CardTitle className="font-headline text-lg font-black text-accent flex items-center gap-3 uppercase tracking-widest">
-                <Wrench className="w-6 h-6" /> HUOLLOT
+                <Wrench className="w-6 h-6" /> HUOMIOT & HUOLLOT
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 p-6">
               <div className="flex gap-4">
                 <Input 
-                  placeholder="Kirjaa huoltotarve..." 
+                  placeholder="Kirjaa huomio tai huoltotarve..." 
                   value={newMaintenanceText}
                   onChange={(e) => setNewMaintenanceText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addMaintenanceNote()}
