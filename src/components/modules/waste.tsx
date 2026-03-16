@@ -23,7 +23,7 @@ import {
   X
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp, increment, where, writeBatch } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp, increment, where, writeBatch, getDocs } from "firebase/firestore"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -66,76 +66,76 @@ const DEFAULT_GROUPS = [
 
 const DEFAULT_PRODUCTS: Record<string, { name: string, price: number }[]> = {
   meat: [
-    { name: 'Naudan jauheliha', price: 9.50 }, { name: 'Porsaan filee', price: 12.20 }, { name: 'Kana rinta', price: 14.50 },
-    { name: 'Pekoni', price: 8.90 }, { name: 'Karjalanpaisti', price: 11.00 }, { name: 'Naudan sisäpaisti', price: 18.50 },
-    { name: 'Broilerin koipi', price: 4.50 }, { name: 'Sian kylki', price: 7.80 }, { name: 'Lammas', price: 22.00 },
-    { name: 'Nakki', price: 6.50 }, { name: 'Kinkkuviipale', price: 9.20 }, { name: 'Naudan ulkofilee', price: 24.50 },
-    { name: 'Porsaan niska', price: 8.50 }, { name: 'Broilerin siivet', price: 5.90 }, { name: 'Naudan rinta', price: 13.50 },
-    { name: 'Porsaan potka', price: 6.20 }, { name: 'Kalkkuna', price: 11.50 }, { name: 'Riista', price: 28.00 },
-    { name: 'Maksapasteija', price: 7.20 }, { name: 'Lihaliemi-pohja', price: 5.50 }
+    { name: 'Naudan jauheliha 10%', price: 10.50 }, { name: 'Porsaan ulkofilee', price: 12.90 }, { name: 'Broilerin rintafilee', price: 15.20 },
+    { name: 'Pekoni viipale', price: 9.80 }, { name: 'Naudan sisäpaisti', price: 19.50 }, { name: 'Porsaan niska', price: 8.90 },
+    { name: 'Broilerin koipireisi', price: 4.90 }, { name: 'Karjalanpaisti liha', price: 11.50 }, { name: 'Lammas viulu', price: 24.50 },
+    { name: 'Nakki kuoreton', price: 6.90 }, { name: 'Kinkkuviipale', price: 10.20 }, { name: 'Naudan ulkofilee', price: 26.50 },
+    { name: 'Broilerin siivet', price: 6.20 }, { name: 'Naudan rinta', price: 14.50 }, { name: 'Porsaan potka', price: 6.80 },
+    { name: 'Kalkkunan filee', price: 12.50 }, { name: 'Hirven jauheliha', price: 22.00 }, { name: 'Maksapasteija', price: 7.80 },
+    { name: 'Lihaliemi-pohja', price: 5.90 }, { name: 'Salami suikale', price: 13.50 }
   ],
   fish: [
-    { name: 'Lohifilee', price: 22.50 }, { name: 'Kirjolohi', price: 18.20 }, { name: 'Kuha', price: 32.00 },
-    { name: 'Ahven', price: 28.50 }, { name: 'Siika', price: 26.00 }, { name: 'Silakka', price: 8.50 },
-    { name: 'Muikku', price: 12.50 }, { name: 'Turska', price: 16.50 }, { name: 'Katkarapu', price: 14.90 },
-    { name: 'Jättikatkarapu', price: 24.00 }, { name: 'Merilohi', price: 21.00 }, { name: 'Savulohi', price: 29.50 },
-    { name: 'Kylmäsavulohi', price: 34.00 }, { name: 'Graavilohi', price: 32.00 }, { name: 'Kalaliemi', price: 4.50 },
-    { name: 'Rapu', price: 19.50 }, { name: 'Simpukka', price: 11.50 }, { name: 'Mustekala', price: 15.00 },
-    { name: 'Tonnikala', price: 12.50 }, { name: 'Kalapuikko', price: 6.50 }
+    { name: 'Lohifilee D-leikkaus', price: 24.50 }, { name: 'Kirjolohifilee', price: 19.80 }, { name: 'Kuhafilee', price: 34.00 },
+    { name: 'Ahvenfilee', price: 29.50 }, { name: 'Siikafilee', price: 27.50 }, { name: 'Silakkafilee', price: 8.90 },
+    { name: 'Muikku perattu', price: 13.50 }, { name: 'Turskafilee', price: 17.50 }, { name: 'Katkarapu 180/200', price: 15.90 },
+    { name: 'Jättikatkaravun pyrstö', price: 26.00 }, { name: 'Savulohi pala', price: 31.50 }, { name: 'Kylmäsavulohi viipale', price: 36.00 },
+    { name: 'Graavilohi viipale', price: 34.00 }, { name: 'Kalaliemi tiiviste', price: 4.90 }, { name: 'Rapu perattu', price: 21.50 },
+    { name: 'Simpukka kuorellinen', price: 12.50 }, { name: 'Mustekala rengas', price: 16.50 }, { name: 'Tonnikala hiutale', price: 13.50 },
+    { name: 'Kalapuikko', price: 7.20 }, { name: 'Siian mäti', price: 85.00 }
   ],
   dairy: [
-    { name: 'Maito', price: 1.20 }, { name: 'Kerma 35%', price: 4.50 }, { name: 'Voi', price: 8.50 },
-    { name: 'Juustoraaste', price: 9.20 }, { name: 'Jogurtti', price: 2.50 }, { name: 'Viili', price: 1.80 },
-    { name: 'Rahka', price: 3.50 }, { name: 'Smetana', price: 6.50 }, { name: 'Creme fraiche', price: 5.80 },
-    { name: 'Raejuusto', price: 7.20 }, { name: 'Maidonvastike', price: 2.20 }, { name: 'Kasvirasva', price: 3.50 },
-    { name: 'Sulatejuusto', price: 8.90 }, { name: 'Homejuusto', price: 16.50 }, { name: 'Mozzarella', price: 11.50 },
-    { name: 'Parmesan', price: 24.00 }, { name: 'Fetajuusto', price: 13.50 }, { name: 'Halloumi', price: 15.50 },
-    { name: 'Kananmuna', price: 3.20 }, { name: 'Maitojauhe', price: 6.50 }
+    { name: 'Maito 1.5% 10L', price: 1.25 }, { name: 'Ruokakerma 15%', price: 3.80 }, { name: 'Kuohukerma 35%', price: 4.95 },
+    { name: 'Voi 500g', price: 8.90 }, { name: 'Juustoraaste emmental', price: 9.80 }, { name: 'Maustamaton jogurtti', price: 2.80 },
+    { name: 'Maitorahka', price: 3.80 }, { name: 'Smetana', price: 7.20 }, { name: 'Creme fraiche', price: 6.20 },
+    { name: 'Raejuusto', price: 7.80 }, { name: 'Kaurajuoma Barista', price: 2.40 }, { name: 'Kasvirasvasekoite', price: 3.20 },
+    { name: 'Sulatejuusto levittyvä', price: 9.50 }, { name: 'Aura-juusto muru', price: 17.50 }, { name: 'Mozzarella pallo', price: 12.50 },
+    { name: 'Parmesan raaste', price: 26.00 }, { name: 'Fetajuusto kuutio', price: 14.50 }, { name: 'Halloumi', price: 16.50 },
+    { name: 'Kananmuna M-koko', price: 3.50 }, { name: 'Maitojauhe', price: 7.20 }
   ],
   fruitveg: [
-    { name: 'Omena', price: 2.50 }, { name: 'Banaani', price: 1.80 }, { name: 'Appelsiini', price: 2.20 },
-    { name: 'Tomaatti', price: 3.50 }, { name: 'Kurkku', price: 2.80 }, { name: 'Jäävuorisalaatti', price: 4.20 },
-    { name: 'Paprika', price: 5.50 }, { name: 'Porkkana', price: 1.20 }, { name: 'Peruna', price: 0.90 },
-    { name: 'Sipuli', price: 1.50 }, { name: 'Valkosipuli', price: 8.50 }, { name: 'Parsakaali', price: 4.80 },
-    { name: 'Kukkakaali', price: 3.90 }, { name: 'Pinaatti', price: 9.50 }, { name: 'Herkkusieni', price: 7.50 },
-    { name: 'Marjat', price: 12.50 }, { name: 'Rypäle', price: 4.50 }, { name: 'Meloni', price: 2.20 },
-    { name: 'Sitruuna', price: 3.20 }, { name: 'Lime', price: 5.50 }
+    { name: 'Omena Granny Smith', price: 2.80 }, { name: 'Banaani', price: 1.95 }, { name: 'Appelsiini Navel', price: 2.40 },
+    { name: 'Tomaatti irtotomaatti', price: 3.80 }, { name: 'Kurkku suomalainen', price: 2.95 }, { name: 'Jäävuorisalaatti', price: 4.50 },
+    { name: 'Paprika punainen', price: 5.90 }, { name: 'Porkkana pesty', price: 1.35 }, { name: 'Sipuli keltasipuli', price: 1.65 },
+    { name: 'Valkosipuli kuorittu', price: 9.50 }, { name: 'Parsakaali', price: 5.20 }, { name: 'Kukkakaali', price: 4.20 },
+    { name: 'Pinaatti tuore', price: 10.50 }, { name: 'Herkkusieni valkoinen', price: 7.90 }, { name: 'Pensasmustikka', price: 14.50 },
+    { name: 'Rypäle vihreä', price: 4.80 }, { name: 'Meloni Cantaloupe', price: 2.50 }, { name: 'Sitruuna', price: 3.50 },
+    { name: 'Lime', price: 5.90 }, { name: 'Yrtit ruukku (keskiarvo)', price: 18.00 }
   ],
   roots: [
-    { name: 'Peruna yleis', price: 0.85 }, { name: 'Porkkana', price: 1.10 }, { name: 'Lanttu', price: 1.40 },
-    { name: 'Punajuuri', price: 1.60 }, { name: 'Nauris', price: 1.90 }, { name: 'Juuriselleri', price: 2.50 },
-    { name: 'Palsternakka', price: 3.20 }, { name: 'Keltasipuli', price: 1.30 }, { name: 'Punasipuli', price: 1.80 },
-    { name: 'Purjosipuli', price: 3.50 }, { name: 'Valkosipuli', price: 7.90 }, { name: 'Inkivääri', price: 6.50 },
-    { name: 'Piparjuuri', price: 14.50 }, { name: 'Radis', price: 4.20 }, { name: 'Retikka', price: 2.80 },
-    { name: 'Jamssi', price: 5.50 }, { name: 'Bataatti', price: 2.90 }, { name: 'Artisokka', price: 8.50 },
-    { name: 'Maa-artisokka', price: 6.20 }, { name: 'Wasabi-juuri', price: 45.00 }
+    { name: 'Peruna yleisperuna', price: 0.95 }, { name: 'Porkkana 1-luokka', price: 1.25 }, { name: 'Lanttu pesty', price: 1.55 },
+    { name: 'Punajuuri pesty', price: 1.75 }, { name: 'Nauris', price: 2.10 }, { name: 'Juuriselleri', price: 2.80 },
+    { name: 'Palsternakka', price: 3.50 }, { name: 'Punasipuli', price: 1.95 }, { name: 'Purjosipuli', price: 3.80 },
+    { name: 'Inkivääri tuore', price: 7.50 }, { name: 'Piparjuuri', price: 16.50 }, { name: 'Retikka', price: 3.20 },
+    { name: 'Bataatti', price: 3.20 }, { name: 'Maa-artisokka', price: 7.50 }, { name: 'Peruna Rosamunda', price: 1.15 },
+    { name: 'Sipuli kuorittu', price: 2.40 }, { name: 'Porkkana kuorittu', price: 1.90 }, { name: 'Punajuuri kuorittu', price: 2.60 },
+    { name: 'Piparpaprika', price: 12.00 }, { name: 'Wasabi-tahna', price: 28.00 }
   ],
   bakery: [
-    { name: 'Ruisleipä', price: 5.50 }, { name: 'Vaalea leipä', price: 4.20 }, { name: 'Sämpylä', price: 6.50 },
-    { name: 'Paistopiste-leipä', price: 4.80 }, { name: 'Pulla', price: 8.50 }, { name: 'Viineri', price: 12.50 },
-    { name: 'Täytekakku', price: 22.00 }, { name: 'Keksi', price: 9.50 }, { name: 'Korppu', price: 7.20 },
-    { name: 'Näkkileipä', price: 6.50 }, { name: 'Tortilla', price: 5.80 }, { name: 'Pitaleipä', price: 6.20 },
-    { name: 'Bagel', price: 8.90 }, { name: 'Croissant', price: 11.50 }, { name: 'Munkki', price: 9.20 },
-    { name: 'Donitsi', price: 10.50 }, { name: 'Piirakka', price: 14.00 }, { name: 'Pizzapohja', price: 5.50 },
-    { name: 'Taikina', price: 4.20 }, { name: 'Jauhot', price: 1.50 }
+    { name: 'Ruisleipä viipaloitu', price: 5.80 }, { name: 'Vaalea paahtoleipä', price: 4.50 }, { name: 'Sämpylä monivilja', price: 6.90 },
+    { name: 'Patonki esipaistettu', price: 5.20 }, { name: 'Voipulla', price: 9.50 }, { name: 'Viineri vadelma', price: 13.50 },
+    { name: 'Täytekakku kermassa', price: 24.50 }, { name: 'Keksi valikoima', price: 10.50 }, { name: 'Korppu kaurainen', price: 7.80 },
+    { name: 'Näkkileipä', price: 6.90 }, { name: 'Tortilla 10-tuuma', price: 6.20 }, { name: 'Pitaleipä', price: 6.80 },
+    { name: 'Croissant voi', price: 12.50 }, { name: 'Munkki sokeri', price: 9.80 }, { name: 'Donitsi suklaa', price: 11.50 },
+    { name: 'Karjalanpiirakka', price: 15.00 }, { name: 'Pizzapohja raaka', price: 5.90 }, { name: 'Vehnäjauho 25kg', price: 1.10 },
+    { name: 'Korppujauho', price: 4.50 }, { name: 'Muffinssi suklaa', price: 12.00 }
   ],
   frozen: [
-    { name: 'Pakastevihannes', price: 3.50 }, { name: 'Pakastemarja', price: 8.50 }, { name: 'Pakastekala', price: 14.50 },
-    { name: 'Pakasteliha', price: 11.20 }, { name: 'Ranskalaiset', price: 2.80 }, { name: 'Pakastepizza', price: 7.50 },
-    { name: 'Valmisruoka', price: 6.50 }, { name: 'Jäätelö', price: 9.50 }, { name: 'Leivonnaispakaste', price: 10.20 },
-    { name: 'Jääpala', price: 1.50 }, { name: 'Smoothie-aines', price: 12.00 }, { name: 'Pakasteyrtti', price: 18.50 },
-    { name: 'Pakasteperuna', price: 2.20 }, { name: 'Pakastemuhennos', price: 5.50 }, { name: 'Pakastekeitto', price: 4.80 },
-    { name: 'Pakastekastike', price: 6.20 }, { name: 'Pakastepasta', price: 5.50 }, { name: 'Pakasteleipä', price: 4.50 },
-    { name: 'Pakastehedelmä', price: 7.20 }, { name: 'Pakastesieni', price: 14.00 }
+    { name: 'Pakasteherne', price: 3.80 }, { name: 'Pakastemustikka', price: 9.50 }, { name: 'Pakastevadelma', price: 11.50 },
+    { name: 'Pakasteperunasuikale', price: 2.40 }, { name: 'Ranskalaiset perunat', price: 3.10 }, { name: 'Pakastekatkarapu', price: 15.50 },
+    { name: 'Pakastekala-annos', price: 12.50 }, { name: 'Jäätelö vanilja 5L', price: 8.50 }, { name: 'Lehtitaikina levy', price: 6.50 },
+    { name: 'Pizzasuikale pakaste', price: 10.50 }, { name: 'Pakastemaissi', price: 4.20 }, { name: 'Pakastemansikka', price: 7.80 },
+    { name: 'Pakastekeittojuures', price: 2.90 }, { name: 'Pakastepinaatti', price: 5.80 }, { name: 'Pakastebroileri-pala', price: 11.50 },
+    { name: 'Jääpala pussi', price: 1.80 }, { name: 'Smoothie-mix', price: 13.50 }, { name: 'Pakastesieni-sekoitus', price: 15.00 },
+    { name: 'Wok-vihannes pakaste', price: 4.80 }, { name: 'Pakasteleipä taikina', price: 5.20 }
   ],
   dry: [
-    { name: 'Vehnäjauho', price: 1.20 }, { name: 'Sokeri', price: 1.50 }, { name: 'Suola', price: 0.80 },
-    { name: 'Mausteseos', price: 18.50 }, { name: 'Pasta', price: 2.20 }, { name: 'Riisi', price: 2.50 },
-    { name: 'Nuudeli', price: 3.50 }, { name: 'Ryyni', price: 1.80 }, { name: 'Hiutale', price: 1.50 },
-    { name: 'Murot', price: 5.50 }, { name: 'Palkokasvi', price: 3.20 }, { name: 'Öljy', price: 4.50 },
-    { name: 'Etikka', price: 3.80 }, { name: 'Kastike-kuiva', price: 8.50 }, { name: 'Säilyke', price: 5.20 },
-    { name: 'Kahvi', price: 14.00 }, { name: 'Tee', price: 22.00 }, { name: 'Kaakao', price: 9.50 },
-    { name: 'Pähkinä', price: 16.50 }, { name: 'Siemen', price: 12.50 }
+    { name: 'Vehnäjauho puolikarkea', price: 1.25 }, { name: 'Sokeri hienosokeri', price: 1.65 }, { name: 'Merisuola hieno', price: 0.95 },
+    { name: 'Maustepippuri kokonainen', price: 22.50 }, { name: 'Pasta fusilli', price: 2.40 }, { name: 'Riisi jasmiini', price: 2.80 },
+    { name: 'Nuudeli vehnä', price: 3.80 }, { name: 'Kaurahiutale', price: 1.75 }, { name: 'Murot maissi', price: 5.90 },
+    { name: 'Punainen linssi', price: 3.50 }, { name: 'Rypsiöljy 10L', price: 3.20 }, { name: 'Oliiviöljy extra virgin', price: 14.50 },
+    { name: 'Väkiviinaetikka', price: 2.20 }, { name: 'Soijakastike', price: 8.90 }, { name: 'Tomaattipyree', price: 5.50 },
+    { name: 'Kahvi vaalea paahto', price: 15.00 }, { name: 'Tee Earl Grey', price: 24.50 }, { name: 'Kaakaojauhe', price: 10.50 },
+    { name: 'Saksanpähkinä', price: 18.50 }, { name: 'Seesaminsiemen', price: 13.50 }
   ]
 }
 
@@ -173,9 +173,13 @@ export function WasteModule() {
     try {
       const batch = writeBatch(firestore)
       
-      // Tyhjennetään vanhat
-      groups.forEach(g => batch.delete(doc(firestore, 'wasteGroups', g.id)))
-      products.forEach(p => batch.delete(doc(firestore, 'wasteProducts', p.id)))
+      // Tyhjennetään vanhat ryhmät
+      const currentGroups = await getDocs(collection(firestore, 'wasteGroups'))
+      currentGroups.forEach(g => batch.delete(doc(firestore, 'wasteGroups', g.id)))
+
+      // Tyhjennetään vanhat tuotteet
+      const currentProducts = await getDocs(collection(firestore, 'wasteProducts'))
+      currentProducts.forEach(p => batch.delete(doc(firestore, 'wasteProducts', p.id)))
 
       // Luodaan ryhmät
       DEFAULT_GROUPS.forEach(g => {
@@ -195,10 +199,10 @@ export function WasteModule() {
       })
 
       await batch.commit()
-      toast({ title: "Tuotteet alustettu", description: "8 ryhmää ja 160 tuotetta ladattu." })
+      toast({ title: "Tuotteet ja hinnat päivitetty", description: "160 tuotetta ladattu uusimmilla tukkuhinnoilla." })
     } catch (e: any) {
       console.error("Seed error:", e)
-      toast({ variant: "destructive", title: "Alustus epäonnistui", description: e.message })
+      toast({ variant: "destructive", title: "Päivitys epäonnistui", description: e.message })
     } finally {
       setIsSeeding(false)
     }
