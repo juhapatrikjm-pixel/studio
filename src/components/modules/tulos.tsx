@@ -1,21 +1,18 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
-  TrendingUp, 
   Euro, 
   BarChart3, 
   Save, 
   Trash2, 
   Calculator, 
   History as HistoryIcon,
-  Gem,
-  AlertCircle
+  Gem
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp } from "firebase/firestore"
@@ -25,6 +22,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from "recharts"
 import { cn } from "@/lib/utils"
 import { financialSchema } from "@/lib/validations"
+import { calculateFinancials } from "@/lib/calculations"
 
 type FinancialRecord = {
   id: string
@@ -58,8 +56,8 @@ export function TulosModule() {
 
   const [entryType, setEntryType] = useState<'daily' | 'monthly'>('daily')
   const [formData, setFormData] = useState({
-    date: "",
-    month: "",
+    date: format(new Date(), 'yyyy-MM-dd'),
+    month: format(new Date(), 'yyyy-MM'),
     revenue: "",
     foodCost: "",
     workHours: "",
@@ -67,39 +65,17 @@ export function TulosModule() {
     comment: ""
   })
 
-  useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      date: format(new Date(), 'yyyy-MM-dd'),
-      month: format(new Date(), 'yyyy-MM')
-    }))
-  }, [])
-
+  // KÄYTETÄÄN PALVELUKERROSTA LASKENTAAN
   const monthlyStats = useMemo(() => {
     const now = new Date()
     const currentMonthRecords = records.filter(r => {
       try {
         const d = r.entryType === 'monthly' ? parseISO(r.date + "-01") : parseISO(r.date)
         return isSameMonth(d, now)
-      } catch (e) {
-        return false
-      }
+      } catch (e) { return false }
     })
-    
-    const totals = currentMonthRecords.reduce((acc, curr) => ({
-      revenue: acc.revenue + (curr.revenue || 0),
-      foodCost: acc.foodCost + (curr.foodCost || 0),
-      laborCost: acc.laborCost + (curr.laborCost || 0),
-      workHours: acc.workHours + (curr.workHours || 0),
-      otherExpenses: acc.otherExpenses + (curr.otherExpenses || 0),
-    }), { revenue: 0, foodCost: 0, laborCost: 0, workHours: 0, otherExpenses: 0 })
-
-    const profit = totals.revenue - totals.foodCost - totals.laborCost - totals.otherExpenses
-    const foodCostPerc = totals.revenue > 0 ? (totals.foodCost / totals.revenue) * 100 : 0
-    const laborCostPerc = totals.revenue > 0 ? (totals.laborCost / totals.revenue) * 100 : 0
-
-    return { totals, profit, foodCostPerc, laborCostPerc }
-  }, [records])
+    return calculateFinancials(currentMonthRecords, hourlyRate);
+  }, [records, hourlyRate])
 
   const chartData = useMemo(() => {
     return records.slice(0, 10).reverse().map(r => {
@@ -114,52 +90,26 @@ export function TulosModule() {
 
   const handleSave = () => {
     if (!firestore || !recordsRef) return
-    
     const recordDate = entryType === 'daily' ? formData.date : formData.month
     const laborCost = (Number(formData.workHours.replace(',', '.')) || 0) * hourlyRate
 
     const rawData = {
-      date: recordDate,
-      entryType,
-      revenue: formData.revenue,
-      foodCost: formData.foodCost,
-      workHours: formData.workHours,
-      laborCost: laborCost,
-      otherExpenses: formData.otherExpenses || 0,
-      comment: formData.comment
+      date: recordDate, entryType, revenue: formData.revenue, foodCost: formData.foodCost,
+      workHours: formData.workHours, laborCost: laborCost,
+      otherExpenses: formData.otherExpenses || 0, comment: formData.comment
     }
 
-    // Validointi Zodilla
     const result = financialSchema.safeParse(rawData)
-
     if (!result.success) {
-      const errorMsg = result.error.errors[0].message
-      toast({ 
-        variant: "destructive", 
-        title: "Syöttövirhe", 
-        description: errorMsg 
-      })
+      toast({ variant: "destructive", title: "Syöttövirhe", description: result.error.errors[0].message });
       return
     }
 
-    const docRef = doc(firestore, 'financialRecords', recordDate)
-    const dataToSave = {
-      ...result.data,
-      id: recordDate,
-      createdAt: serverTimestamp()
-    }
-
-    setDoc(docRef, dataToSave, { merge: true }).then(() => {
-      toast({ title: "Tiedot tallennettu" })
-      setFormData(prev => ({ ...prev, revenue: "", foodCost: "", workHours: "", otherExpenses: "", comment: "" }))
-    }).catch(e => {
-      toast({ variant: "destructive", title: "Tallennus epäonnistui", description: "Tarkista verkkoasetukset." })
-    })
-  }
-
-  const deleteRecord = (id: string) => {
-    if (!firestore) return
-    deleteDoc(doc(firestore, 'financialRecords', id))
+    setDoc(doc(firestore, 'financialRecords', recordDate), { ...result.data, id: recordDate, createdAt: serverTimestamp() }, { merge: true })
+      .then(() => {
+        toast({ title: "Tiedot tallennettu" });
+        setFormData({ ...formData, revenue: "", foodCost: "", workHours: "", otherExpenses: "", comment: "" });
+      })
   }
 
   return (
@@ -169,7 +119,6 @@ export function TulosModule() {
           <Gem className="w-6 h-6 text-accent" />
           <h2 className="text-2xl font-headline font-black copper-text-glow uppercase tracking-tighter">Tulos</h2>
         </div>
-        <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest opacity-40">Financial Analysis</span>
       </header>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -179,14 +128,11 @@ export function TulosModule() {
           { label: "PALKKA %", val: `${monthlyStats.laborCostPerc.toFixed(1)} %`, color: "steel-detail" },
           { label: "KATE", val: `${monthlyStats.profit.toLocaleString('fi-FI')} €`, color: "copper-gradient", highlight: true },
         ].map((kpi, i) => (
-          <Card key={i} className="industrial-card overflow-hidden border-none p-[1px] bg-gradient-to-br from-white/10 to-transparent">
+          <Card key={i} className="industrial-card overflow-hidden">
             <div className={cn("absolute top-0 left-0 w-full h-1", kpi.color)} />
-            <CardContent className="p-4 bg-card rounded-[calc(var(--radius)-1px)] text-center">
+            <CardContent className="p-4 text-center">
               <p className="text-[10px] uppercase font-black text-muted-foreground/60 tracking-widest mb-1">{kpi.label}</p>
-              <div className={cn(
-                "text-xl font-black tabular-nums",
-                kpi.highlight ? (monthlyStats.profit >= 0 ? "text-green-500" : "text-destructive") : "text-foreground"
-              )}>{kpi.val}</div>
+              <div className={cn("text-xl font-black tabular-nums", kpi.highlight ? (monthlyStats.profit >= 0 ? "text-green-500" : "text-destructive") : "text-foreground")}>{kpi.val}</div>
             </CardContent>
           </Card>
         ))}
@@ -195,60 +141,29 @@ export function TulosModule() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 space-y-6">
           <Card className="industrial-card">
-            <CardHeader>
-              <CardTitle className="text-sm font-black text-accent flex items-center gap-2 uppercase tracking-widest">
-                <Calculator className="w-4 h-4" /> UUSI KIRJAUS
-              </CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm font-black text-accent flex items-center gap-2 uppercase tracking-widest"><Calculator className="w-4 h-4" /> UUSI KIRJAUS</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <Tabs value={entryType} onValueChange={(v: any) => setEntryType(v)}>
-                <TabsList className="grid w-full grid-cols-2 mb-4 bg-black/40">
-                  <TabsTrigger value="daily" className="text-[10px] font-black uppercase">PÄIVÄ</TabsTrigger>
-                  <TabsTrigger value="monthly" className="text-[10px] font-black uppercase">KUUKAUSI</TabsTrigger>
-                </TabsList>
+                <TabsList className="grid w-full grid-cols-2 mb-4 bg-black/40"><TabsTrigger value="daily" className="text-[10px] font-black uppercase">PÄIVÄ</TabsTrigger><TabsTrigger value="monthly" className="text-[10px] font-black uppercase">KUUKAUSI</TabsTrigger></TabsList>
                 <div className="space-y-4">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Päivämäärä</Label>
-                    <Input 
-                      type={entryType === 'daily' ? 'date' : 'month'} 
-                      value={entryType === 'daily' ? formData.date : formData.month}
-                      onChange={(e) => setFormData({...formData, [entryType === 'daily' ? 'date' : 'month']: e.target.value})}
-                      className="bg-black/40 h-11 font-bold border-white/5"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] uppercase font-bold text-muted-foreground">Myynti (ALV 0%)</Label>
-                    <div className="relative">
-                      <Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input type="text" placeholder="0,00" value={formData.revenue} onChange={(e) => setFormData({...formData, revenue: e.target.value})} className="pl-10 bg-white/5 h-11 text-lg font-black border-white/10" />
-                    </div>
-                  </div>
+                  <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Päivämäärä</Label><Input type={entryType === 'daily' ? 'date' : 'month'} value={entryType === 'daily' ? formData.date : formData.month} onChange={(e) => setFormData({...formData, [entryType === 'daily' ? 'date' : 'month']: e.target.value})} className="bg-black/40 font-bold" /></div>
+                  <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Myynti</Label><div className="relative"><Euro className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" /><Input placeholder="0,00" value={formData.revenue} onChange={(e) => setFormData({...formData, revenue: e.target.value})} className="pl-10 text-lg font-black" /></div></div>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Raaka-aineet €</Label>
-                      <Input type="text" placeholder="0,00" value={formData.foodCost} onChange={(e) => setFormData({...formData, foodCost: e.target.value})} className="bg-white/5 h-11 font-bold border-white/10" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] uppercase font-bold text-muted-foreground">Työtunnit (h)</Label>
-                      <Input type="text" placeholder="0" value={formData.workHours} onChange={(e) => setFormData({...formData, workHours: e.target.value})} className="bg-white/5 h-11 font-bold border-white/10" />
-                    </div>
+                    <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Ainekset €</Label><Input placeholder="0,00" value={formData.foodCost} onChange={(e) => setFormData({...formData, foodCost: e.target.value})} /></div>
+                    <div className="space-y-1"><Label className="text-[10px] uppercase font-bold text-muted-foreground">Tunnit (h)</Label><Input placeholder="0" value={formData.workHours} onChange={(e) => setFormData({...formData, workHours: e.target.value})} /></div>
                   </div>
                 </div>
               </Tabs>
-              <Button onClick={handleSave} className="w-full copper-gradient text-white font-black h-12 uppercase tracking-widest mt-2">TALLENNA TIEDOT</Button>
+              <Button onClick={handleSave} className="w-full copper-gradient text-white font-black h-12 uppercase tracking-widest mt-2">TALLENNA</Button>
             </CardContent>
           </Card>
         </div>
 
         <div className="lg:col-span-8 space-y-6">
           <Card className="industrial-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-black text-accent flex items-center gap-2 uppercase tracking-widest">
-                <BarChart3 className="w-4 h-4" /> KEHITYS
-              </CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-sm font-black text-accent flex items-center gap-2 uppercase tracking-widest"><BarChart3 className="w-4 h-4" /> KEHITYS</CardTitle></CardHeader>
             <CardContent>
-              <div className="h-[250px] w-full bg-black/20 rounded-xl p-4 border border-white/5">
+              <div className="h-[250px] w-full bg-black/20 rounded-xl p-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
@@ -259,36 +174,6 @@ export function TulosModule() {
                     <Bar dataKey="tulos" fill="#71717a" radius={[4, 4, 0, 0]} name="Tulos" barSize={30} />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="industrial-card">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-sm font-black text-muted-foreground flex items-center gap-2 uppercase tracking-widest">
-                <HistoryIcon className="w-4 h-4" /> VIIMEISIMMÄT KIRJAUKSET
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {records.slice(0, 6).map(r => {
-                  const profit = r.revenue - (r.foodCost || 0) - (r.laborCost || 0) - (r.otherExpenses || 0)
-                  return (
-                    <div key={r.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 group">
-                      <div className="flex items-center gap-3">
-                        <div className={cn("w-1 h-8 rounded-full", profit >= 0 ? "bg-green-500" : "bg-destructive")} />
-                        <div>
-                          <p className="text-xs font-black text-foreground uppercase">{r.date}</p>
-                          <p className="text-[10px] text-muted-foreground font-bold">Myynti: {r.revenue.toLocaleString()} €</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={cn("text-sm font-black tabular-nums", profit >= 0 ? "text-green-500" : "text-destructive")}>{profit > 0 ? "+" : ""}{profit.toLocaleString()}€</span>
-                        <Button variant="ghost" size="icon" onClick={() => deleteRecord(r.id)} className="h-8 w-8 text-destructive/40 opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></Button>
-                      </div>
-                    </div>
-                  )
-                })}
               </div>
             </CardContent>
           </Card>

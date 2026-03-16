@@ -1,5 +1,5 @@
 /**
- * @fileOverview Keskitetyt laskentafunktiot Wisemisa Bisto -sovellukselle.
+ * @fileOverview Keskitetyt laskentafunktiot Wisemisa Bistro -sovellukselle.
  * Eristää business-logiikan UI-komponentteista.
  */
 
@@ -96,4 +96,22 @@ export function calculateDish(
 export function calculateWasteEntry(weight: string | number, pricePerKg: number): number {
   const weightNum = typeof weight === 'string' ? Number(weight.replace(',', '.')) : weight;
   return (weightNum || 0) * pricePerKg;
+}
+
+/**
+ * Laskee talousnäkymän koosteet.
+ */
+export function calculateFinancials(records: any[], hourlyRate: number) {
+  const totals = records.reduce((acc, curr) => ({
+    revenue: acc.revenue + (curr.revenue || 0),
+    foodCost: acc.foodCost + (curr.foodCost || 0),
+    laborCost: acc.laborCost + (curr.laborCost || 0),
+    otherExpenses: acc.otherExpenses + (curr.otherExpenses || 0),
+  }), { revenue: 0, foodCost: 0, laborCost: 0, otherExpenses: 0 });
+
+  const profit = totals.revenue - totals.foodCost - totals.laborCost - totals.otherExpenses;
+  const foodCostPerc = totals.revenue > 0 ? (totals.foodCost / totals.revenue) * 100 : 0;
+  const laborCostPerc = totals.revenue > 0 ? (totals.laborCost / totals.revenue) * 100 : 0;
+
+  return { totals, profit, foodCostPerc, laborCostPerc };
 }

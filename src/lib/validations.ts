@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * @fileOverview Keskitetyt Zod-skeemat datan validointiin.
- * Senior-tason toteutus pipe-metodilla ja vikasietoisella tyyppimuunnoksella.
+ * Senior-tason toteutus vikasietoisella tyyppimuunnoksella.
  */
 
 const numericValue = z.preprocess((val) => {
