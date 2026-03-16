@@ -79,6 +79,28 @@
         "category": { "type": "string" },
         "order": { "type": "number" }
       }
+    },
+    "CloudFolder": {
+      "title": "CloudFolder",
+      "description": "Pilvitallennuksen kansio",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "parentId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "CloudFile": {
+      "title": "CloudFile",
+      "description": "Pilvitallennuksen tiedosto",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "size": { "type": "string" },
+        "type": { "type": "string" },
+        "folderId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -180,6 +202,14 @@
     "/misaLists/{listId}": {
       "schema": "object",
       "description": "MISA-, haku- ja puutelistat"
+    },
+    "/cloudFolders/{folderId}": {
+      "schema": "CloudFolder",
+      "description": "Pilvitallennuksen kansiot"
+    },
+    "/cloudFiles/{fileId}": {
+      "schema": "CloudFile",
+      "description": "Pilvitallennuksen tiedostot"
     },
     "/settings/global": {
       "schema": "object",
