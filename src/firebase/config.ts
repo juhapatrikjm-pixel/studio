@@ -2,14 +2,13 @@
 
 /**
  * @fileOverview Firebase-konfiguraatio Wisemisa Bistro -projektille.
- * Käytetään ympäristömuuttujia tietoturvan parantamiseksi ja varmistettu
- * oikea Storage Bucket -muoto käyttäjän ohjeiden mukaisesti.
+ * Käyttää ympäristömuuttujia tietoturvan parantamiseksi.
  */
 
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "wisemisa-d2b98",
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "wisemisa-d2b98.firebasestorage.app",
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
