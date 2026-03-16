@@ -3,7 +3,7 @@
 
 /**
  * @fileOverview Firebase-konfiguraatio Wisemisa Bistro -projektille.
- * Käyttää ympäristömuuttujia tietoturvan parantamiseksi.
+ * Käyttää NEXT_PUBLIC_ etuliitettä varmistaakseen näkyvyyden asiakaspuolella.
  */
 
 export const firebaseConfig = {

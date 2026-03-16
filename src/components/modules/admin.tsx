@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -5,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
-import { Shield, Settings, Banknote, Users2, CreditCard, Info } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Shield, Settings, Banknote, Users2, CreditCard, Info, Globe, Scale, Coins } from "lucide-react"
 import { useFirestore, useDoc, useCollection, useUser } from "@/firebase"
 import { doc, setDoc, collection } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -23,15 +25,20 @@ export function AdminModule() {
 
   const [targetMargin, setTargetMargin] = useState(75)
   const [hourlyRate, setHourlyRate] = useState(22)
+  const [language, setLanguage] = useState("fi")
+  const [units, setUnits] = useState("metric")
+  const [currency, setCurrency] = useState("EUR")
 
   useEffect(() => {
     if (settings) {
       setTargetMargin(settings.targetMargin || 75)
       setHourlyRate(settings.hourlyRate || 22)
+      setLanguage(settings.language || "fi")
+      setUnits(settings.units || "metric")
+      setCurrency(settings.currency || "EUR")
     }
   }, [settings])
 
-  // Reaaliaikainen hinnoittelulaskenta
   const billing = useMemo(() => {
     const basePrice = 14.90
     const perMemberPrice = 4.50
@@ -42,7 +49,13 @@ export function AdminModule() {
 
   const saveSettings = () => {
     if (!settingsRef) return
-    setDoc(settingsRef, { targetMargin, hourlyRate }, { merge: true })
+    setDoc(settingsRef, { 
+      targetMargin, 
+      hourlyRate, 
+      language, 
+      units, 
+      currency 
+    }, { merge: true })
       .then(() => toast({ title: "Asetukset tallennettu" }))
   }
 
@@ -81,21 +94,86 @@ export function AdminModule() {
         <Card className="industrial-card">
           <CardHeader className="pb-2 border-b border-white/5">
             <CardTitle className="text-[11px] font-black uppercase text-accent flex items-center gap-2">
+              <Settings className="w-4 h-4" /> KEITTIÖN PARAMETRIT
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-[9px] font-black uppercase text-muted-foreground">Tavoitekatetuotto (%)</Label>
+                <Input type="number" value={targetMargin} onChange={(e) => setTargetMargin(Number(e.target.value))} className="bg-black/40 h-10 font-black text-accent" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[9px] font-black uppercase text-muted-foreground">Keskituntipalkka ({currency}/h)</Label>
+                <Input type="number" value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))} className="bg-black/40 h-10 font-black text-accent" />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              <div className="space-y-1">
+                <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Globe className="w-3 h-3" /> Kieli</Label>
+                <Select value={language} onValueChange={setLanguage}>
+                  <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fi">Suomi</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="sv">Svenska</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Scale className="w-3 h-3" /> Yksiköt</Label>
+                <Select value={units} onValueChange={setUnits}>
+                  <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="metric">Metrinen (kg/l)</SelectItem>
+                    <SelectItem value="imperial">Imperial (lb/oz)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1"><Coins className="w-3 h-3" /> Valuutta</Label>
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger className="bg-black/40 h-10 text-[10px] font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EUR">Euro (€)</SelectItem>
+                    <SelectItem value="USD">Dollar ($)</SelectItem>
+                    <SelectItem value="SEK">Kruunu (kr)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Button onClick={saveSettings} className="w-full copper-gradient text-white font-black h-10 uppercase tracking-widest text-[10px] mt-2">
+              TALLENNA MUUTOKSET
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="industrial-card">
+          <CardHeader className="pb-2 border-b border-white/5">
+            <CardTitle className="text-[11px] font-black uppercase text-accent flex items-center gap-2">
               <CreditCard className="w-4 h-4" /> LASKUTUKSEN ERITTELY
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-3">
             <div className="flex justify-between text-xs font-bold border-b border-white/5 pb-2">
               <span className="text-muted-foreground">Perusmaksu</span>
-              <span>{billing.basePrice.toFixed(2)} €</span>
+              <span>{billing.basePrice.toFixed(2)} {currency}</span>
             </div>
             <div className="flex justify-between text-xs font-bold border-b border-white/5 pb-2">
               <span className="text-muted-foreground">Jäsenet ({billing.memberCount} kpl)</span>
-              <span>{(billing.memberCount * billing.perMemberPrice).toFixed(2)} €</span>
+              <span>{(billing.memberCount * billing.perMemberPrice).toFixed(2)} {currency}</span>
             </div>
             <div className="flex justify-between items-center pt-2">
               <span className="text-sm font-black uppercase">Yhteensä (ALV 0%)</span>
-              <span className="text-xl font-black text-accent">{billing.total.toFixed(2)} € / KK</span>
+              <span className="text-xl font-black text-accent">{billing.total.toFixed(2)} {currency} / KK</span>
             </div>
             <div className="mt-4 p-3 rounded-xl bg-blue-500/5 border border-blue-500/20 flex gap-3">
               <Info className="w-4 h-4 text-blue-400 shrink-0" />
@@ -103,27 +181,6 @@ export function AdminModule() {
                 Hinta päivittyy automaattisesti, kun uusi laite skannaa kutsukoodin ja liittyy tiimiisi.
               </p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="industrial-card">
-          <CardHeader className="pb-2 border-b border-white/5">
-            <CardTitle className="text-[11px] font-black uppercase text-accent flex items-center gap-2">
-              <Settings className="w-4 h-4" /> KEITTIÖN PARAMETRIT
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            <div className="space-y-1">
-              <Label className="text-[9px] font-black uppercase text-muted-foreground">Tavoitekatetuotto (%)</Label>
-              <Input type="number" value={targetMargin} onChange={(e) => setTargetMargin(Number(e.target.value))} className="bg-black/40 h-10 font-black text-accent" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[9px] font-black uppercase text-muted-foreground">Tuntipalkka keskiarvo (€/h)</Label>
-              <Input type="number" value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))} className="bg-black/40 h-10 font-black text-accent" />
-            </div>
-            <Button onClick={saveSettings} className="w-full copper-gradient text-white font-black h-10 uppercase tracking-widest text-[10px] mt-2">
-              TALLENNA MUUTOKSET
-            </Button>
           </CardContent>
         </Card>
       </div>
