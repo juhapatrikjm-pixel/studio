@@ -8,8 +8,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sparkles, Send, Loader2, Trash2 } from "lucide-react"
 import { summarizeTeamDiscussion } from "@/ai/flows/summarize-team-discussion-flow"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { useFirestore, useCollection, useUser } from "@/firebase"
+import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, deleteDoc, doc } from "firebase/firestore"
+import { format } from "date-fns"
 
 type Message = {
   id: string
@@ -17,13 +18,15 @@ type Message = {
   userId: string
   content: string
   time: any
-  isSelf?: boolean
 }
 
 export function MessagingModule() {
   const firestore = useFirestore()
   const { user } = useUser()
   
+  const profileRef = useMemo(() => (firestore && user ? doc(firestore, 'userProfiles', user.uid) : null), [firestore, user])
+  const { data: profile } = useDoc<any>(profileRef)
+
   const messagesRef = useMemo(() => (firestore ? collection(firestore, 'messages') : null), [firestore])
   const messagesQuery = useMemo(() => {
     if (!messagesRef) return null
@@ -42,7 +45,7 @@ export function MessagingModule() {
     setIsSending(true)
     try {
       await addDoc(messagesRef, {
-        sender: user.displayName || (user.isAnonymous ? "Demo-käyttäjä" : "Käyttäjä"),
+        sender: profile?.userName || user.displayName || "Käyttäjä",
         userId: user.uid,
         content: input,
         time: serverTimestamp()

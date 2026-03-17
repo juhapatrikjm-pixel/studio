@@ -92,11 +92,21 @@ function AppSidebar({ user, profile }: { user: any, profile: any }) {
       <div className="p-4 border-t border-white/5 mt-auto bg-black/20 space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl steel-detail flex items-center justify-center text-black font-black text-sm shadow-md metal-shine-overlay overflow-hidden">
-            {user?.photoURL ? <img src={user.photoURL} alt={user.displayName} referrerPolicy="no-referrer" /> : (user?.displayName?.[0] || 'U')}
+            {profile?.logoUrl ? (
+              <img src={profile.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+            ) : user?.photoURL ? (
+              <img src={user.photoURL} alt={user.displayName} referrerPolicy="no-referrer" />
+            ) : (
+              (profile?.userName?.[0] || user?.displayName?.[0] || 'A')
+            )}
           </div>
           <div className="flex flex-col overflow-hidden">
-            <span className="text-xs font-black text-foreground truncate">{user?.displayName || (user?.isAnonymous ? 'Demo-käyttäjä' : 'Käyttäjä')}</span>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold truncate opacity-50">{user?.email || 'Näkymätön istunto'}</span>
+            <span className="text-[10px] font-black text-accent uppercase tracking-widest leading-none mb-1">
+              {profile?.role === 'admin' ? 'ADMIN' : 'TIIMI'}
+            </span>
+            <span className="text-xs font-black text-foreground truncate">
+              {profile?.userName || user?.displayName || 'Ylläpitäjä'}
+            </span>
           </div>
         </div>
         <Link href="/dashboard/profile">

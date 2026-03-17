@@ -33,7 +33,7 @@ export default function LoginPage() {
             setStatus("Määritetään ylläpitäjän oikeuksia...")
             await setDoc(profileRef, {
               role: 'admin',
-              userName: `Admin-${cred.user.uid.slice(0, 4)}`,
+              userName: `Ylläpitäjä-${cred.user.uid.slice(0, 4)}`,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
               moduleOrder: []
@@ -64,7 +64,7 @@ export default function LoginPage() {
           <AlertTitle className="font-headline font-black uppercase tracking-tight">Toiminto vaaditaan</AlertTitle>
           <AlertDescription className="space-y-4 pt-2">
             <p className="text-xs font-bold leading-relaxed">
-              Invisible Login vaatii, että **Anonymous Authentication** on päällä Firebase-projektissasi.
+              Automaattinen kirjautuminen vaatii, että **Anonymous Authentication** on päällä Firebase-projektissasi.
             </p>
             <div className="bg-black/40 p-3 rounded-lg border border-white/10 text-[10px] font-mono space-y-2">
               <p>1. Mene Firebase Consoleen</p>
