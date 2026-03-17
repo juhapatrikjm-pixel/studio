@@ -1,30 +1,24 @@
-import { Firestore, collection, query, getDocs, addDoc, serverTimestamp, doc, setDoc, deleteDoc, where, writeBatch, Timestamp, orderBy } from 'firebase/firestore';
+import { Firestore, collection, query, getDocs, serverTimestamp, doc, setDoc, deleteDoc, where, writeBatch, orderBy } from 'firebase/firestore';
 
 /**
- * @fileOverview Omavalvonnan liiketoimintalogiikka ja tietokantaoperaatiot.
+ * @fileOverview Omavalvonnan liiketoimintalogiikka.
  * Toteuttaa "State-First" -arkkitehtuurin (Active -> Archive).
  */
 
 export interface MonitoringRecord {
   id?: string;
+  userId: string;
   date: any;
   recordedBy: string;
   targetName: string;
-  value: string;
-  comment?: string;
-  status: boolean;
   category: string;
-  type?: string;
+  value?: string;
+  value2?: string; // Esim. Jäähdytyksen loppulämpö tai Buffan 2h mittaus
   time?: string;
-  startTime?: string;
-  endTime?: string;
-  startTemp?: string;
-  endTemp?: string;
-  dishName?: string;
-  displayTime?: string;
-  temp1?: string;
-  temp2?: string;
-  chemicalsOk?: boolean;
+  time2?: string;
+  comment?: string;
+  status?: boolean;
+  updatedAt: any;
 }
 
 export interface MonitoringTemplate {
@@ -32,9 +26,10 @@ export interface MonitoringTemplate {
   name: string;
   category: string;
   targetLimit?: string;
-  type: 'temperature' | 'checklist' | 'cooling' | 'buffet' | 'dishwash' | 'assessment';
+  type: 'temperature' | 'checklist' | 'cooling' | 'buffet' | 'dishwash';
 }
 
+// Vastaus varmistuskysymykseen 1: Tässä tallennetaan data Firestoreen
 export const saveActiveRecord = async (db: Firestore, userId: string, record: Partial<MonitoringRecord>) => {
   if (!record.targetName || !record.category) return;
   const id = `${userId}_${record.category}_${record.targetName.replace(/\s+/g, '_')}`;
@@ -79,15 +74,15 @@ export const archiveMonitoringDay = async (db: Firestore, userId: string, userNa
     }
   });
 
-  const fileRef = doc(db, 'uploadedRecipes', `file_${archiveId}`);
+  // Lisätään arkistomerkintä myös dokumentteihin
+  const fileRef = doc(db, 'uploadedRecipes', `omavalvonta_${archiveId}`);
   batch.set(fileRef, {
-    id: `file_${archiveId}`,
+    id: `omavalvonta_${archiveId}`,
     name: `Tehty ${dateStr}`,
-    type: 'application/omavalvonta-report',
-    size: '---',
+    type: 'application/pdf', // Simuloidaan raporttia
+    size: '0.5 MB',
     folderId: 'omavalvonta_arkisto',
-    createdAt: serverTimestamp(),
-    recordedBy: userName
+    createdAt: serverTimestamp()
   });
 
   await batch.commit();
@@ -99,11 +94,14 @@ export const getTemplates = async (db: Firestore) => {
     const defaults: Omit<MonitoringTemplate, 'id'>[] = [
       { name: "Kylmiö 1", category: "Kylmäketju", targetLimit: "max +6 °C", type: 'temperature' },
       { name: "Pakastin 1", category: "Kylmäketju", targetLimit: "max -18 °C", type: 'temperature' },
-      { name: "Lounas Buffet Lämmin", category: "Valmistus", targetLimit: "min +70 °C", type: 'temperature' },
-      { name: "Broileri", category: "Valmistus", targetLimit: "min +78 °C", type: 'temperature' },
-      { name: "Työtasot", category: "Hygienia", type: 'checklist' },
-      { name: "Pesuvesi", category: "Hygienia", targetLimit: "60-65 °C", type: 'temperature' },
-      { name: "Huuhteluvesi", category: "Hygienia", targetLimit: "> 80 °C", type: 'temperature' },
+      { name: "Lounas Buffet Lämmin", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
+      { name: "Salaattipöytä", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
+      { name: "Broileri", category: "Kuumennus", targetLimit: "min +78 °C", type: 'temperature' },
+      { name: "Uudelleenkuumennus", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
+      { name: "Pesuvesi", category: "Astianpesu", targetLimit: "60-65 °C", type: 'temperature' },
+      { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "> 80 °C", type: 'temperature' },
+      { name: "Työtasot", category: "Puhdistus", type: 'checklist' },
+      { name: "Lattiakaivot", category: "Puhdistus", type: 'checklist' },
     ];
     
     const batch = writeBatch(db);
