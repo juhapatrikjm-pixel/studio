@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -14,7 +15,7 @@ export function MonitoringPulse() {
   const [isMounted, setIsMounted] = useState(false)
   const [now, setNow] = useState<Date | null>(null)
 
-  // Subscribes to selfMonitoringRecords in "wisemisa" database
+  // Kuuntelee arkistoituja raportteja varmistaakseen, että päivä on tehty
   const recordsQuery = useMemo(() => {
     if (!firestore) return null
     return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(1))
@@ -26,7 +27,6 @@ export function MonitoringPulse() {
   useEffect(() => {
     setIsMounted(true)
     setNow(new Date())
-    // Update "now" periodically to keep logic fresh
     const interval = setInterval(() => setNow(new Date()), 60000)
     return () => clearInterval(interval)
   }, [])
@@ -46,17 +46,15 @@ export function MonitoringPulse() {
   const daysSince = useMemo(() => {
     if (!recordDate || !now || !isMounted) return 999
     try {
-      // Calculate absolute difference in calendar days
       return Math.abs(differenceInDays(now, recordDate))
     } catch (e) {
       return 999
     }
   }, [recordDate, now, isMounted])
 
-  // Don't render until mounted to prevent hydration mismatch
   if (!isMounted || !firestore) return null
 
-  const isCritical = daysSince >= 7
+  const isCritical = daysSince >= 1 // Next.js 15: Jos ei tehty tänään, näytä hälytys (rästissä)
   const isOk = daysSince === 0 && recordDate !== null
 
   return (
@@ -89,7 +87,7 @@ export function MonitoringPulse() {
             </div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.1em] font-bold">
               {recordDate && isValid(recordDate)
-                ? `Viimeisin kirjaus: ${format(recordDate, 'd.M.yyyy')} (${daysSince} pv sitten) • ${latestRecord?.recordedBy || 'Tiimi'}` 
+                ? `Viimeisin kirjaus: ${format(recordDate, 'd.M.yyyy')} (${latestRecord.type === 'manual_archive' ? 'Manuaalinen' : 'Digitaalinen'}) • ${latestRecord?.recordedBy || 'Tiimi'}` 
                 : "EI AIEMPIA KIRJAUKSIA JÄRJESTELMÄSSÄ"}
             </p>
           </div>

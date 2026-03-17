@@ -1,5 +1,5 @@
 
-import { Firestore, collection, query, getDocs, serverTimestamp, doc, setDoc, deleteDoc, where, writeBatch } from 'firebase/firestore';
+import { Firestore, collection, query, getDocs, serverTimestamp, doc, setDoc, deleteDoc, where, writeBatch, orderBy } from 'firebase/firestore';
 
 /**
  * @fileOverview Omavalvonnan liiketoimintalogiikka.
@@ -58,48 +58,50 @@ export const getActiveRecords = async (db: Firestore, userId: string) => {
 /**
  * Siirtää aktiiviset tiedot arkistoon ja tyhjentää aktiivisen työtilan.
  */
-export const archiveMonitoringDay = async (db: Firestore, userId: string, userName: string) => {
+export const archiveMonitoringDay = async (db: Firestore, userId: string, userName: string, isManual = false) => {
   const activeRecords = await getActiveRecords(db, userId);
-  if (activeRecords.length === 0) return;
-
+  
   const batch = writeBatch(db);
   const archiveDate = new Date();
   const dateStr = `${archiveDate.getDate()}.${archiveDate.getMonth() + 1}.`;
   const archiveId = `archive_${userId}_${archiveDate.getTime()}`;
 
+  // 1. Luodaan arkistomerkintä raportteihin
   const archiveRef = doc(db, 'omavalvonta_archive', archiveId);
   batch.set(archiveRef, {
     userId,
     userName,
     date: archiveDate,
     dateStr,
-    records: activeRecords,
+    isManual,
+    records: isManual ? [] : activeRecords,
     createdAt: serverTimestamp()
   });
 
+  // 2. Tyhjennetään aktiiviset (jos ei manuaalinen kuittaus tyhjältä pohjalta)
   activeRecords.forEach(r => {
     if (r.id) {
       batch.delete(doc(db, 'omavalvonta_active', r.id));
     }
   });
 
-  // Tallennetaan arkistomerkintä Dokumenttiarkistoon
-  const fileRef = doc(db, 'uploadedRecipes', `omavalvonta_${archiveId}`);
+  // 3. Tallennetaan arkistomerkintä Dokumenttiarkistoon näkyviin
+  const fileRef = doc(db, 'cloudFiles', `archive_${archiveId}`);
   batch.set(fileRef, {
-    id: `omavalvonta_${archiveId}`,
-    name: `Tehty ${dateStr}`,
+    id: `archive_${archiveId}`,
+    name: `Tehty ${dateStr}${isManual ? ' (Manuaalinen)' : ''}`,
     type: 'application/pdf',
     size: 'Raportti',
     folderId: 'omavalvonta_arkisto',
     createdAt: serverTimestamp()
   });
 
-  // Päivitetään globaali hälytyssyöte Ohjauspaneelia varten
+  // 4. Päivitetään globaali hälytyssyöte Ohjauspaneelin Pulse-moduulia varten
   const pulseRef = doc(db, 'selfMonitoringRecords', archiveId);
   batch.set(pulseRef, {
     date: archiveDate,
     recordedBy: userName,
-    type: 'daily_archive'
+    type: isManual ? 'manual_archive' : 'daily_archive'
   });
 
   await batch.commit();
@@ -120,15 +122,11 @@ export const getTemplates = async (db: Firestore) => {
       { name: "Jäähdytys (Pääruoka)", category: "Jäähdytys", targetLimit: "< 6 °C / 4h", type: 'cooling' },
       { name: "Lämmin Buffet", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
       { name: "Kylmä Buffet", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
-      { name: "Buffet-raaka-aineet (L)", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
-      { name: "Buffet-raaka-aineet (K)", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
       { name: "Pesuvesi", category: "Astianpesu", targetLimit: "60-65 °C", type: 'temperature' },
       { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "> 80 °C", type: 'temperature' },
       { name: "Pesuainetaso", category: "Astianpesu", targetLimit: "OK", type: 'checklist' },
       { name: "Kuorman lämpötila", category: "Vastaanotto", targetLimit: "max +6 °C", type: 'temperature' },
-      { name: "Kuorman puhtaus", category: "Vastaanotto", targetLimit: "OK", type: 'checklist' },
       { name: "Työtasot", category: "Puhdistus", type: 'cleaning' },
-      { name: "Lattiakaivot", category: "Puhdistus", type: 'cleaning' },
       { name: "Rasvakeitin 1", category: "Laitteet", targetLimit: "Öljynvaihto", type: 'oil_change' },
     ];
     

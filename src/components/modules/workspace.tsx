@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -160,7 +161,7 @@ export function WorkspaceModule() {
         </div>
       </header>
 
-      {/* STATUS BAR */}
+      {/* STATUS BAR - PALAUTETTU TÄHÄN */}
       <MonitoringPulse />
 
       {/* GRID */}

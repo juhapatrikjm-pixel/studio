@@ -11,15 +11,16 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { 
   ShieldCheck, User, CalendarDays, Info, Refrigerator, Flame, Clock, Plus, Trash2, 
   CheckCircle2, Save, Loader2, AlertTriangle, Droplets, UtensilsCrossed,
-  Check, Bluetooth, Settings, X, Truck, Timer, Wrench, FileText
+  Check, Bluetooth, Settings, X, Truck, Timer, Wrench, FileText, Download, Upload, Folder
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useFirestore, useUser } from "@/firebase"
+import { useFirestore, useUser, useCollection } from "@/firebase"
 import * as monitoringService from "@/services/monitoring-service"
 import { useToast } from "@/hooks/use-toast"
 import { format, isValid, differenceInMinutes, parse } from "date-fns"
 import { fi } from "date-fns/locale"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { collection, query, where, orderBy } from "firebase/firestore"
 
 export function OmavalvontaModule() {
   const firestore = useFirestore()
@@ -38,6 +39,13 @@ export function OmavalvontaModule() {
 
   const currentUserName = user?.displayName || user?.email || "Käyttäjä"
   const [currentDateDisplay, setCurrentDateDisplay] = useState("")
+
+  // Arkiston tiedostot
+  const archiveFilesQuery = useMemo(() => {
+    if (!firestore) return null
+    return query(collection(firestore, 'cloudFiles'), where('folderId', '==', 'omavalvonta_arkisto'), orderBy('createdAt', 'desc'))
+  }, [firestore])
+  const { data: archiveFiles = [] } = useCollection<any>(archiveFilesQuery)
 
   const loadData = async () => {
     if (!firestore || !user) return
@@ -62,8 +70,7 @@ export function OmavalvontaModule() {
     }
   }, [firestore, user])
 
-  // VASTAUS VARMISTUSKYSYMYKSEEN 1: 
-  // Tässä kohdassa onChange-tapahtuma (tai handleUpdate) tallentaa datan Firestoreen
+  // Tallenna muutos reaaliajassa (State-First)
   const handleUpdate = async (category: string, targetName: string, field: string, value: any) => {
     if (!firestore || !user) return
     
@@ -72,17 +79,16 @@ export function OmavalvontaModule() {
     const updated = { ...current, [field]: value, recordedBy: currentUserName, updatedAt: new Date() }
     
     setLocalValues(prev => ({ ...prev, [key]: updated }))
-    // Reaaliaikainen tallennus Firestoreen
     await monitoringService.saveActiveRecord(firestore, user.uid, updated)
   }
 
-  const handleArchive = async () => {
+  const handleArchive = async (isManual = false) => {
     if (!firestore || !user) return
     setIsSaving(true)
     try {
-      await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName)
+      await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName, isManual)
       setLocalValues({})
-      toast({ title: "Päivä arkistoitu", description: "Kooste on siirretty arkistoon." })
+      toast({ title: isManual ? "Manuaalinen kuittaus tallennettu" : "Päivä arkistoitu", description: "Kooste on siirretty arkistoon." })
       loadData()
     } catch (e) {
       toast({ variant: "destructive", title: "Arkistointi epäonnistui" })
@@ -91,8 +97,6 @@ export function OmavalvontaModule() {
     }
   }
 
-  // VASTAUS VARMISTUSKYSYMYKSEEN 2:
-  // Tässä kohdassa määritellään, että input-kentän arvo haetaan tietokannasta (localValues)
   const getVal = (cat: string, target: string, field: string) => {
     return localValues[`${cat}_${target}`]?.[field] || ""
   }
@@ -137,8 +141,8 @@ export function OmavalvontaModule() {
               <p className="text-lg font-black text-foreground uppercase">{currentUserName}</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
+          <div className="flex flex-col md:flex-row items-center gap-4">
+            <div className="text-center md:text-right">
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">PÄIVÄMÄÄRÄ</p>
               <p className="text-lg font-black text-accent">{currentDateDisplay}</p>
             </div>
@@ -149,14 +153,32 @@ export function OmavalvontaModule() {
         </CardContent>
       </Card>
 
+      {/* MANUAL OVERRIDE CARD */}
+      <Card className="industrial-card border-white/10 bg-white/5">
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5 text-muted-foreground" />
+            <span className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Käytätkö paperista omavalvontaa?</span>
+          </div>
+          <Button 
+            onClick={() => handleArchive(true)} 
+            disabled={isSaving}
+            variant="outline" 
+            className="border-accent/40 text-accent font-black text-[10px] h-9 px-4 uppercase hover:bg-accent/10"
+          >
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />} KUITTAA PÄIVÄ TEHDYKSI MANUAALISESTI
+          </Button>
+        </CardContent>
+      </Card>
+
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-1">
         <h2 className="text-3xl font-headline font-black text-accent uppercase tracking-tighter">Omavalvonta</h2>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsManageOpen(true)} className="border-white/10 text-muted-foreground hover:text-accent font-black text-[10px] uppercase h-11 px-6">
             <Settings className="w-4 h-4 mr-2" /> MUOKKAA KOHTEITA
           </Button>
-          <Button onClick={handleArchive} disabled={isSaving} className="copper-gradient font-black text-[10px] uppercase h-11 px-8 tracking-widest shadow-lg">
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} ARKISTOI PÄIVÄ
+          <Button onClick={() => handleArchive(false)} disabled={isSaving} className="copper-gradient font-black text-[10px] uppercase h-11 px-8 tracking-widest shadow-lg">
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} ARKISTOI DIGITAALINEN PÄIVÄ
           </Button>
         </div>
       </div>
@@ -171,7 +193,10 @@ export function OmavalvontaModule() {
               <AccordionTrigger className="px-6 py-5 hover:no-underline group">
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center gap-4 text-left">
-                    <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20 text-accent group-hover:scale-110 transition-transform">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center border transition-transform group-hover:scale-110",
+                      headerInfo ? "bg-green-500/10 border-green-500/20 text-green-500" : "bg-accent/10 border-accent/20 text-accent"
+                    )}>
                       {cat === "Kylmälaitteet" ? <Refrigerator className="w-5 h-5" /> : 
                        cat === "Kuumennus" ? <Flame className="w-5 h-5" /> :
                        cat === "Jäähdytys" ? <Timer className="w-5 h-5" /> :
@@ -209,7 +234,6 @@ export function OmavalvontaModule() {
                     }
                     if (t.category === 'Jäähdytys' && val2 > 0) {
                       if (val2 > 6) isAlert = true
-                      // Aikatarkistus (max 4h)
                       const startTime = getVal(cat, t.name, 'time')
                       const endTime = getVal(cat, t.name, 'time2')
                       if (startTime && endTime) {
@@ -237,7 +261,7 @@ export function OmavalvontaModule() {
                             </div>
                             <div>
                               <p className="text-sm font-bold uppercase tracking-tight">{t.name}</p>
-                              <p className="text-[9px] text-muted-foreground font-black uppercase">{t.targetLimit || 'Evira-seuranta'}</p>
+                              <p className="text-[9px] text-muted-foreground font-black uppercase">{t.targetLimit || 'Ruokavirasto-seuranta'}</p>
                             </div>
                           </div>
 
@@ -337,6 +361,66 @@ export function OmavalvontaModule() {
             </AccordionItem>
           )
         })}
+
+        {/* DOKUMENTTIARKISTO MODUULI */}
+        <AccordionItem value="arkisto" className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0">
+          <AccordionTrigger className="px-6 py-5 hover:no-underline">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+                <Folder className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest text-blue-400">DOKUMENTTIARKISTO</h3>
+                <p className="text-[10px] text-muted-foreground font-black uppercase mt-0.5">Arkistoidut raportit ja tyhjät lomakkeet</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-8 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-accent flex items-center gap-2">
+                  <Save className="w-4 h-4" /> ARKISTOIDUT RAPORTIT
+                </h4>
+                <div className="space-y-2">
+                  {archiveFiles.map(f => (
+                    <div key={f.id} className="p-3 rounded-xl bg-black/20 border border-white/5 flex items-center justify-between group">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-4 h-4 text-blue-400" />
+                        <span className="text-xs font-bold">{f.name}</span>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100"><Download className="w-4 h-4" /></Button>
+                    </div>
+                  ))}
+                  {archiveFiles.length === 0 && <p className="text-[10px] uppercase font-bold text-muted-foreground/40 italic p-4 text-center">Ei aiempia raportteja.</p>}
+                </div>
+              </div>
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-accent flex items-center gap-2">
+                  <Download className="w-4 h-4" /> TYHJÄT LOMAKKEET
+                </h4>
+                <div className="space-y-2">
+                  <div className="p-3 rounded-xl bg-black/20 border border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-xs font-bold">Omavalvontasuunnitelma_Pohja.pdf</span>
+                    </div>
+                    <Download className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="p-3 rounded-xl bg-black/20 border border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-xs font-bold">Lämpötilaseuranta_Manual.pdf</span>
+                    </div>
+                    <Download className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <Button variant="outline" className="w-full border-dashed border-white/10 text-[9px] font-black uppercase h-10 gap-2">
+                    <Upload className="w-3.5 h-3.5" /> LATAA UUSI TYHJÄ POHJA
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
 
       <div className="mt-8 p-6 rounded-3xl bg-black/40 border border-white/5 flex items-center justify-between">
