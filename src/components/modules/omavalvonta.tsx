@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { 
   ShieldCheck, 
   Plus, 
@@ -26,11 +25,12 @@ import {
   ClipboardCheck,
   CalendarDays,
   AlertTriangle,
-  History
+  History,
+  MessageSquare
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useFirestore, useUser, useDoc } from "@/firebase"
-import { doc } from "firebase/firestore"
+import { useFirestore, useUser, useDoc, useCollection } from "@/firebase"
+import { doc, collection, query, orderBy, limit, Timestamp } from "firebase/firestore"
 import { MonitoringPulse } from "../monitoring-pulse"
 import * as monitoringService from "@/services/monitoring-service"
 import { useToast } from "@/hooks/use-toast"
@@ -63,6 +63,13 @@ export function OmavalvontaModule() {
     targetLimit: "", 
     type: "temperature" as any 
   })
+
+  // Haetaan viimeisimmät kirjaukset otsikkotietoja varten
+  const recordsQuery = useMemo(() => {
+    if (!firestore) return null
+    return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(50))
+  }, [firestore])
+  const { data: recentRecords = [] } = useCollection<any>(recordsQuery)
 
   useEffect(() => {
     if (firestore) loadTemplates()
@@ -126,6 +133,16 @@ export function OmavalvontaModule() {
     }
   }
 
+  const getLatestForCategory = (category: string) => {
+    const categoryTemplates = templates.filter(t => t.category === category).map(t => t.name)
+    const latest = recentRecords.find(r => categoryTemplates.includes(r.targetName) || r.targetName === "PAPERINEN OMAVALVONTA (KUITTAUS)")
+    
+    if (!latest) return "Ei kirjauksia"
+    
+    const date = latest.date instanceof Timestamp ? latest.date.toDate() : new Date(latest.date)
+    return `${format(date, 'd.M.')} ${latest.recordedBy}`
+  }
+
   const categories = Array.from(new Set(templates.map(t => t.category)))
 
   const getCategoryIcon = (cat: string) => {
@@ -174,13 +191,20 @@ export function OmavalvontaModule() {
           ) : (
             categories.map(cat => (
               <Card key={cat} className="industrial-card overflow-hidden">
-                <CardHeader className="bg-black/40 border-b border-white/5 p-4 flex flex-row items-center gap-3">
-                  <div className="p-2 rounded-lg bg-accent/10 text-accent border border-accent/20">
-                    {getCategoryIcon(cat)}
+                <CardHeader className="bg-black/40 border-b border-white/5 p-4 flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-accent/10 text-accent border border-accent/20">
+                      {getCategoryIcon(cat)}
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">{cat}</CardTitle>
+                      <CardDescription className="text-[9px] uppercase font-bold text-muted-foreground">Päivittäiset merkinnät</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-sm font-black uppercase tracking-widest text-foreground">{cat}</CardTitle>
-                    <CardDescription className="text-[9px] uppercase font-bold text-muted-foreground">Päivittäiset merkinnät</CardDescription>
+                  <div className="px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                    <span className="text-[10px] font-black uppercase text-accent tracking-tighter">
+                      VIIMEISIN: {getLatestForCategory(cat)}
+                    </span>
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
@@ -240,9 +264,11 @@ export function OmavalvontaModule() {
                           </div>
                           
                           <div className="space-y-1">
-                            <Label className="text-[8px] uppercase font-black text-muted-foreground opacity-60">HUOMIOT / POIKKEAMAT</Label>
+                            <Label className="text-[8px] uppercase font-black text-muted-foreground opacity-60 flex items-center gap-1">
+                              <MessageSquare className="w-3 h-3" /> HUOMIOT / POIKKEAMAT
+                            </Label>
                             <Input 
-                              placeholder="Lisätiedot..."
+                              placeholder="Lisätiedot poikkeamista..."
                               value={comments[template.id] || ""}
                               onChange={(e) => setComments(prev => ({ ...prev, [template.id]: e.target.value }))}
                               className="bg-black/20 border-white/5 h-8 text-[10px]"
