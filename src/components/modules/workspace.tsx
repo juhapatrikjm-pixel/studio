@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Info, ChefHat, CookingPot, Wrench, Send, Trash2, CheckCircle, Zap, Users, Cloud } from "lucide-react"
+import { Info, ChefHat, CookingPot, Wrench, Send, Trash2, CheckCircle, Zap } from "lucide-react"
 import { OmavalvontaStatusHeader } from "./omavalvonta"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
@@ -275,23 +275,6 @@ export function WorkspaceModule() {
               </div>
             </CardContent>
           </Card>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="industrial-card bg-primary/5 border-primary/20">
-              <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-2">
-                <Users className="w-6 h-6 text-accent mb-1" />
-                <div className="text-2xl font-black text-foreground leading-none">12</div>
-                <p className="text-[10px] text-green-500 font-black uppercase tracking-widest">AKTIIVI</p>
-              </CardContent>
-            </Card>
-            <Card className="industrial-card bg-white/5 border-white/10">
-              <CardContent className="p-6 flex flex-col items-center justify-center text-center gap-2">
-                <Cloud className="w-6 h-6 text-accent mb-1" />
-                <div className="text-2xl font-black text-foreground leading-none">84%</div>
-                <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
-              </CardContent>
-            </div>
-          </div>
         </div>
       </div>
     </div>
