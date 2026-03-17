@@ -30,7 +30,7 @@ export function WorkspaceModule() {
     setTodayDate(format(new Date(), 'yyyy-MM-dd'))
   }, [])
 
-  // Datakyselyt wisemisa-tietokannasta
+  // Data queries targeting "wisemisa" database
   const shiftInfoQuery = useMemo(() => {
     if (!firestore || !todayDate) return null
     return query(
@@ -71,7 +71,7 @@ export function WorkspaceModule() {
       setReadInfoIds(prev => [...prev, shiftInfo.id])
       await workspaceService.acknowledgeShiftInfo(firestore, shiftInfo.id, currentUser)
     } catch (e) {
-      console.error("Virhe kuittauksessa:", e)
+      console.error("Error acknowledging info:", e)
     }
   }
 
@@ -82,7 +82,7 @@ export function WorkspaceModule() {
       await workspaceService.addMaintenanceNote(firestore, newMaintenanceText, currentUser)
       setNewMaintenanceText("")
     } catch (e) {
-      console.error("Virhe huollon lisäyksessä:", e)
+      console.error("Error adding maintenance note:", e)
     } finally {
       setIsSaving(false)
     }
@@ -93,7 +93,7 @@ export function WorkspaceModule() {
     try {
       await workspaceService.deleteMaintenanceNote(firestore, id)
     } catch (e) {
-      console.error("Virhe poistossa:", e)
+      console.error("Error deleting note:", e)
     }
   }
 
@@ -131,7 +131,7 @@ export function WorkspaceModule() {
         return getTime(b.time) - getTime(a.time)
       }).slice(0, 10)
     } catch (error) {
-      console.error("Error calculating combined logs:", error);
+      console.error("Error calculating logs:", error);
       return [];
     }
   }, [latestRecipes, latestDishes])
@@ -255,7 +255,7 @@ export function WorkspaceModule() {
         </div>
 
         {/* RIGHT COLUMN - LOG */}
-        <div className="lg:col-span-4 space-y-8">
+        <div className="lg:col-span-4">
           <Card className="industrial-card h-full flex flex-col">
             <CardHeader className="p-6 pb-2">
               <CardTitle className="font-headline text-[12px] font-black text-accent uppercase tracking-[0.2em]">KEITTIÖN LOKI</CardTitle>

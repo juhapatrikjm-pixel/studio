@@ -14,6 +14,7 @@ export function MonitoringPulse() {
   const [isMounted, setIsMounted] = useState(false)
   const [now, setNow] = useState<Date | null>(null)
 
+  // Subscribes to selfMonitoringRecords in "wisemisa" database
   const recordsQuery = useMemo(() => {
     if (!firestore) return null
     return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(1))
@@ -25,6 +26,9 @@ export function MonitoringPulse() {
   useEffect(() => {
     setIsMounted(true)
     setNow(new Date())
+    // Update "now" periodically to keep logic fresh
+    const interval = setInterval(() => setNow(new Date()), 60000)
+    return () => clearInterval(interval)
   }, [])
 
   const recordDate = useMemo(() => {
@@ -42,12 +46,14 @@ export function MonitoringPulse() {
   const daysSince = useMemo(() => {
     if (!recordDate || !now) return 999
     try {
+      // Calculate absolute difference in calendar days
       return Math.abs(differenceInDays(now, recordDate))
     } catch (e) {
       return 999
     }
   }, [recordDate, now])
 
+  // Don't render until mounted to prevent hydration mismatch
   if (!isMounted || !firestore) return null
 
   const isCritical = daysSince >= 7

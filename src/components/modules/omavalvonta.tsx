@@ -56,6 +56,7 @@ export function OmavalvontaModule() {
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(true)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isBluetoothLoading, setIsBluetoothLoading] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
 
   const [newTemplate, setNewTemplate] = useState({ 
     name: "", 
@@ -64,14 +65,15 @@ export function OmavalvontaModule() {
     type: "temperature" as any 
   })
 
-  // Haetaan viimeisimmät kirjaukset otsikkotietoja varten
+  // Records query for header info
   const recordsQuery = useMemo(() => {
     if (!firestore) return null
-    return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(50))
+    return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(100))
   }, [firestore])
   const { data: recentRecords = [] } = useCollection<any>(recordsQuery)
 
   useEffect(() => {
+    setIsMounted(true)
     if (firestore) loadTemplates()
   }, [firestore])
 
@@ -80,7 +82,7 @@ export function OmavalvontaModule() {
     setIsLoadingTemplates(true)
     try {
       const data = await monitoringService.getMonitoringTemplates(firestore)
-      setTemplates(data)
+      setTemplates(data || [])
     } catch (e) {
       console.error("Error loading templates", e)
     } finally {
@@ -139,25 +141,29 @@ export function OmavalvontaModule() {
   }
 
   const getLatestForCategory = (category: string) => {
-    const categoryTemplates = templates.filter(t => t.category === category).map(t => t.name)
-    const latest = recentRecords.find(r => categoryTemplates.includes(r.targetName) || r.targetName === "PAPERINEN OMAVALVONTA (KUITTAUS)")
-    
-    if (!latest) return "Ei kirjauksia"
-    
+    if (!isMounted) return "---"
     try {
+      const categoryTemplates = templates.filter(t => t.category === category).map(t => t.name)
+      const latest = recentRecords.find(r => categoryTemplates.includes(r.targetName) || r.targetName === "PAPERINEN OMAVALVONTA (KUITTAUS)")
+      
+      if (!latest) return "Ei kirjauksia"
+      
       let date: Date;
       if (latest.date instanceof Timestamp) date = latest.date.toDate();
       else if (latest.date?.seconds) date = new Date(latest.date.seconds * 1000);
       else date = new Date(latest.date);
 
-      if (!isValid(date)) return "Päivämäärävirhe"
+      if (!isValid(date)) return "---"
       return `${format(date, 'd.M.')} ${latest.recordedBy || 'Tiimi'}`
     } catch (e) {
-      return "Virhe"
+      return "---"
     }
   }
 
-  const categories = Array.from(new Set(templates.map(t => t.category)))
+  const categories = useMemo(() => {
+    const cats = Array.from(new Set(templates.map(t => t.category))).filter(Boolean) as string[]
+    return cats
+  }, [templates])
 
   const getCategoryIcon = (cat: string) => {
     if (cat.includes("Kylmä")) return <Refrigerator className="w-5 h-5" />
@@ -168,6 +174,13 @@ export function OmavalvontaModule() {
     if (cat.includes("Laitteet")) return <Flame className="w-5 h-5" />
     return <ShieldCheck className="w-5 h-5" />
   }
+
+  if (!isMounted) return (
+    <div className="p-20 text-center opacity-20 flex flex-col items-center justify-center gap-4">
+      <Loader2 className="w-10 h-10 animate-spin text-accent" />
+      <span className="uppercase font-black tracking-widest text-[10px]">Ladataan valvontaa...</span>
+    </div>
+  )
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
@@ -316,11 +329,11 @@ export function OmavalvontaModule() {
               <div className="w-full pt-4 border-t border-white/5 space-y-2">
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase text-muted-foreground">
                   <span>PVM</span>
-                  <span className="text-foreground">{format(new Date(), 'd.M.yyyy')}</span>
+                  <span className="text-foreground">{isMounted ? format(new Date(), 'd.M.yyyy') : '---'}</span>
                 </div>
                 <div className="flex justify-between items-center text-[10px] font-bold uppercase text-muted-foreground">
                   <span>AIKA</span>
-                  <span className="text-foreground">{format(new Date(), 'HH:mm')}</span>
+                  <span className="text-foreground">{isMounted ? format(new Date(), 'HH:mm') : '---'}</span>
                 </div>
               </div>
             </CardContent>
