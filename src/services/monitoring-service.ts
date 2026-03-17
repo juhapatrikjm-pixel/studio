@@ -1,4 +1,5 @@
-import { Firestore, collection, query, getDocs, serverTimestamp, doc, setDoc, deleteDoc, where, writeBatch, orderBy } from 'firebase/firestore';
+
+import { Firestore, collection, query, getDocs, serverTimestamp, doc, setDoc, deleteDoc, where, writeBatch } from 'firebase/firestore';
 
 /**
  * @fileOverview Omavalvonnan liiketoimintalogiikka.
@@ -15,10 +16,8 @@ export interface MonitoringRecord {
   value?: string;
   value2?: string; 
   time?: string;
-  time2?: string;
   comment?: string;
   status?: boolean;
-  chemicalStatus?: boolean;
   updatedAt: any;
 }
 
@@ -32,7 +31,6 @@ export interface MonitoringTemplate {
 
 /**
  * Tallentaa aktiivisen merkinnän Firestoreen (omavalvonta_active).
- * Tämä on vastaus varmistuskysymykseen 1.
  */
 export const saveActiveRecord = async (db: Firestore, userId: string, record: Partial<MonitoringRecord>) => {
   if (!record.targetName || !record.category) return;
@@ -116,8 +114,8 @@ export const getTemplates = async (db: Firestore) => {
       { name: "Kylmiö 1", category: "Kylmälaitteet", targetLimit: "max +6 °C", type: 'temperature' },
       { name: "Pakastin 1", category: "Kylmälaitteet", targetLimit: "max -18 °C", type: 'temperature' },
       { name: "Raaka-aineet", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
-      { name: "Uudelleenkuumennus", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
       { name: "Broileri", category: "Kuumennus", targetLimit: "min +78 °C", type: 'temperature' },
+      { name: "Uudelleenkuumennus", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
       { name: "Jäähdytys (Tuote 1)", category: "Jäähdytys", targetLimit: "< 6 °C / 4h", type: 'cooling' },
       { name: "Lämmin Buffet", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
       { name: "Kylmä Buffet", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },

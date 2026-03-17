@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -9,14 +10,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { 
   ShieldCheck, User, CalendarDays, Info, Refrigerator, Flame, Clock, Plus, Trash2, 
-  CheckCircle2, Settings2, Save, Loader2, AlertTriangle, Droplets, UtensilsCrossed,
-  Check, Bluetooth, Settings, X, Truck, Timer, Sparkles, FileText, ClipboardCheck, Wrench
+  CheckCircle2, Save, Loader2, AlertTriangle, Droplets, UtensilsCrossed,
+  Check, Bluetooth, Settings, X, Truck, Timer, Wrench, FileText
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFirestore, useUser } from "@/firebase"
 import * as monitoringService from "@/services/monitoring-service"
 import { useToast } from "@/hooks/use-toast"
-import { format, differenceInMinutes, parseISO, isValid } from "date-fns"
+import { format, isValid } from "date-fns"
 import { fi } from "date-fns/locale"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -38,7 +39,6 @@ export function OmavalvontaModule() {
   const currentUserName = user?.displayName || user?.email || "Käyttäjä"
   const [currentDateDisplay, setCurrentDateDisplay] = useState("")
 
-  // Lataa data tietokannasta heti alussa. Tämä on vastaus varmistuskysymykseen 2.
   const loadData = async () => {
     if (!firestore || !user) return
     const [records, temps] = await Promise.all([
@@ -62,7 +62,6 @@ export function OmavalvontaModule() {
     }
   }, [firestore, user])
 
-  // Reaaliaikainen tallennus Firestoreen. Tämä on vastaus varmistuskysymykseen 1.
   const handleUpdate = async (category: string, targetName: string, field: string, value: any) => {
     if (!firestore || !user) return
     
@@ -89,32 +88,19 @@ export function OmavalvontaModule() {
     }
   }
 
-  const handlePaperManualReset = async () => {
-    if (!firestore || !user) return
-    const manualRef = monitoringService.saveActiveRecord(firestore, user.uid, {
-      category: 'Manual',
-      targetName: 'Paperinen kuittaus',
-      recordedBy: currentUserName,
-      status: true,
-      updatedAt: new Date()
-    })
-    toast({ title: "Paperinen seuranta kuitattu", description: "Hälytys on hiljennetty." })
-    loadData()
-  }
-
   const getVal = (cat: string, target: string, field: string) => {
     return localValues[`${cat}_${target}`]?.[field] || ""
   }
 
   const isDone = (cat: string, target: string) => {
-    const val = getVal(cat, target, 'value') || getVal(cat, target, 'status') || getVal(cat, target, 'time')
+    const val = getVal(cat, target, 'value') || getVal(cat, target, 'status') || getVal(cat, target, 'time') || getVal(cat, target, 'value2')
     return !!val
   }
 
   const getHeaderInfo = (category: string) => {
     const catRecords = Object.values(localValues).filter(r => r.category === category && r.updatedAt)
     if (catRecords.length === 0) return null
-    const latest = catRecords.sort((a, b) => {
+    const latest = [...catRecords].sort((a, b) => {
       const da = a.updatedAt?.toDate ? a.updatedAt.toDate().getTime() : new Date(a.updatedAt).getTime()
       const db = b.updatedAt?.toDate ? b.updatedAt.toDate().getTime() : new Date(b.updatedAt).getTime()
       return db - da
@@ -122,6 +108,7 @@ export function OmavalvontaModule() {
     
     try {
       const dateObj = latest.updatedAt?.toDate ? latest.updatedAt.toDate() : new Date(latest.updatedAt)
+      if (!isValid(dateObj)) return null
       return `${format(dateObj, 'd.M.')} ${latest.recordedBy || ''}`
     } catch (e) { return null }
   }
@@ -159,9 +146,6 @@ export function OmavalvontaModule() {
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-1">
         <h2 className="text-3xl font-headline font-black text-accent uppercase tracking-tighter">Omavalvonta</h2>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePaperManualReset} className="border-white/10 text-muted-foreground hover:text-accent font-black text-[10px] uppercase h-11 px-6">
-            <FileText className="w-4 h-4 mr-2" /> PAPERINEN KUITTAUS
-          </Button>
           <Button variant="outline" onClick={() => setIsManageOpen(true)} className="border-white/10 text-muted-foreground hover:text-accent font-black text-[10px] uppercase h-11 px-6">
             <Settings className="w-4 h-4 mr-2" /> MUOKKAA KOHTEITA
           </Button>
@@ -206,7 +190,7 @@ export function OmavalvontaModule() {
                   {catTemplates.map(t => {
                     const done = isDone(cat, t.name)
                     const val = Number(getVal(cat, t.name, 'value'))
-                    const isAlert = t.targetLimit?.includes('min') ? (val > 0 && val < 70) : 
+                    const isAlert = t.targetLimit?.includes('min') ? (val > 0 && val < (t.name.includes('Broileri') ? 78 : 70)) : 
                                    t.targetLimit?.includes('max') ? (val > 0 && val > 6) : false
 
                     return (
@@ -258,7 +242,7 @@ export function OmavalvontaModule() {
                                     className={cn("w-24 h-10 font-black text-center text-lg", isAlert && "text-destructive border-destructive")}
                                   />
                                 </div>
-                                {t.type === 'cooling' || t.type === 'buffet' ? (
+                                {(t.type === 'cooling' || t.type === 'buffet') && (
                                   <div className="space-y-1">
                                     <Label className="text-[8px] uppercase font-black text-muted-foreground">2. MITTAUS</Label>
                                     <Input 
@@ -269,7 +253,7 @@ export function OmavalvontaModule() {
                                       className="w-24 h-10 font-black text-center text-lg bg-black/40"
                                     />
                                   </div>
-                                ) : null}
+                                )}
                                 <Button variant="ghost" size="icon" className="h-10 w-10 mt-5 bg-white/5 border border-white/10 hover:text-accent">
                                   <Bluetooth className="w-4 h-4" />
                                 </Button>
