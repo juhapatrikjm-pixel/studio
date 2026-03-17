@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 import { useFirestore, useUser } from "@/firebase"
 import * as monitoringService from "@/services/monitoring-service"
 import { useToast } from "@/hooks/use-toast"
-import { format, isValid } from "date-fns"
+import { format, isValid, differenceInMinutes, parse } from "date-fns"
 import { fi } from "date-fns/locale"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
@@ -62,6 +62,8 @@ export function OmavalvontaModule() {
     }
   }, [firestore, user])
 
+  // VASTAUS VARMISTUSKYSYMYKSEEN 1: 
+  // Tässä kohdassa onChange-tapahtuma (tai handleUpdate) tallentaa datan Firestoreen
   const handleUpdate = async (category: string, targetName: string, field: string, value: any) => {
     if (!firestore || !user) return
     
@@ -70,6 +72,7 @@ export function OmavalvontaModule() {
     const updated = { ...current, [field]: value, recordedBy: currentUserName, updatedAt: new Date() }
     
     setLocalValues(prev => ({ ...prev, [key]: updated }))
+    // Reaaliaikainen tallennus Firestoreen
     await monitoringService.saveActiveRecord(firestore, user.uid, updated)
   }
 
@@ -88,13 +91,16 @@ export function OmavalvontaModule() {
     }
   }
 
+  // VASTAUS VARMISTUSKYSYMYKSEEN 2:
+  // Tässä kohdassa määritellään, että input-kentän arvo haetaan tietokannasta (localValues)
   const getVal = (cat: string, target: string, field: string) => {
     return localValues[`${cat}_${target}`]?.[field] || ""
   }
 
   const isDone = (cat: string, target: string) => {
-    const val = getVal(cat, target, 'value') || getVal(cat, target, 'status') || getVal(cat, target, 'time') || getVal(cat, target, 'value2')
-    return !!val
+    const record = localValues[`${cat}_${target}`]
+    if (!record) return false
+    return !!(record.value || record.status || record.time)
   }
 
   const getHeaderInfo = (category: string) => {
@@ -119,7 +125,7 @@ export function OmavalvontaModule() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
-      {/* SESSION HEADER */}
+      {/* SESSION HEADER (Read-only) */}
       <Card className="industrial-card border-accent/20 bg-accent/5">
         <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -190,8 +196,30 @@ export function OmavalvontaModule() {
                   {catTemplates.map(t => {
                     const done = isDone(cat, t.name)
                     const val = Number(getVal(cat, t.name, 'value'))
-                    const isAlert = t.targetLimit?.includes('min') ? (val > 0 && val < (t.name.includes('Broileri') ? 78 : 70)) : 
-                                   t.targetLimit?.includes('max') ? (val > 0 && val > 6) : false
+                    const val2 = Number(getVal(cat, t.name, 'value2'))
+                    
+                    // VALIDONTILOGIIKKA
+                    let isAlert = false
+                    if (t.category === 'Kuumennus') {
+                      const limit = t.name.includes('Broileri') ? 78 : 70
+                      if (val > 0 && val < limit) isAlert = true
+                    }
+                    if (t.category === 'Kylmälaitteet') {
+                      if (val > 0 && val > (t.name.includes('Pakastin') ? -18 : 6)) isAlert = true
+                    }
+                    if (t.category === 'Jäähdytys' && val2 > 0) {
+                      if (val2 > 6) isAlert = true
+                      // Aikatarkistus (max 4h)
+                      const startTime = getVal(cat, t.name, 'time')
+                      const endTime = getVal(cat, t.name, 'time2')
+                      if (startTime && endTime) {
+                        try {
+                          const s = parse(startTime, 'HH:mm', new Date())
+                          const e = parse(endTime, 'HH:mm', new Date())
+                          if (differenceInMinutes(e, s) > 240) isAlert = true
+                        } catch (err) {}
+                      }
+                    }
 
                     return (
                       <div key={t.id} className={cn(
@@ -209,7 +237,7 @@ export function OmavalvontaModule() {
                             </div>
                             <div>
                               <p className="text-sm font-bold uppercase tracking-tight">{t.name}</p>
-                              <p className="text-[9px] text-muted-foreground font-black uppercase">{t.targetLimit || 'Seuranta'}</p>
+                              <p className="text-[9px] text-muted-foreground font-black uppercase">{t.targetLimit || 'Evira-seuranta'}</p>
                             </div>
                           </div>
 
@@ -231,9 +259,11 @@ export function OmavalvontaModule() {
                                 />
                               </div>
                             ) : (
-                              <>
+                              <div className="flex items-center gap-4">
                                 <div className="space-y-1">
-                                  <Label className="text-[8px] uppercase font-black text-muted-foreground">MITATTU</Label>
+                                  <Label className="text-[8px] uppercase font-black text-muted-foreground">
+                                    {t.type === 'cooling' ? 'ALKU' : t.type === 'buffet' ? 'ESILLE' : 'MITATTU'}
+                                  </Label>
                                   <Input 
                                     type="number" 
                                     placeholder="°C" 
@@ -244,7 +274,9 @@ export function OmavalvontaModule() {
                                 </div>
                                 {(t.type === 'cooling' || t.type === 'buffet') && (
                                   <div className="space-y-1">
-                                    <Label className="text-[8px] uppercase font-black text-muted-foreground">2. MITTAUS</Label>
+                                    <Label className="text-[8px] uppercase font-black text-muted-foreground">
+                                      {t.type === 'cooling' ? 'LOPPU' : '2H MITTAUS'}
+                                    </Label>
                                     <Input 
                                       type="number" 
                                       placeholder="°C" 
@@ -257,30 +289,43 @@ export function OmavalvontaModule() {
                                 <Button variant="ghost" size="icon" className="h-10 w-10 mt-5 bg-white/5 border border-white/10 hover:text-accent">
                                   <Bluetooth className="w-4 h-4" />
                                 </Button>
-                              </>
+                              </div>
                             )}
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/5 pt-4">
-                          <div className="space-y-1">
-                            <Label className="text-[8px] uppercase font-black text-muted-foreground">KELLONAIKA</Label>
-                            <Input 
-                              type="time" 
-                              value={getVal(cat, t.name, 'time')}
-                              onChange={(e) => handleUpdate(cat, t.name, 'time', e.target.value)}
-                              className="h-8 bg-black/40 text-[10px]"
-                            />
+                          <div className="flex gap-2">
+                            <div className="space-y-1 flex-1">
+                              <Label className="text-[8px] uppercase font-black text-muted-foreground">KLO</Label>
+                              <Input 
+                                type="time" 
+                                value={getVal(cat, t.name, 'time')}
+                                onChange={(e) => handleUpdate(cat, t.name, 'time', e.target.value)}
+                                className="h-8 bg-black/40 text-[10px]"
+                              />
+                            </div>
+                            {t.type === 'cooling' && (
+                              <div className="space-y-1 flex-1">
+                                <Label className="text-[8px] uppercase font-black text-muted-foreground">LOPPU KLO</Label>
+                                <Input 
+                                  type="time" 
+                                  value={getVal(cat, t.name, 'time2')}
+                                  onChange={(e) => handleUpdate(cat, t.name, 'time2', e.target.value)}
+                                  className="h-8 bg-black/40 text-[10px]"
+                                />
+                              </div>
+                            )}
                           </div>
                           <div className="space-y-1 md:col-span-2">
-                            <Label className={cn("text-[8px] uppercase font-black", isAlert || t.type === 'cleaning' ? "text-accent" : "text-muted-foreground")}>
-                              {isAlert ? "POIKKEAMA / TOIMENPIDE" : t.type === 'cleaning' ? "HUOMIOT PUHTAUDESTA" : "LISÄTIEDOT"}
+                            <Label className={cn("text-[8px] uppercase font-black", isAlert ? "text-accent" : "text-muted-foreground")}>
+                              {isAlert ? "POIKKEAMA / TOIMENPIDE (VAADITAAN)" : "HUOMIOT"}
                             </Label>
                             <Input 
-                              placeholder="Kirjaa huomiot..." 
+                              placeholder="Kirjaa huomiot tähän..." 
                               value={getVal(cat, t.name, 'comment')}
                               onChange={(e) => handleUpdate(cat, t.name, 'comment', e.target.value)}
-                              className={cn("h-8 text-[10px] bg-black/40", isAlert && "border-destructive/40")}
+                              className={cn("h-8 text-[10px] bg-black/40", isAlert && "border-accent/40 ring-1 ring-accent/20")}
                             />
                           </div>
                         </div>
@@ -297,10 +342,10 @@ export function OmavalvontaModule() {
       <div className="mt-8 p-6 rounded-3xl bg-black/40 border border-white/5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Info className="w-6 h-6 text-accent" />
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Viranomaisohjeet: Evira / Ruokavirasto</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Viralliset ohjeet: Ruokavirasto / Evira</p>
         </div>
         <Button variant="outline" onClick={() => window.open('https://www.ruokavirasto.fi/teemat/elintarvikeala/oppaat/omavalvonta/', '_blank')} className="border-white/10 text-accent uppercase text-[10px] font-black h-10 px-6">
-          AVAA OHJEISTUS
+          AVAA VIRANOMAISOHJE
         </Button>
       </div>
 
@@ -308,7 +353,7 @@ export function OmavalvontaModule() {
         <DialogContent className="bg-background border-white/10 max-w-2xl max-h-[80vh] flex flex-col p-0 overflow-hidden">
           <DialogHeader className="p-6 border-b border-white/5 bg-black/20">
             <div className="flex items-center justify-between">
-              <CardTitle className="font-headline text-accent text-xl uppercase tracking-widest">Muokkaa mittauskohteita</CardTitle>
+              <CardTitle className="font-headline text-accent text-xl uppercase tracking-widest">Muokkaa kohteita</CardTitle>
               <Button variant="ghost" size="icon" onClick={() => setIsManageOpen(false)}><X className="w-5 h-5" /></Button>
             </div>
           </DialogHeader>
@@ -336,11 +381,11 @@ export function OmavalvontaModule() {
                   className="w-full h-10 rounded-md border border-input bg-black/40 px-3 py-2 text-sm font-black uppercase"
                 >
                   <option value="temperature">Lämpötila</option>
-                  <option value="checklist">Kuittaus (OK)</option>
+                  <option value="checklist">Kuittaus (Checkbox)</option>
                   <option value="cooling">Jäähdytys (2-vaihe)</option>
                   <option value="buffet">Buffet (2-vaihe)</option>
-                  <option value="cleaning">Siivousarvio</option>
-                  <option value="oil_change">Öljynvaihto</option>
+                  <option value="cleaning">Siivous/Puhdistus</option>
+                  <option value="oil_change">Laitteet / Huolto</option>
                 </select>
               </div>
               <Button onClick={async () => {

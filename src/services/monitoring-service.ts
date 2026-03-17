@@ -16,6 +16,7 @@ export interface MonitoringRecord {
   value?: string;
   value2?: string; 
   time?: string;
+  time2?: string;
   comment?: string;
   status?: boolean;
   updatedAt: any;
@@ -93,7 +94,7 @@ export const archiveMonitoringDay = async (db: Firestore, userId: string, userNa
     createdAt: serverTimestamp()
   });
 
-  // Päivitetään myös globaali hälytyssyöte
+  // Päivitetään globaali hälytyssyöte Ohjauspaneelia varten
   const pulseRef = doc(db, 'selfMonitoringRecords', archiveId);
   batch.set(pulseRef, {
     date: archiveDate,
@@ -116,14 +117,18 @@ export const getTemplates = async (db: Firestore) => {
       { name: "Raaka-aineet", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
       { name: "Broileri", category: "Kuumennus", targetLimit: "min +78 °C", type: 'temperature' },
       { name: "Uudelleenkuumennus", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
-      { name: "Jäähdytys (Tuote 1)", category: "Jäähdytys", targetLimit: "< 6 °C / 4h", type: 'cooling' },
+      { name: "Jäähdytys (Pääruoka)", category: "Jäähdytys", targetLimit: "< 6 °C / 4h", type: 'cooling' },
       { name: "Lämmin Buffet", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
       { name: "Kylmä Buffet", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
+      { name: "Buffet-raaka-aineet (L)", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
+      { name: "Buffet-raaka-aineet (K)", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
       { name: "Pesuvesi", category: "Astianpesu", targetLimit: "60-65 °C", type: 'temperature' },
       { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "> 80 °C", type: 'temperature' },
-      { name: "Toimittaja 1", category: "Vastaanotto", targetLimit: "OK", type: 'checklist' },
-      { name: "Keittiön yleispuhtaus", category: "Puhdistus", type: 'cleaning' },
-      { name: "Siivousliikkeen laatu", category: "Puhdistus", type: 'cleaning' },
+      { name: "Pesuainetaso", category: "Astianpesu", targetLimit: "OK", type: 'checklist' },
+      { name: "Kuorman lämpötila", category: "Vastaanotto", targetLimit: "max +6 °C", type: 'temperature' },
+      { name: "Kuorman puhtaus", category: "Vastaanotto", targetLimit: "OK", type: 'checklist' },
+      { name: "Työtasot", category: "Puhdistus", type: 'cleaning' },
+      { name: "Lattiakaivot", category: "Puhdistus", type: 'cleaning' },
       { name: "Rasvakeitin 1", category: "Laitteet", targetLimit: "Öljynvaihto", type: 'oil_change' },
     ];
     
