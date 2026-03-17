@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -284,9 +283,20 @@ export function OmavalvontaModule() {
                               </div>
                             ) : (
                               <div className="flex items-center gap-4">
+                                {t.type === 'cooling' && (
+                                  <div className="space-y-1 w-full md:w-48">
+                                    <Label className="text-[8px] uppercase font-black text-muted-foreground">TUOTTEEN NIMI</Label>
+                                    <Input 
+                                      placeholder="Tuote..." 
+                                      value={getVal(cat, t.name, 'productName')}
+                                      onChange={(e) => handleUpdate(cat, t.name, 'productName', e.target.value)}
+                                      className="h-10 bg-black/40 text-[10px] font-black"
+                                    />
+                                  </div>
+                                )}
                                 <div className="space-y-1">
                                   <Label className="text-[8px] uppercase font-black text-muted-foreground">
-                                    {t.type === 'cooling' ? 'ALKU' : t.type === 'buffet' ? 'ESILLE' : 'MITATTU'}
+                                    {t.type === 'cooling' ? 'ALKU °C' : t.type === 'buffet' ? 'ESILLE' : 'MITATTU'}
                                   </Label>
                                   <Input 
                                     type="number" 
@@ -299,7 +309,7 @@ export function OmavalvontaModule() {
                                 {(t.type === 'cooling' || t.type === 'buffet') && (
                                   <div className="space-y-1">
                                     <Label className="text-[8px] uppercase font-black text-muted-foreground">
-                                      {t.type === 'cooling' ? 'LOPPU' : '2H MITTAUS'}
+                                      {t.type === 'cooling' ? 'LOPPU °C' : '2H MITTAUS'}
                                     </Label>
                                     <Input 
                                       type="number" 
@@ -321,7 +331,9 @@ export function OmavalvontaModule() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-white/5 pt-4">
                           <div className="flex gap-2">
                             <div className="space-y-1 flex-1">
-                              <Label className="text-[8px] uppercase font-black text-muted-foreground">KLO</Label>
+                              <Label className="text-[8px] uppercase font-black text-muted-foreground">
+                                {t.type === 'cooling' ? 'ALKU KLO' : 'KLO'}
+                              </Label>
                               <Input 
                                 type="time" 
                                 value={getVal(cat, t.name, 'time')}
