@@ -2,18 +2,15 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { ShieldCheck, AlertTriangle, Zap, Activity } from "lucide-react"
+import { ShieldCheck, AlertTriangle, Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useFirestore, useUser, useCollection } from "@/firebase"
+import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, orderBy, limit, Timestamp } from "firebase/firestore"
 import { format, differenceInDays } from "date-fns"
 import { fi } from "date-fns/locale"
-import { Button } from "@/components/ui/button"
-import * as monitoringService from "@/services/monitoring-service"
 
 export function MonitoringPulse() {
   const firestore = useFirestore()
-  const { user } = useUser()
   const [isMounted, setIsMounted] = useState(false)
 
   const recordsQuery = useMemo(() => {
@@ -42,16 +39,7 @@ export function MonitoringPulse() {
     : 999
   
   const isCritical = daysSince >= 7
-  const isOk = latestRecord?.status && daysSince === 0
-
-  const handleManualAck = async () => {
-    if (!user || !firestore) return
-    await monitoringService.acknowledgeMonitoring(
-      firestore, 
-      user.uid, 
-      user.displayName || "Ylläpitäjä"
-    )
-  }
+  const isOk = daysSince === 0 && recordDate !== null
 
   return (
     <Card className={cn(
@@ -90,21 +78,11 @@ export function MonitoringPulse() {
         </div>
 
         <div className="flex items-center gap-3">
-          {isCritical && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleManualAck}
-              className="border-destructive/40 text-destructive hover:bg-destructive/10 font-black text-[10px] uppercase h-9 px-4 gap-2"
-            >
-              <Zap className="w-3 h-3" /> KUITTAA HÄLYTYS
-            </Button>
-          )}
           <div className={cn(
             "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border",
             isOk ? "bg-green-500 text-white border-green-400" : "bg-black/40 text-muted-foreground border-white/5"
           )}>
-            {isOk ? "TÄNÄÄN TEHTY" : "ODOTTAA"}
+            {isOk ? "TÄNÄÄN TEHTY" : "KIRJAUS ODOTTAA"}
           </div>
         </div>
       </CardContent>

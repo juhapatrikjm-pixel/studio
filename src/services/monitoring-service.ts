@@ -1,4 +1,4 @@
-import { Firestore, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp, doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
+import { Firestore, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp, doc, deleteDoc, writeBatch, Timestamp } from 'firebase/firestore';
 
 /**
  * @fileOverview Omavalvonnan liiketoimintalogiikka ja tietokantaoperaatiot.
@@ -9,37 +9,79 @@ export interface MonitoringRecord {
   id?: string;
   date: any;
   recordedBy: string;
-  value?: string;
+  targetName: string;
+  value: string;
   status: boolean;
   method: 'manual' | 'bluetooth';
-  values?: Record<string, string>;
 }
 
+export interface MonitoringTemplate {
+  id: string;
+  name: string;
+  category: string;
+  targetLimit: string;
+  type: 'temperature' | 'sensory' | 'boolean';
+}
+
+const DEFAULT_TEMPLATES: Omit<MonitoringTemplate, 'id'>[] = [
+  { name: 'Kylmiö 1', category: 'Kylmälaitteet', targetLimit: 'max +6 °C', type: 'temperature' },
+  { name: 'Pakastin 1', category: 'Kylmälaitteet', targetLimit: 'max -18 °C', type: 'temperature' },
+  { name: 'Kuumennus (liha/kala)', category: 'Valmistus', targetLimit: 'min +70 °C', type: 'temperature' },
+  { name: 'Lämpimänäpito', category: 'Tarjoilu', targetLimit: 'min +60 °C', type: 'temperature' },
+  { name: 'Saapuva kuorma', category: 'Vastaanotto', targetLimit: 'Ohjeen mukaan', type: 'temperature' },
+  { name: 'Kuorman laatuarvio', category: 'Vastaanotto', targetLimit: 'Aistinvarainen OK', type: 'sensory' },
+];
+
 /**
- * Hakee viimeisimmän omavalvontakirjauksen.
+ * Hakee valvontakohteet. Jos tyhjä, alustaa oletukset.
  */
-export const getLatestMonitoringRecord = async (db: Firestore): Promise<MonitoringRecord | null> => {
+export const getMonitoringTemplates = async (db: Firestore): Promise<MonitoringTemplate[]> => {
   try {
-    const q = query(collection(db, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(1));
-    const snap = await getDocs(q);
-    if (snap.empty) return null;
-    const data = snap.docs[0].data();
-    return { ...data, id: snap.docs[0].id } as MonitoringRecord;
+    const colRef = collection(db, 'monitoringTemplates');
+    const snap = await getDocs(colRef);
+    
+    if (snap.empty) {
+      const batch = writeBatch(db);
+      DEFAULT_TEMPLATES.forEach((t) => {
+        const newDoc = doc(colRef);
+        batch.set(newDoc, { ...t, id: newDoc.id });
+      });
+      await batch.commit();
+      const newSnap = await getDocs(colRef);
+      return newSnap.docs.map(d => d.data() as MonitoringTemplate);
+    }
+    
+    return snap.docs.map(d => d.data() as MonitoringTemplate);
   } catch (error) {
-    console.error("Monitoring Service: Error fetching latest record", error);
-    throw error;
+    console.error("Error fetching templates", error);
+    return [];
   }
 };
 
 /**
- * Tallentaa uuden omavalvontakirjauksen.
+ * Tallentaa uuden valvontakohteen (Admin).
  */
-export const saveMonitoringRecord = async (db: Firestore, record: Partial<MonitoringRecord>) => {
+export const addMonitoringTemplate = async (db: Firestore, template: Omit<MonitoringTemplate, 'id'>) => {
+  const colRef = collection(db, 'monitoringTemplates');
+  const newDoc = doc(colRef);
+  await addDoc(colRef, { ...template, id: newDoc.id });
+};
+
+/**
+ * Poistaa valvontakohteen (Admin).
+ */
+export const deleteMonitoringTemplate = async (db: Firestore, id: string) => {
+  await deleteDoc(doc(db, 'monitoringTemplates', id));
+};
+
+/**
+ * Tallentaa uuden mittauksen.
+ */
+export const saveMonitoringRecord = async (db: Firestore, record: { targetName: string, value: string, recordedBy: string, method: 'manual' | 'bluetooth' }) => {
   try {
     const recordData = {
       ...record,
       date: serverTimestamp(),
-      method: record.method || 'manual',
       status: true
     };
     await addDoc(collection(db, 'selfMonitoringRecords'), recordData);
@@ -51,29 +93,16 @@ export const saveMonitoringRecord = async (db: Firestore, record: Partial<Monito
 };
 
 /**
- * Keittiömestarin manuaalinen hälytyksen kuittaus tai tarkistus.
+ * Keittiömestarin auditointi.
  */
-export const acknowledgeMonitoring = async (db: Firestore, userId: string, userName: string, type: 'manual_ack' | 'chef_audit' = 'manual_ack') => {
+export const acknowledgeMonitoring = async (db: Firestore, userId: string, userName: string) => {
   try {
-    const auditData = {
-      type,
+    await addDoc(collection(db, 'monitoringAudits'), {
+      type: 'chef_audit',
       userId,
       userName,
       timestamp: serverTimestamp(),
-    };
-    
-    if (type === 'chef_audit') {
-      await addDoc(collection(db, 'monitoringAudits'), auditData);
-    } else {
-      // Manuaalinen hälytyksen nollaus tallennetaan omana tietueenaan
-      await addDoc(collection(db, 'selfMonitoringRecords'), {
-        ...auditData,
-        date: serverTimestamp(),
-        recordedBy: userName,
-        status: true,
-        method: 'manual'
-      });
-    }
+    });
     return { success: true };
   } catch (error) {
     console.error("Monitoring Service: Error acknowledging monitoring", error);
@@ -82,14 +111,10 @@ export const acknowledgeMonitoring = async (db: Firestore, userId: string, userN
 };
 
 /**
- * Simuloi Bluetooth-mittausta.
+ * Bluetooth-mittauksen simulointi.
  */
 export const handleBluetoothMeasurement = async () => {
-  console.log("Bluetooth: Etsitään laitteita...");
   return new Promise((resolve) => {
-    setTimeout(() => {
-      console.log("Bluetooth: Mittaus saatu: 4.2°C");
-      resolve("4.2");
-    }, 2000);
+    setTimeout(() => resolve("4.5"), 1500);
   });
 };
