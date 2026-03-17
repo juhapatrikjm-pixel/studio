@@ -24,8 +24,8 @@ export function initializeFirebase(): FirebaseServices {
   console.log("DEBUG: Firebase API Key löytyi:", !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
   console.log("DEBUG: Project ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
 
-  // Alustetaan palvelut
-  const firestore = getFirestore(firebaseApp);
+  // Alustetaan palvelut käyttämällä määritettyä tietokantaa "wisemisa"
+  const firestore = getFirestore(firebaseApp, "wisemisa");
   const auth = getAuth(firebaseApp);
   const storage = getStorage(firebaseApp);
 
