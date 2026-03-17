@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Info, ChefHat, CookingPot, Wrench, Send, Trash2, CheckCircle, Zap, Users, Cloud } from "lucide-react"
 import { OmavalvontaStatusHeader } from "./omavalvonta"
 import { useUser, useFirestore, useCollection } from "@/firebase"
-import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc, Timestamp } from "firebase/firestore"
+import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
 import { format, formatDistanceToNow } from "date-fns"
 import { fi } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
@@ -16,12 +16,13 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 export function WorkspaceModule() {
   const firestore = useFirestore()
   const { user } = useUser()
-  const currentUser = user?.displayName || (user?.isAnonymous ? "Demo-käyttäjä" : "Käyttäjä")
+  const currentUser = user?.displayName || (user?.isAnonymous ? "Ylläpitäjä" : "Käyttäjä")
 
   const [todayDate, setTodayDate] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
+  // Estetään hydraatiovirheet suorittamalla aikariippuvaiset asiat mountin jälkeen
   useEffect(() => {
     setIsMounted(true)
     setTodayDate(format(new Date(), 'yyyy-MM-dd'))
@@ -105,7 +106,7 @@ export function WorkspaceModule() {
   }
 
   const safeFormatDate = (date: any) => {
-    if (!date) return "Äsken"
+    if (!date || !isMounted) return "---"
     try {
       let d: Date;
       if (date && typeof date.toDate === 'function') {
@@ -115,10 +116,10 @@ export function WorkspaceModule() {
       } else {
         d = new Date(date);
       }
-      if (!d || isNaN(d.getTime())) return "Äsken"
+      if (!d || isNaN(d.getTime())) return "---"
       return formatDistanceToNow(d, { addSuffix: true, locale: fi })
     } catch (e) {
-      return "Äsken"
+      return "---"
     }
   }
 
@@ -150,7 +151,11 @@ export function WorkspaceModule() {
     }).slice(0, 8)
   }, [latestRecipes, latestDishes])
 
-  if (!isMounted) return null
+  if (!isMounted) return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Zap className="w-8 h-8 animate-spin text-accent opacity-20" />
+    </div>
+  )
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-700">
@@ -253,11 +258,11 @@ export function WorkspaceModule() {
             <CardContent className="p-6 pt-0">
               <div className="space-y-3">
                 {combinedLogs.map((log) => {
-                  const IconComponent = log.icon;
+                  const Icon = log.icon;
                   return (
                     <div key={log.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-transparent hover:bg-white/10 transition-all group">
                       <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center border border-white/10 shrink-0">
-                        {IconComponent && <IconComponent className="w-5 h-5 text-accent" />}
+                        <Icon className="w-5 h-5 text-accent" />
                       </div>
                       <div className="flex-1 overflow-hidden">
                         <p className="text-sm font-black text-foreground leading-tight truncate">{log.text}</p>

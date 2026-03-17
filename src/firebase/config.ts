@@ -1,5 +1,9 @@
 'use client';
 
+/**
+ * Firebase-konfiguraatio. 
+ * Kaikkien muuttujien ON OLTAVA NEXT_PUBLIC_ -alkuisia, jotta ne näkyvät selaimelle.
+ */
 export const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
