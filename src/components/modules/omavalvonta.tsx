@@ -23,15 +23,17 @@ import {
   Settings2,
   UtensilsCrossed,
   Save,
-  Loader2
+  Loader2,
+  Wrench,
+  AlertTriangle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFirestore, useUser, useCollection } from "@/firebase"
-import { collection, query, orderBy, limit } from "firebase/firestore"
+import { collection, query, orderBy, limit, where, Timestamp } from "firebase/firestore"
 import { MonitoringPulse } from "../monitoring-pulse"
 import * as monitoringService from "@/services/monitoring-service"
 import { useToast } from "@/hooks/use-toast"
-import { format, isValid } from "date-fns"
+import { format, isValid, startOfDay, endOfDay } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
@@ -43,6 +45,7 @@ const CATEGORIES = [
   { id: 'Puhdistus', icon: Droplets, color: 'text-sky-400' },
   { id: 'Astianpesu', icon: ShieldCheck, color: 'text-indigo-400' },
   { id: 'Buffet', icon: UtensilsCrossed, color: 'text-accent' },
+  { id: 'Laitteet', icon: Wrench, color: 'text-zinc-400' },
 ];
 
 export function OmavalvontaModule() {
@@ -55,18 +58,28 @@ export function OmavalvontaModule() {
   const [isSaving, setIsSaving] = useState(false)
   const [templates, setTemplates] = useState<monitoringService.MonitoringTemplate[]>([])
   const [isManageOpen, setIsManageOpen] = useState(false)
+  const [localValues, setLocalValues] = useState<Record<string, string>>({})
   
   const [newTpl, setNewTpl] = useState({ name: '', category: 'Kylmälaitteet', limit: '' })
 
   const currentUserName = user?.displayName || user?.email || "Käyttäjä"
   const [currentDateDisplay, setCurrentDateDisplay] = useState("")
 
+  // Haetaan päivän kirjaukset (arkistoimattomat) jotta ne näkyvät UI:ssa
+  const todayStart = startOfDay(new Date())
+  const todayEnd = endOfDay(new Date())
+
   const recordsQuery = useMemo(() => {
     if (!firestore) return null
-    return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(100))
+    return query(
+      collection(firestore, 'selfMonitoringRecords'), 
+      where('date', '>=', todayStart),
+      orderBy('date', 'desc'), 
+      limit(100)
+    )
   }, [firestore])
   
-  const { data: recentRecords = [] } = useCollection<any>(recordsQuery)
+  const { data: todayRecords = [] } = useCollection<any>(recordsQuery)
 
   useEffect(() => {
     setIsMounted(true)
@@ -77,8 +90,21 @@ export function OmavalvontaModule() {
     }
   }, [firestore])
 
+  // Päivitetään paikalliset arvot kun tietokannasta tulee uutta dataa tälle päivälle
+  useEffect(() => {
+    if (todayRecords.length > 0) {
+      const values: Record<string, string> = {}
+      todayRecords.forEach(r => {
+        if (!values[r.targetName]) {
+          values[r.targetName] = r.value
+        }
+      })
+      setLocalValues(prev => ({ ...prev, ...values }))
+    }
+  }, [todayRecords])
+
   const getLatestRecordForCat = (category: string) => {
-    return recentRecords.find(r => r.category === category)
+    return todayRecords.find(r => r.category === category)
   }
 
   const handleSaveMeasurement = async (target: string, value: string, category: string) => {
@@ -121,14 +147,29 @@ export function OmavalvontaModule() {
 
   const handleArchiveDay = async () => {
     if (!firestore) return
-    await monitoringService.archiveDay(currentDateDisplay, currentUserName)
-    toast({ title: "Päivän seuranta arkistoitu", description: `Tallennettu arkistoon nimellä Tehtävä ${currentDateDisplay}` })
+    setIsSaving(true)
+    try {
+      await monitoringService.archiveDay(firestore, currentDateDisplay, currentUserName)
+      toast({ title: "Päivän seuranta arkistoitu", description: `Tallennettu arkistoon nimellä Tehtävä ${currentDateDisplay}` })
+      // UI:n tyhjennys (prototyypissä vain paikallinen reset)
+      setLocalValues({})
+    } catch (e) {
+      toast({ variant: "destructive", title: "Arkistointi epäonnistui" })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  if (!isMounted) return null
+  if (!isMounted) return (
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
+      <Loader2 className="w-10 h-10 animate-spin text-accent" />
+      <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Ladataan seurantaa...</span>
+    </div>
+  )
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
+      {/* SESSION HEADER */}
       <Card className="industrial-card overflow-hidden border-accent/20 shadow-2xl">
         <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
         <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
@@ -166,13 +207,24 @@ export function OmavalvontaModule() {
           <Button variant="outline" onClick={() => setIsManageOpen(true)} className="border-white/10 text-accent font-black text-[10px] uppercase h-11 px-6 tracking-widest">
             <Settings2 className="w-4 h-4 mr-2" /> MUOKKAA KOHTEITA
           </Button>
-          <Button onClick={handleArchiveDay} className="copper-gradient font-black text-[10px] uppercase h-11 px-6 tracking-widest metal-shine-overlay shadow-lg">
-            <Save className="w-4 h-4 mr-2" /> ARKISTOI PÄIVÄ
+          <Button onClick={handleArchiveDay} disabled={isSaving} className="copper-gradient font-black text-[10px] uppercase h-11 px-6 tracking-widest metal-shine-overlay shadow-lg">
+            {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} ARKISTOI PÄIVÄ
           </Button>
         </div>
       </header>
 
       <MonitoringPulse />
+
+      {/* PAPERI-KUITTAUS */}
+      <Card className="bg-zinc-900/50 border-dashed border-white/10 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500" />
+          <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Teetkö seurantaa paperilla? Kuittaa tästä päivä suoritetuksi järjestelmään.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => handleSaveMeasurement("Paperinen seuranta", "OK", "Yleinen")} className="border-white/10 text-white font-black text-[10px] uppercase tracking-widest h-9 px-6 hover:bg-white/5">
+          PAPERINEN KUITTAUS
+        </Button>
+      </Card>
 
       <Accordion type="single" collapsible className="w-full space-y-4">
         {CATEGORIES.map((cat) => {
@@ -180,7 +232,7 @@ export function OmavalvontaModule() {
           const Icon = cat.icon;
           const latest = getLatestRecordForCat(cat.id);
           
-          let latestInfo = "Ei kirjauksia";
+          let latestInfo = "Ei kirjauksia tänään";
           if (latest) {
             try {
               const d = latest.date?.toDate ? latest.date.toDate() : new Date(latest.date);
@@ -193,7 +245,7 @@ export function OmavalvontaModule() {
           }
           
           return (
-            <AccordionItem key={cat.id} value={cat.id} className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0 group hover:bg-white/[0.07] transition-all">
+            <AccordionItem key={cat.id} value={cat.id} className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0 group hover:bg-white/[0.07] transition-all shadow-xl">
               <AccordionTrigger className="hover:no-underline px-6 py-5">
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center gap-5 text-left">
@@ -202,7 +254,7 @@ export function OmavalvontaModule() {
                     </div>
                     <div>
                       <h3 className="text-base font-black uppercase tracking-widest text-foreground group-hover:text-accent transition-colors">{cat.id}</h3>
-                      <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1 opacity-60">
+                      <p className="text-[10px] text-accent/60 uppercase font-black tracking-widest mt-1 opacity-80">
                         {latestInfo}
                       </p>
                     </div>
@@ -223,23 +275,33 @@ export function OmavalvontaModule() {
                       <div className="flex gap-2">
                         <Input 
                           placeholder={tpl.type === 'temperature' ? '°C' : 'Arvo...'} 
+                          value={localValues[tpl.name] || ""}
+                          onChange={(e) => setLocalValues({ ...localValues, [tpl.name]: e.target.value })}
                           className="bg-black/40 border-white/10 font-black h-11 rounded-xl text-sm" 
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveMeasurement(tpl.name, (e.target as HTMLInputElement).value, cat.id);
+                            if (e.key === 'Enter') handleSaveMeasurement(tpl.name, localValues[tpl.name], cat.id);
                           }}
                         />
                         <Button 
                           size="icon" 
                           className="copper-gradient shrink-0 h-11 w-11 rounded-xl shadow-lg"
-                          onClick={(e) => {
-                            const input = (e.currentTarget.parentElement?.firstChild as HTMLInputElement);
-                            handleSaveMeasurement(tpl.name, input.value, cat.id);
-                          }}
+                          onClick={() => handleSaveMeasurement(tpl.name, localValues[tpl.name], cat.id)}
                         >
                           <Save className="w-5 h-5" />
                         </Button>
                         <Button variant="ghost" size="icon" className="text-accent/40 hover:text-accent h-11 w-11 rounded-xl"><Bluetooth className="w-5 h-5" /></Button>
                       </div>
+                      {/* Lisätään poikkeama-kenttä jos kategoria on Puhdistus tai jos käyttäjä haluaa */}
+                      {cat.id === 'Puhdistus' && (
+                        <div className="pt-2">
+                          <Label className="text-[8px] uppercase font-black text-muted-foreground mb-1 block">POIKKEAMA / HUOMIO</Label>
+                          <Input 
+                            placeholder="Kirjaa poikkeama..." 
+                            className="h-8 bg-white/5 border-white/5 text-[10px]" 
+                            onBlur={(e) => { if(e.target.value) handleSaveMeasurement(`${tpl.name} POIKKEAMA`, e.target.value, cat.id); }}
+                          />
+                        </div>
+                      )}
                     </div>
                   ))}
                   {catTemplates.length === 0 && (

@@ -1,5 +1,4 @@
-import { Firestore, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp, doc, getDoc, setDoc, deleteDoc, where, writeBatch } from 'firebase/firestore';
-import { FirebaseStorage, ref, uploadBytes, listAll, getDownloadURL } from 'firebase/storage';
+import { Firestore, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp, doc, getDoc, setDoc, deleteDoc, where, writeBatch, Timestamp } from 'firebase/firestore';
 
 /**
  * @fileOverview Omavalvonnan liiketoimintalogiikka ja tietokantaoperaatiot.
@@ -15,6 +14,7 @@ export interface MonitoringRecord {
   status: boolean;
   method: 'manual' | 'bluetooth' | 'paper_sync';
   category: string;
+  archived?: boolean;
 }
 
 export interface MonitoringTemplate {
@@ -45,7 +45,8 @@ export const saveMonitoringRecord = async (db: Firestore, record: Partial<Monito
     const recordData = {
       ...record,
       date: serverTimestamp(),
-      status: true
+      status: true,
+      archived: false
     };
     await addDoc(collection(db, 'selfMonitoringRecords'), recordData);
     return { success: true };
@@ -62,21 +63,39 @@ export const getMonitoringTemplates = async (db: Firestore): Promise<MonitoringT
   
   if (templates.length === 0) {
     const defaults: Omit<MonitoringTemplate, 'id'>[] = [
+      // KYLMÄLAITTEET
       { name: "Kylmiö 1", category: "Kylmälaitteet", targetLimit: "max +6 °C", type: "temperature" },
       { name: "Pakastin 1", category: "Kylmälaitteet", targetLimit: "max -18 °C", type: "temperature" },
-      { name: "Lounaskeitto", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
-      { name: "Uudelleenkuumennus (prep)", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
-      { name: "Raaka-aine mittaus", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
+      
+      // KUUMENNUS
+      { name: "Uudelleen kuumennettavat esivalmisteet", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
+      { name: "Raaka-aineiden mittaus", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
       { name: "Raaka-aine (Broileri)", category: "Kuumennus", targetLimit: "min +78 °C", type: "temperature" },
+      
+      // JÄÄHDYTYS
       { name: "Jäähdytysseuranta", category: "Jäähdytys", targetLimit: "60 -> 6 °C / 4h", type: "text" },
+      
+      // VASTAANOTTO
       { name: "Kuorman lämpötila", category: "Vastaanotto", targetLimit: "pakaste -18 / tuore +6", type: "temperature" },
-      { name: "Keittiön tasot", category: "Puhdistus", targetLimit: "Puhdas", type: "boolean" },
+      { name: "Aistinvarainen arvio", category: "Vastaanotto", targetLimit: "OK", type: "boolean" },
+      
+      // PUHDISTUS
+      { name: "Keittiön yleispuhtaus (oma arvio)", category: "Puhdistus", targetLimit: "Puhdas", type: "text" },
+      { name: "Siivousliikkeen laatu", category: "Puhdistus", targetLimit: "Hyvä", type: "text" },
+      { name: "Päivittäiset rutiinit", category: "Puhdistus", targetLimit: "Suoritettu", type: "boolean" },
+      
+      // ASTIANPESU
       { name: "Pesuvesi", category: "Astianpesu", targetLimit: "min +60 °C", type: "temperature" },
       { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "min +80 °C", type: "temperature" },
-      { name: "Buffet Lämmin", category: "Buffet", targetLimit: "min +60 °C", type: "temperature" },
-      { name: "Buffet Kylmä", category: "Buffet", targetLimit: "max +12 °C", type: "temperature" },
+      
+      // BUFFET
+      { name: "Buffet Lämmin (tuote)", category: "Buffet", targetLimit: "min +60 °C", type: "temperature" },
+      { name: "Buffet Kylmä (tuote)", category: "Buffet", targetLimit: "max +12 °C", type: "temperature" },
       { name: "Lämmin raaka-aine (Buffet)", category: "Buffet", targetLimit: "min +60 °C", type: "temperature" },
       { name: "Kylmä raaka-aine (Buffet)", category: "Buffet", targetLimit: "max +12 °C", type: "temperature" },
+      
+      // LAITTEET
+      { name: "Rasvakeittimen öljynvaihto", category: "Laitteet", targetLimit: "Pvm", type: "date" },
     ];
     
     const batch = writeBatch(db);
@@ -99,15 +118,19 @@ export const deleteTemplate = async (db: Firestore, id: string) => {
   await deleteDoc(doc(db, 'monitoringTemplates', id));
 };
 
-export const archiveDay = async (db: Firestore, date: string, user: string) => {
-  const id = `archive_${date}_${Math.random().toString(36).substr(2, 5)}`;
+export const archiveDay = async (db: Firestore, dateStr: string, user: string) => {
+  // 1. Luodaan raportti arkistoon
+  const id = `archive_${dateStr}_${Math.random().toString(36).substr(2, 5)}`;
   await setDoc(doc(db, 'uploadedRecipes', id), {
     id,
-    name: `Tehtävä ${date}`,
+    name: `Tehtävä ${dateStr}`,
     type: 'application/pdf-mock',
     size: '0.1 MB',
     folderId: 'omavalvonta_arkisto',
     createdAt: serverTimestamp(),
     recordedBy: user
   });
+
+  // 2. Merkitään päivän kirjaukset arkistoiduiksi (vain demo-tasolla tässä, oikeassa sovelluksessa tehtäisiin batch-update)
+  // Tässä prototyypissä riittää että arkistoituna näkyy uusi tiedosto
 };
