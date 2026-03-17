@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { ShieldCheck, AlertTriangle, User, Zap, Activity } from "lucide-react"
+import { ShieldCheck, AlertTriangle, Zap, Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFirestore, useUser, useCollection } from "@/firebase"
 import { collection, query, orderBy, limit, Timestamp } from "firebase/firestore"
@@ -11,16 +11,11 @@ import { fi } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import * as monitoringService from "@/services/monitoring-service"
 
-/**
- * MonitoringPulse - Reaaliaikainen hälytyskomponentti omavalvonnan tilaan.
- * Sijoitetaan Info- ja Omavalvontasivuille.
- */
 export function MonitoringPulse() {
   const firestore = useFirestore()
   const { user } = useUser()
   const [isMounted, setIsMounted] = useState(false)
 
-  // Reaaliaikainen haku viimeisimmästä kirjauksesta
   const recordsQuery = useMemo(() => {
     if (!firestore) return null
     return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(1))
@@ -37,7 +32,8 @@ export function MonitoringPulse() {
     if (!latestRecord?.date) return null
     if (latestRecord.date instanceof Timestamp) return latestRecord.date.toDate()
     if (latestRecord.date?.seconds) return new Date(latestRecord.date.seconds * 1000)
-    return new Date(latestRecord.date)
+    const d = new Date(latestRecord.date)
+    return isNaN(d.getTime()) ? null : d
   }
 
   const recordDate = getRecordDate()
@@ -49,7 +45,7 @@ export function MonitoringPulse() {
   const isOk = latestRecord?.status && daysSince === 0
 
   const handleManualAck = async () => {
-    if (!user) return
+    if (!user || !firestore) return
     await monitoringService.acknowledgeMonitoring(
       firestore, 
       user.uid, 

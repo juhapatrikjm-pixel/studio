@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Info, ChefHat, CookingPot, Wrench, Send, Trash2, CheckCircle, Zap } from "lucide-react"
-import { OmavalvontaStatusHeader } from "./omavalvonta"
+import { MonitoringPulse } from "./monitoring-pulse"
 import { useUser, useFirestore, useCollection } from "@/firebase"
 import { collection, query, orderBy, limit, where } from "firebase/firestore"
 import { format, formatDistanceToNow } from "date-fns"
@@ -42,13 +42,6 @@ export function WorkspaceModule() {
   
   const { data: shiftInfos = [] } = useCollection<any>(shiftInfoQuery)
   const shiftInfo = shiftInfos[0] || null
-
-  const omavalvontaQuery = useMemo(() => {
-    if (!firestore) return null
-    return query(collection(firestore, 'selfMonitoringRecords'), orderBy('date', 'desc'), limit(1))
-  }, [firestore])
-  const { data: records = [] } = useCollection<any>(omavalvontaQuery)
-  const latestRecord = records[0] || null
 
   const recipesQuery = useMemo(() => firestore ? query(collection(firestore, 'recipes'), orderBy('createdAt', 'desc'), limit(5)) : null, [firestore])
   const dishesQuery = useMemo(() => firestore ? query(collection(firestore, 'dishes'), orderBy('createdAt', 'desc'), limit(5)) : null, [firestore])
@@ -100,15 +93,10 @@ export function WorkspaceModule() {
     if (!date || !isMounted) return "---"
     try {
       let d: Date;
-      if (date && typeof date.toDate === 'function') {
-        d = date.toDate();
-      } else if (date instanceof Date) {
-        d = date;
-      } else if (date?.seconds) {
-        d = new Date(date.seconds * 1000);
-      } else {
-        d = new Date(date);
-      }
+      if (date && typeof date.toDate === 'function') d = date.toDate();
+      else if (date instanceof Date) d = date;
+      else if (date?.seconds) d = new Date(date.seconds * 1000);
+      else d = new Date(date);
       if (!d || isNaN(d.getTime())) return "---"
       return formatDistanceToNow(d, { addSuffix: true, locale: fi })
     } catch (e) {
@@ -118,18 +106,8 @@ export function WorkspaceModule() {
 
   const combinedLogs = useMemo(() => {
     const logs = [
-      ...latestRecipes.map(r => ({
-        id: r.id || `recipe-${Math.random()}`,
-        text: `Uusi resepti: ${r.name || 'Nimetön'}`,
-        time: r.createdAt,
-        icon: ChefHat
-      })),
-      ...latestDishes.map(d => ({
-        id: d.id || `dish-${Math.random()}`,
-        text: `Uusi annos: ${d.name || 'Nimetön'}`,
-        time: d.createdAt,
-        icon: CookingPot
-      }))
+      ...latestRecipes.map(r => ({ id: r.id, text: `Uusi resepti: ${r.name}`, time: r.createdAt, icon: ChefHat })),
+      ...latestDishes.map(d => ({ id: d.id, text: `Uusi annos: ${d.name}`, time: d.createdAt, icon: CookingPot }))
     ]
     return logs.sort((a, b) => {
       const getTime = (val: any) => {
@@ -162,7 +140,7 @@ export function WorkspaceModule() {
         </div>
       </header>
 
-      <OmavalvontaStatusHeader record={latestRecord} />
+      <MonitoringPulse />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-8">
