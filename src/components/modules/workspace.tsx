@@ -24,7 +24,6 @@ export function WorkspaceModule() {
   const [newMaintenanceText, setNewMaintenanceText] = useState("")
   const [readInfoIds, setReadInfoIds] = useState<string[]>([])
 
-  // Estetään hydraatiovirheet suorittamalla aikariippuvaiset asiat mountin jälkeen
   useEffect(() => {
     setIsMounted(true)
     setTodayDate(format(new Date(), 'yyyy-MM-dd'))
@@ -112,6 +111,8 @@ export function WorkspaceModule() {
         d = date.toDate();
       } else if (date instanceof Date) {
         d = date;
+      } else if (date?.seconds) {
+        d = new Date(date.seconds * 1000);
       } else {
         d = new Date(date);
       }
@@ -128,14 +129,12 @@ export function WorkspaceModule() {
         id: r.id || `recipe-${Math.random()}`,
         text: `Uusi resepti: ${r.name || 'Nimetön'}`,
         time: r.createdAt,
-        type: 'recipe',
         icon: ChefHat
       })),
       ...latestDishes.map(d => ({
         id: d.id || `dish-${Math.random()}`,
         text: `Uusi annos: ${d.name || 'Nimetön'}`,
         time: d.createdAt,
-        type: 'dish',
         icon: CookingPot
       }))
     ]
@@ -143,6 +142,7 @@ export function WorkspaceModule() {
       const getTime = (val: any) => {
         if (!val) return 0;
         if (typeof val.toMillis === 'function') return val.toMillis();
+        if (val?.seconds) return val.seconds * 1000;
         const d = new Date(val);
         return isNaN(d.getTime()) ? 0 : d.getTime();
       }
@@ -290,7 +290,7 @@ export function WorkspaceModule() {
                 <div className="text-2xl font-black text-foreground leading-none">84%</div>
                 <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest">DATA</p>
               </CardContent>
-            </Card>
+            </div>
           </div>
         </div>
       </div>
