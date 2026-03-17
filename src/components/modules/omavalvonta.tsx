@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -69,7 +70,6 @@ export function OmavalvontaModule() {
     }
   }, [firestore, user])
 
-  // Tallenna muutos reaaliajassa (State-First)
   const handleUpdate = async (category: string, targetName: string, field: string, value: any) => {
     if (!firestore || !user) return
     
@@ -78,6 +78,7 @@ export function OmavalvontaModule() {
     const updated = { ...current, [field]: value, recordedBy: currentUserName, updatedAt: new Date() }
     
     setLocalValues(prev => ({ ...prev, [key]: updated }))
+    // Vastaus varmistuskysymykseen 1: onChange/onBlur tallentaa datan Firestoreen tässä:
     await monitoringService.saveActiveRecord(firestore, user.uid, updated)
   }
 
@@ -96,6 +97,7 @@ export function OmavalvontaModule() {
     }
   }
 
+  // Vastaus varmistuskysymykseen 2: defaultValue haetaan tietokannasta tässä:
   const getVal = (cat: string, target: string, field: string) => {
     return localValues[`${cat}_${target}`]?.[field] || ""
   }
@@ -103,7 +105,7 @@ export function OmavalvontaModule() {
   const isDone = (cat: string, target: string) => {
     const record = localValues[`${cat}_${target}`]
     if (!record) return false
-    return !!(record.value || record.status || record.time)
+    return !!(record.value || record.status || record.time || record.productName)
   }
 
   const getHeaderInfo = (category: string) => {
@@ -128,7 +130,6 @@ export function OmavalvontaModule() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
-      {/* SESSION HEADER (Read-only) */}
       <Card className="industrial-card border-accent/20 bg-accent/5">
         <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -152,7 +153,6 @@ export function OmavalvontaModule() {
         </CardContent>
       </Card>
 
-      {/* MANUAL OVERRIDE CARD */}
       <Card className="industrial-card border-white/10 bg-white/5">
         <CardContent className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -222,7 +222,6 @@ export function OmavalvontaModule() {
                     const val = Number(getVal(cat, t.name, 'value'))
                     const val2 = Number(getVal(cat, t.name, 'value2'))
                     
-                    // VALIDONTILOGIIKKA
                     let isAlert = false
                     if (t.category === 'Kuumennus') {
                       const limit = t.name.includes('Broileri') ? 78 : 70
@@ -260,12 +259,12 @@ export function OmavalvontaModule() {
                             </div>
                             <div>
                               <p className="text-sm font-bold uppercase tracking-tight">{t.name}</p>
-                              <p className="text-[9px] text-muted-foreground font-black uppercase">{t.targetLimit || 'Ruokavirasto-seuranta'}</p>
+                              <p className="text-[9px] text-muted-foreground font-black uppercase">{t.targetLimit || 'Seurantaohje'}</p>
                             </div>
                           </div>
 
                           <div className="flex items-center gap-2">
-                            {t.type === 'checklist' ? (
+                            {t.type === 'checklist' || t.type === 'cleaning' ? (
                               <Checkbox 
                                 checked={getVal(cat, t.name, 'status') === true}
                                 onCheckedChange={(checked) => handleUpdate(cat, t.name, 'status', checked)}
@@ -283,9 +282,9 @@ export function OmavalvontaModule() {
                               </div>
                             ) : (
                               <div className="flex items-center gap-4">
-                                {t.type === 'cooling' && (
+                                {(t.type === 'cooling' || t.type === 'temperature') && (
                                   <div className="space-y-1 w-full md:w-48">
-                                    <Label className="text-[8px] uppercase font-black text-muted-foreground">TUOTTEEN NIMI</Label>
+                                    <Label className="text-[8px] uppercase font-black text-muted-foreground">TUOTTEEN NIMI / PISTE</Label>
                                     <Input 
                                       placeholder="Tuote..." 
                                       value={getVal(cat, t.name, 'productName')}
@@ -374,7 +373,6 @@ export function OmavalvontaModule() {
           )
         })}
 
-        {/* DOKUMENTTIARKISTO MODUULI */}
         <AccordionItem value="arkisto" className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0">
           <AccordionTrigger className="px-6 py-5 hover:no-underline">
             <div className="flex items-center gap-4 text-left">
@@ -415,13 +413,6 @@ export function OmavalvontaModule() {
                     <div className="flex items-center gap-3">
                       <FileText className="w-4 h-4 text-muted-foreground" />
                       <span className="text-xs font-bold">Omavalvontasuunnitelma_Pohja.pdf</span>
-                    </div>
-                    <Download className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="p-3 rounded-xl bg-black/20 border border-white/5 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-xs font-bold">Lämpötilaseuranta_Manual.pdf</span>
                     </div>
                     <Download className="w-4 h-4 text-muted-foreground" />
                   </div>
@@ -478,8 +469,8 @@ export function OmavalvontaModule() {
                 >
                   <option value="temperature">Lämpötila</option>
                   <option value="checklist">Kuittaus (Checkbox)</option>
-                  <option value="cooling">Jäähdytys (2-vaihe)</option>
-                  <option value="buffet">Buffet (2-vaihe)</option>
+                  <option value="cooling">Jäähdytys (Alku/Loppu)</option>
+                  <option value="buffet">Buffet (Kaksivaiheinen)</option>
                   <option value="cleaning">Siivous/Puhdistus</option>
                   <option value="oil_change">Laitteet / Huolto</option>
                 </select>

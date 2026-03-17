@@ -13,6 +13,7 @@ export interface MonitoringRecord {
   recordedBy: string;
   targetName: string;
   category: string;
+  productName?: string;
   value?: string;
   value2?: string; 
   time?: string;
@@ -78,25 +79,26 @@ export const archiveMonitoringDay = async (db: Firestore, userId: string, userNa
     createdAt: serverTimestamp()
   });
 
-  // 2. Tyhjennetään aktiiviset (jos ei manuaalinen kuittaus tyhjältä pohjalta)
+  // 2. Tyhjennetään aktiiviset
   activeRecords.forEach(r => {
     if (r.id) {
       batch.delete(doc(db, 'omavalvonta_active', r.id));
     }
   });
 
-  // 3. Tallennetaan arkistomerkintä Dokumenttiarkistoon näkyviin
-  const fileRef = doc(db, 'cloudFiles', `archive_${archiveId}`);
+  // 3. Tallennetaan arkistomerkintä pilvitiedostoksi (metadataksi)
+  const fileId = `report_${archiveId}`;
+  const fileRef = doc(db, 'cloudFiles', fileId);
   batch.set(fileRef, {
-    id: `archive_${archiveId}`,
+    id: fileId,
     name: `Tehty ${dateStr}${isManual ? ' (Manuaalinen)' : ''}`,
     type: 'application/pdf',
-    size: 'Raportti',
+    size: 'Kooste',
     folderId: 'omavalvonta_arkisto',
     createdAt: serverTimestamp()
   });
 
-  // 4. Päivitetään globaali hälytyssyöte Ohjauspaneelin Pulse-moduulia varten
+  // 4. Päivitetään globaali pulssi
   const pulseRef = doc(db, 'selfMonitoringRecords', archiveId);
   batch.set(pulseRef, {
     date: archiveDate,
@@ -119,7 +121,7 @@ export const getTemplates = async (db: Firestore) => {
       { name: "Raaka-aineet", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
       { name: "Broileri", category: "Kuumennus", targetLimit: "min +78 °C", type: 'temperature' },
       { name: "Uudelleenkuumennus", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
-      { name: "Jäähdytys (Pääruoka)", category: "Jäähdytys", targetLimit: "< 6 °C / 4h", type: 'cooling' },
+      { name: "Jäähdytys (Seuranta)", category: "Jäähdytys", targetLimit: "< 6 °C / 4h", type: 'cooling' },
       { name: "Lämmin Buffet", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
       { name: "Kylmä Buffet", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
       { name: "Pesuvesi", category: "Astianpesu", targetLimit: "60-65 °C", type: 'temperature' },
@@ -138,7 +140,7 @@ export const getTemplates = async (db: Firestore) => {
     await batch.commit();
     return getTemplates(db);
   }
-  return snap.docs.map(d => d.data() as MonitoringTemplate);
+  return snap.docs.map(d => ({ ...d.data(), id: d.id } as MonitoringTemplate));
 };
 
 export const addTemplate = async (db: Firestore, template: Omit<MonitoringTemplate, 'id'>) => {
