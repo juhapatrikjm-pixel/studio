@@ -65,6 +65,9 @@ export const getMonitoringTemplates = async (db: Firestore): Promise<MonitoringT
       { name: "Kylmiö 1", category: "Kylmälaitteet", targetLimit: "max +6 °C", type: "temperature" },
       { name: "Pakastin 1", category: "Kylmälaitteet", targetLimit: "max -18 °C", type: "temperature" },
       { name: "Lounaskeitto", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
+      { name: "Uudelleenkuumennus (prep)", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
+      { name: "Raaka-aine mittaus", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
+      { name: "Raaka-aine (Broileri)", category: "Kuumennus", targetLimit: "min +78 °C", type: "temperature" },
       { name: "Jäähdytysseuranta", category: "Jäähdytys", targetLimit: "60 -> 6 °C / 4h", type: "text" },
       { name: "Kuorman lämpötila", category: "Vastaanotto", targetLimit: "pakaste -18 / tuore +6", type: "temperature" },
       { name: "Keittiön tasot", category: "Puhdistus", targetLimit: "Puhdas", type: "boolean" },
@@ -72,6 +75,8 @@ export const getMonitoringTemplates = async (db: Firestore): Promise<MonitoringT
       { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "min +80 °C", type: "temperature" },
       { name: "Buffet Lämmin", category: "Buffet", targetLimit: "min +60 °C", type: "temperature" },
       { name: "Buffet Kylmä", category: "Buffet", targetLimit: "max +12 °C", type: "temperature" },
+      { name: "Lämmin raaka-aine (Buffet)", category: "Buffet", targetLimit: "min +60 °C", type: "temperature" },
+      { name: "Kylmä raaka-aine (Buffet)", category: "Buffet", targetLimit: "max +12 °C", type: "temperature" },
     ];
     
     const batch = writeBatch(db);
