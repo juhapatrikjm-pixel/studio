@@ -32,7 +32,7 @@ export function MonitoringPulse() {
   }, [])
 
   const recordDate = useMemo(() => {
-    if (!latestRecord?.date) return null
+    if (!latestRecord?.date || !isMounted) return null
     try {
       if (latestRecord.date instanceof Timestamp) return latestRecord.date.toDate()
       if (latestRecord.date?.seconds) return new Date(latestRecord.date.seconds * 1000)
@@ -41,17 +41,17 @@ export function MonitoringPulse() {
     } catch (e) {
       return null
     }
-  }, [latestRecord])
+  }, [latestRecord, isMounted])
 
   const daysSince = useMemo(() => {
-    if (!recordDate || !now) return 999
+    if (!recordDate || !now || !isMounted) return 999
     try {
       // Calculate absolute difference in calendar days
       return Math.abs(differenceInDays(now, recordDate))
     } catch (e) {
       return 999
     }
-  }, [recordDate, now])
+  }, [recordDate, now, isMounted])
 
   // Don't render until mounted to prevent hydration mismatch
   if (!isMounted || !firestore) return null

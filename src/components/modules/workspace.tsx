@@ -114,6 +114,7 @@ export function WorkspaceModule() {
   }
 
   const combinedLogs = useMemo(() => {
+    if (!isMounted) return [];
     try {
       const logs = [
         ...(latestRecipes || []).map(r => ({ id: r.id, text: `Uusi resepti: ${r.name}`, time: r.createdAt, icon: ChefHat, type: 'recipe' })),
@@ -134,7 +135,7 @@ export function WorkspaceModule() {
       console.error("Error calculating logs:", error);
       return [];
     }
-  }, [latestRecipes, latestDishes])
+  }, [latestRecipes, latestDishes, isMounted])
 
   if (!isMounted) return (
     <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
