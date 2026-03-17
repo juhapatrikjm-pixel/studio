@@ -13,11 +13,20 @@ export type FirebaseServices = {
   storage: FirebaseStorage;
 };
 
+// Singleton-instanssi estämään useampi alustusyritys, mikä aiheuttaa
+// "Firestore INTERNAL ASSERTION FAILED: Unexpected state" -virheitä Next.js:ssä
+let cachedServices: FirebaseServices | null = null;
+
 /**
  * Alustaa Firebase-palvelut keskitetysti.
  * Käyttää nimettyä tietokantaa "wisemisa" ja määritettyä Storage-bucketia.
  */
 export function initializeFirebase(): FirebaseServices {
+  // Palautetaan aiemmin alustetut palvelut, jos ne ovat jo olemassa (asiakaspuolella)
+  if (typeof window !== 'undefined' && cachedServices) {
+    return cachedServices;
+  }
+
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   
   // Varmistetaan ympäristömuuttujien latautuminen
@@ -25,11 +34,13 @@ export function initializeFirebase(): FirebaseServices {
     console.warn("DEBUG: Firebase API Key puuttuu ympäristömuuttujista!");
   }
 
+  // Alustetaan palvelut käyttäen pyydettyä nimettyä tietokantaa ja storage-bucketia
   const firestore = getFirestore(firebaseApp, "wisemisa");
   const auth = getAuth(firebaseApp);
   const storage = getStorage(firebaseApp, "gs://wisemisa-d2b98.firebasestorage.app");
 
-  return { firebaseApp, firestore, auth, storage };
+  cachedServices = { firebaseApp, firestore, auth, storage };
+  return cachedServices;
 }
 
 export * from './provider';
