@@ -1,7 +1,8 @@
-import { Firestore, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp, doc, getDoc, setDoc, deleteDoc, where, writeBatch, Timestamp } from 'firebase/firestore';
+import { Firestore, collection, query, getDocs, addDoc, serverTimestamp, doc, setDoc, deleteDoc, where, writeBatch, Timestamp } from 'firebase/firestore';
 
 /**
  * @fileOverview Omavalvonnan liiketoimintalogiikka ja tietokantaoperaatiot.
+ * Toteuttaa "State-First" -arkkitehtuurin (Active -> Archive).
  */
 
 export interface MonitoringRecord {
@@ -12,125 +13,88 @@ export interface MonitoringRecord {
   value: string;
   comment?: string;
   status: boolean;
-  method: 'manual' | 'bluetooth' | 'paper_sync';
   category: string;
-  archived?: boolean;
+  type?: string;
+  time?: string;
+  startTime?: string;
+  endTime?: string;
+  startTemp?: string;
+  endTemp?: string;
+  dishName?: string;
+  displayTime?: string;
+  temp1?: string;
+  temp2?: string;
+  chemicalsOk?: boolean;
 }
 
-export interface MonitoringTemplate {
-  id: string;
-  name: string;
-  category: string;
-  targetLimit: string;
-  type: 'temperature' | 'sensory' | 'boolean' | 'text' | 'date';
-}
-
-export const getRegulatoryUrl = async (db: Firestore): Promise<string | null> => {
-  try {
-    const settingsRef = doc(db, 'settings', 'global');
-    const snap = await getDoc(settingsRef);
-    return snap.exists() ? snap.data().regulatoryUrl || null : null;
-  } catch (error) {
-    return null;
-  }
-};
-
-export const saveRegulatoryUrl = async (db: Firestore, url: string) => {
-  const settingsRef = doc(db, 'settings', 'global');
-  await setDoc(settingsRef, { regulatoryUrl: url }, { merge: true });
-};
-
-export const saveMonitoringRecord = async (db: Firestore, record: Partial<MonitoringRecord>) => {
-  try {
-    const recordData = {
-      ...record,
-      date: serverTimestamp(),
-      status: true,
-      archived: false
-    };
-    await addDoc(collection(db, 'selfMonitoringRecords'), recordData);
-    return { success: true };
-  } catch (error) {
-    console.error("Error saving record", error);
-    throw error;
-  }
-};
-
-export const getMonitoringTemplates = async (db: Firestore): Promise<MonitoringTemplate[]> => {
-  const colRef = collection(db, 'monitoringTemplates');
-  const snap = await getDocs(colRef);
-  let templates = snap.docs.map(d => ({ ...d.data(), id: d.id } as MonitoringTemplate));
+export const saveActiveRecord = async (db: Firestore, userId: string, record: Partial<MonitoringRecord>) => {
+  if (!record.targetName) return;
+  const id = `${userId}_${record.category}_${record.targetName.replace(/\s+/g, '_')}`;
+  const docRef = doc(db, 'omavalvonta_active', id);
   
-  if (templates.length === 0) {
-    const defaults: Omit<MonitoringTemplate, 'id'>[] = [
-      // KYLMÄLAITTEET
-      { name: "Kylmiö 1", category: "Kylmälaitteet", targetLimit: "max +6 °C", type: "temperature" },
-      { name: "Pakastin 1", category: "Kylmälaitteet", targetLimit: "max -18 °C", type: "temperature" },
-      
-      // KUUMENNUS
-      { name: "Uudelleen kuumennettavat esivalmisteet", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
-      { name: "Raaka-aineiden mittaus", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
-      { name: "Raaka-aine (Broileri)", category: "Kuumennus", targetLimit: "min +78 °C", type: "temperature" },
-      
-      // JÄÄHDYTYS
-      { name: "Jäähdytysseuranta", category: "Jäähdytys", targetLimit: "60 -> 6 °C / 4h", type: "text" },
-      
-      // VASTAANOTTO
-      { name: "Kuorman lämpötila", category: "Vastaanotto", targetLimit: "pakaste -18 / tuore +6", type: "temperature" },
-      { name: "Aistinvarainen arvio", category: "Vastaanotto", targetLimit: "OK", type: "boolean" },
-      
-      // PUHDISTUS
-      { name: "Keittiön yleispuhtaus (oma arvio)", category: "Puhdistus", targetLimit: "Puhdas", type: "text" },
-      { name: "Siivousliikkeen laatu", category: "Puhdistus", targetLimit: "Hyvä", type: "text" },
-      { name: "Päivittäiset rutiinit", category: "Puhdistus", targetLimit: "Suoritettu", type: "boolean" },
-      
-      // ASTIANPESU
-      { name: "Pesuvesi", category: "Astianpesu", targetLimit: "min +60 °C", type: "temperature" },
-      { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "min +80 °C", type: "temperature" },
-      
-      // BUFFET
-      { name: "Buffet Lämmin (tuote)", category: "Buffet", targetLimit: "min +60 °C", type: "temperature" },
-      { name: "Buffet Kylmä (tuote)", category: "Buffet", targetLimit: "max +12 °C", type: "temperature" },
-      { name: "Lämmin raaka-aine (Buffet)", category: "Buffet", targetLimit: "min +60 °C", type: "temperature" },
-      { name: "Kylmä raaka-aine (Buffet)", category: "Buffet", targetLimit: "max +12 °C", type: "temperature" },
-      
-      // LAITTEET
-      { name: "Rasvakeittimen öljynvaihto", category: "Laitteet", targetLimit: "Pvm", type: "date" },
-    ];
-    
-    const batch = writeBatch(db);
-    for (const t of defaults) {
-      const newRef = doc(collection(db, 'monitoringTemplates'));
-      batch.set(newRef, t);
-    }
-    await batch.commit();
-    return getMonitoringTemplates(db);
-  }
-  
-  return templates;
+  await setDoc(docRef, {
+    ...record,
+    userId,
+    updatedAt: serverTimestamp()
+  }, { merge: true });
 };
 
-export const addTemplate = async (db: Firestore, template: Omit<MonitoringTemplate, 'id'>) => {
-  await addDoc(collection(db, 'monitoringTemplates'), template);
+export const getActiveRecords = async (db: Firestore, userId: string) => {
+  const colRef = collection(db, 'omavalvonta_active');
+  const q = query(colRef, where('userId', '==', userId));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ ...d.data(), id: d.id }));
 };
 
-export const deleteTemplate = async (db: Firestore, id: string) => {
-  await deleteDoc(doc(db, 'monitoringTemplates', id));
-};
+export const archiveMonitoringDay = async (db: Firestore, userId: string, userName: string) => {
+  const activeRecords = await getActiveRecords(db, userId);
+  if (activeRecords.length === 0) return;
 
-export const archiveDay = async (db: Firestore, dateStr: string, user: string) => {
-  // 1. Luodaan raportti arkistoon
-  const id = `archive_${dateStr}_${Math.random().toString(36).substr(2, 5)}`;
-  await setDoc(doc(db, 'uploadedRecipes', id), {
-    id,
-    name: `Tehtävä ${dateStr}`,
-    type: 'application/pdf-mock',
-    size: '0.1 MB',
-    folderId: 'omavalvonta_arkisto',
-    createdAt: serverTimestamp(),
-    recordedBy: user
+  const batch = writeBatch(db);
+  const archiveDate = new Date();
+  const dateStr = archiveDate.toLocaleDateString('fi-FI');
+  const archiveId = `archive_${userId}_${archiveDate.getTime()}`;
+
+  // 1. Siirretään arkistoon
+  const archiveRef = doc(db, 'omavalvonta_archive', archiveId);
+  batch.set(archiveRef, {
+    userId,
+    userName,
+    date: archiveDate,
+    dateStr,
+    records: activeRecords,
+    createdAt: serverTimestamp()
   });
 
-  // 2. Merkitään päivän kirjaukset arkistoiduiksi (vain demo-tasolla tässä, oikeassa sovelluksessa tehtäisiin batch-update)
-  // Tässä prototyypissä riittää että arkistoituna näkyy uusi tiedosto
+  // 2. Tyhjennetään aktiiviset
+  activeRecords.forEach(r => {
+    if (r.id) {
+      batch.delete(doc(db, 'omavalvonta_active', r.id));
+    }
+  });
+
+  // 3. Luodaan näkyvä merkintä tiedostoarkistoon
+  const fileRef = doc(db, 'uploadedRecipes', `file_${archiveId}`);
+  batch.set(fileRef, {
+    id: `file_${archiveId}`,
+    name: `Tehty ${dateStr}`,
+    type: 'application/omavalvonta-report',
+    size: '---',
+    folderId: 'omavalvonta_arkisto',
+    createdAt: serverTimestamp(),
+    recordedBy: userName
+  });
+
+  await batch.commit();
+};
+
+export const getMonitoringTemplates = async (db: Firestore) => {
+  const defaults = [
+    { name: "Kylmiö 1", category: "Kylmälaitteet", targetLimit: "max +6 °C" },
+    { name: "Pakastin 1", category: "Kylmälaitteet", targetLimit: "max -18 °C" },
+    { name: "Lounas Buffet Lämmin", category: "Kuumennus", targetLimit: "min +70 °C" },
+    { name: "Työtasot", category: "Puhdistus", targetLimit: "Puhdas" },
+    { name: "Lattiakaivot", category: "Puhdistus", targetLimit: "Puhdas" },
+  ];
+  return defaults;
 };

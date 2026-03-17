@@ -1,52 +1,22 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { 
-  ShieldCheck, 
-  Bluetooth, 
-  User, 
-  CalendarDays,
-  Info,
-  Refrigerator,
-  Flame,
-  Droplets,
-  Truck,
-  Plus,
-  Trash2,
-  Clock,
-  CheckCircle2,
-  Settings2,
-  UtensilsCrossed,
-  Save,
-  Loader2,
-  Wrench,
-  AlertTriangle
+  ShieldCheck, User, CalendarDays, Info, Refrigerator, Flame, Clock, Plus, Trash2, 
+  CheckCircle2, Settings2, Save, Loader2, Wrench, AlertTriangle, Droplets, UtensilsCrossed 
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useFirestore, useUser, useCollection } from "@/firebase"
-import { collection, query, orderBy, limit, where, Timestamp } from "firebase/firestore"
-import { MonitoringPulse } from "../monitoring-pulse"
+import { useFirestore, useUser } from "@/firebase"
 import * as monitoringService from "@/services/monitoring-service"
 import { useToast } from "@/hooks/use-toast"
-import { format, isValid, startOfDay, endOfDay } from "date-fns"
+import { format, differenceInHours, parse } from "date-fns"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-
-const CATEGORIES = [
-  { id: 'Kylmälaitteet', icon: Refrigerator, color: 'text-blue-400' },
-  { id: 'Kuumennus', icon: Flame, color: 'text-orange-400' },
-  { id: 'Jäähdytys', icon: Clock, color: 'text-purple-400' },
-  { id: 'Vastaanotto', icon: Truck, color: 'text-emerald-400' },
-  { id: 'Puhdistus', icon: Droplets, color: 'text-sky-400' },
-  { id: 'Astianpesu', icon: ShieldCheck, color: 'text-indigo-400' },
-  { id: 'Buffet', icon: UtensilsCrossed, color: 'text-accent' },
-  { id: 'Laitteet', icon: Wrench, color: 'text-zinc-400' },
-];
 
 export function OmavalvontaModule() {
   const firestore = useFirestore()
@@ -54,105 +24,46 @@ export function OmavalvontaModule() {
   const { toast } = useToast()
   
   const [isMounted, setIsMounted] = useState(false)
-  const [regulatoryUrl, setRegulatoryUrl] = useState("")
   const [isSaving, setIsSaving] = useState(false)
-  const [templates, setTemplates] = useState<monitoringService.MonitoringTemplate[]>([])
-  const [isManageOpen, setIsManageOpen] = useState(false)
-  const [localValues, setLocalValues] = useState<Record<string, string>>({})
-  
-  const [newTpl, setNewTpl] = useState({ name: '', category: 'Kylmälaitteet', limit: '' })
+  const [activeData, setActiveData] = useState<any[]>([])
+  const [localValues, setLocalValues] = useState<Record<string, any>>({})
 
   const currentUserName = user?.displayName || user?.email || "Käyttäjä"
-  const [currentDateDisplay, setCurrentDateDisplay] = useState("")
-
-  // Haetaan päivän kirjaukset (arkistoimattomat) jotta ne näkyvät UI:ssa
-  const todayStart = startOfDay(new Date())
-  const todayEnd = endOfDay(new Date())
-
-  const recordsQuery = useMemo(() => {
-    if (!firestore) return null
-    return query(
-      collection(firestore, 'selfMonitoringRecords'), 
-      where('date', '>=', todayStart),
-      orderBy('date', 'desc'), 
-      limit(100)
-    )
-  }, [firestore])
-  
-  const { data: todayRecords = [] } = useCollection<any>(recordsQuery)
+  const currentDateDisplay = isMounted ? format(new Date(), 'dd.MM.yyyy') : ""
 
   useEffect(() => {
     setIsMounted(true)
-    setCurrentDateDisplay(format(new Date(), 'dd.MM.yyyy'))
-    if (firestore) {
-      monitoringService.getRegulatoryUrl(firestore).then(url => setRegulatoryUrl(url || ""))
-      monitoringService.getMonitoringTemplates(firestore).then(setTemplates)
-    }
-  }, [firestore])
-
-  // Päivitetään paikalliset arvot kun tietokannasta tulee uutta dataa tälle päivälle
-  useEffect(() => {
-    if (todayRecords.length > 0) {
-      const values: Record<string, string> = {}
-      todayRecords.forEach(r => {
-        if (!values[r.targetName]) {
-          values[r.targetName] = r.value
-        }
+    if (firestore && user) {
+      monitoringService.getActiveRecords(firestore, user.uid).then(records => {
+        setActiveData(records)
+        const initialValues: Record<string, any> = {}
+        records.forEach((r: any) => {
+          initialValues[`${r.category}_${r.targetName}`] = r
+        })
+        setLocalValues(initialValues)
       })
-      setLocalValues(prev => ({ ...prev, ...values }))
     }
-  }, [todayRecords])
+  }, [firestore, user])
 
-  const getLatestRecordForCat = (category: string) => {
-    return todayRecords.find(r => r.category === category)
+  const handleUpdate = async (category: string, targetName: string, field: string, value: any) => {
+    if (!firestore || !user) return
+    
+    const key = `${category}_${targetName}`
+    const current = localValues[key] || { category, targetName, recordedBy: currentUserName }
+    const updated = { ...current, [field]: value }
+    
+    setLocalValues(prev => ({ ...prev, [key]: updated }))
+    await monitoringService.saveActiveRecord(firestore, user.uid, updated)
   }
 
-  const handleSaveMeasurement = async (target: string, value: string, category: string) => {
-    if (!firestore || !value) return
+  const handleArchive = async () => {
+    if (!firestore || !user) return
     setIsSaving(true)
     try {
-      await monitoringService.saveMonitoringRecord(firestore, {
-        targetName: target,
-        value,
-        recordedBy: currentUserName,
-        method: 'manual',
-        category
-      })
-      toast({ title: "Kirjaus tallennettu", description: `${target}: ${value}` })
-    } catch (e) {
-      toast({ variant: "destructive", title: "Virhe tallennuksessa" })
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleAddTemplate = async () => {
-    if (!firestore || !newTpl.name) return
-    await monitoringService.addTemplate(firestore, {
-      name: newTpl.name,
-      category: newTpl.category,
-      targetLimit: newTpl.limit,
-      type: 'temperature'
-    })
-    const updated = await monitoringService.getMonitoringTemplates(firestore)
-    setTemplates(updated)
-    setNewTpl({ ...newTpl, name: '', limit: '' })
-  }
-
-  const handleDeleteTemplate = async (id: string) => {
-    if (!firestore) return
-    await monitoringService.deleteTemplate(firestore, id)
-    setTemplates(templates.filter(t => t.id !== id))
-  }
-
-  const handleArchiveDay = async () => {
-    if (!firestore) return
-    setIsSaving(true)
-    try {
-      await monitoringService.archiveDay(firestore, currentDateDisplay, currentUserName)
-      toast({ title: "Päivän seuranta arkistoitu", description: `Tallennettu arkistoon nimellä Tehtävä ${currentDateDisplay}` })
-      // UI:n tyhjennys (prototyypissä vain paikallinen reset)
+      await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName)
       setLocalValues({})
+      setActiveData([])
+      toast({ title: "Päivä arkistoitu onnistuneesti" })
     } catch (e) {
       toast({ variant: "destructive", title: "Arkistointi epäonnistui" })
     } finally {
@@ -160,230 +71,280 @@ export function OmavalvontaModule() {
     }
   }
 
-  if (!isMounted) return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-      <Loader2 className="w-10 h-10 animate-spin text-accent" />
-      <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Ladataan seurantaa...</span>
-    </div>
-  )
+  const getVal = (cat: string, target: string, field: string) => {
+    return localValues[`${cat}_${target}`]?.[field] || ""
+  }
+
+  if (!isMounted) return null
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
-      {/* SESSION HEADER */}
-      <Card className="industrial-card overflow-hidden border-accent/20 shadow-2xl">
-        <div className="absolute top-0 left-0 w-full h-1 copper-gradient" />
+      {/* SESSION HEADER - READ ONLY */}
+      <Card className="industrial-card border-accent/20 bg-accent/5">
         <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center border border-accent/20 shadow-inner">
-              <User className="w-7 h-7 text-accent" />
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20">
+              <User className="w-6 h-6 text-accent" />
             </div>
             <div>
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] leading-none mb-1.5">Istunto / Kirjaaja</p>
-              <p className="text-lg font-black text-foreground uppercase tracking-tight">{currentUserName}</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">KIRJAAJA (LUKITTU)</p>
+              <p className="text-lg font-black text-foreground">{currentUserName}</p>
             </div>
           </div>
-          <div className="flex items-center gap-5">
-            <div className="text-right hidden md:block">
-              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-[0.2em] leading-none mb-1.5">Päivämäärä</p>
-              <p className="text-lg font-black text-accent tracking-widest">{currentDateDisplay}</p>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">PÄIVÄMÄÄRÄ</p>
+              <p className="text-lg font-black text-accent">{currentDateDisplay}</p>
             </div>
-            <div className="w-14 h-14 rounded-2xl bg-black/40 flex items-center justify-center border border-white/5 shadow-lg">
-              <CalendarDays className="w-7 h-7 text-muted-foreground" />
+            <div className="w-12 h-12 rounded-xl bg-black/40 flex items-center justify-center border border-white/5">
+              <CalendarDays className="w-6 h-6 text-muted-foreground" />
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
-        <div className="flex items-center gap-4">
-          <h2 className="text-3xl font-headline font-black text-accent uppercase tracking-tighter copper-text-glow">Omavalvonta</h2>
-          {regulatoryUrl && (
-            <Button variant="ghost" size="icon" onClick={() => window.open(regulatoryUrl, '_blank')} className="text-blue-400 hover:bg-blue-400/10">
-              <Info className="w-6 h-6" />
-            </Button>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsManageOpen(true)} className="border-white/10 text-accent font-black text-[10px] uppercase h-11 px-6 tracking-widest">
-            <Settings2 className="w-4 h-4 mr-2" /> MUOKKAA KOHTEITA
-          </Button>
-          <Button onClick={handleArchiveDay} disabled={isSaving} className="copper-gradient font-black text-[10px] uppercase h-11 px-6 tracking-widest metal-shine-overlay shadow-lg">
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} ARKISTOI PÄIVÄ
-          </Button>
-        </div>
-      </header>
-
-      <MonitoringPulse />
-
-      {/* PAPERI-KUITTAUS */}
-      <Card className="bg-zinc-900/50 border-dashed border-white/10 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-500" />
-          <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground">Teetkö seurantaa paperilla? Kuittaa tästä päivä suoritetuksi järjestelmään.</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => handleSaveMeasurement("Paperinen seuranta", "OK", "Yleinen")} className="border-white/10 text-white font-black text-[10px] uppercase tracking-widest h-9 px-6 hover:bg-white/5">
-          PAPERINEN KUITTAUS
+      <div className="flex justify-between items-center px-1">
+        <h2 className="text-3xl font-headline font-black text-accent uppercase tracking-tighter">Omavalvonta</h2>
+        <Button onClick={handleArchive} disabled={isSaving} className="copper-gradient font-black text-[10px] uppercase h-11 px-8 tracking-widest">
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} ARKISTOI PÄIVÄ
         </Button>
-      </Card>
-
-      <Accordion type="single" collapsible className="w-full space-y-4">
-        {CATEGORIES.map((cat) => {
-          const catTemplates = templates.filter(t => t.category === cat.id);
-          const Icon = cat.icon;
-          const latest = getLatestRecordForCat(cat.id);
-          
-          let latestInfo = "Ei kirjauksia tänään";
-          if (latest) {
-            try {
-              const d = latest.date?.toDate ? latest.date.toDate() : new Date(latest.date);
-              if (isValid(d)) {
-                latestInfo = `${format(d, 'd.M.')} ${latest.recordedBy}`;
-              }
-            } catch (e) {
-              console.error("Date format error", e);
-            }
-          }
-          
-          return (
-            <AccordionItem key={cat.id} value={cat.id} className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0 group hover:bg-white/[0.07] transition-all shadow-xl">
-              <AccordionTrigger className="hover:no-underline px-6 py-5">
-                <div className="flex items-center justify-between w-full pr-4">
-                  <div className="flex items-center gap-5 text-left">
-                    <div className={cn("w-12 h-12 rounded-2xl bg-black/40 flex items-center justify-center border border-white/5 group-hover:border-accent/40 transition-all shadow-inner", cat.color)}>
-                      <Icon className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h3 className="text-base font-black uppercase tracking-widest text-foreground group-hover:text-accent transition-colors">{cat.id}</h3>
-                      <p className="text-[10px] text-accent/60 uppercase font-black tracking-widest mt-1 opacity-80">
-                        {latestInfo}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {latest && <CheckCircle2 className="w-6 h-6 text-green-500 animate-in zoom-in" />}
-                  </div>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-8 pt-4 border-t border-white/5">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 pt-4">
-                  {catTemplates.map((tpl) => (
-                    <div key={tpl.id} className="p-5 rounded-3xl bg-black/30 border border-white/5 space-y-4 relative shadow-inner">
-                      <div className="flex justify-between items-start">
-                        <Label className="text-[11px] font-black uppercase text-accent tracking-widest">{tpl.name}</Label>
-                        <span className="text-[9px] font-black text-muted-foreground uppercase bg-white/5 px-2 py-0.5 rounded-full">{tpl.targetLimit}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder={tpl.type === 'temperature' ? '°C' : 'Arvo...'} 
-                          value={localValues[tpl.name] || ""}
-                          onChange={(e) => setLocalValues({ ...localValues, [tpl.name]: e.target.value })}
-                          className="bg-black/40 border-white/10 font-black h-11 rounded-xl text-sm" 
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleSaveMeasurement(tpl.name, localValues[tpl.name], cat.id);
-                          }}
-                        />
-                        <Button 
-                          size="icon" 
-                          className="copper-gradient shrink-0 h-11 w-11 rounded-xl shadow-lg"
-                          onClick={() => handleSaveMeasurement(tpl.name, localValues[tpl.name], cat.id)}
-                        >
-                          <Save className="w-5 h-5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-accent/40 hover:text-accent h-11 w-11 rounded-xl"><Bluetooth className="w-5 h-5" /></Button>
-                      </div>
-                      {/* Lisätään poikkeama-kenttä jos kategoria on Puhdistus tai jos käyttäjä haluaa */}
-                      {cat.id === 'Puhdistus' && (
-                        <div className="pt-2">
-                          <Label className="text-[8px] uppercase font-black text-muted-foreground mb-1 block">POIKKEAMA / HUOMIO</Label>
-                          <Input 
-                            placeholder="Kirjaa poikkeama..." 
-                            className="h-8 bg-white/5 border-white/5 text-[10px]" 
-                            onBlur={(e) => { if(e.target.value) handleSaveMeasurement(`${tpl.name} POIKKEAMA`, e.target.value, cat.id); }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {catTemplates.length === 0 && (
-                    <div className="col-span-full py-16 text-center opacity-20 text-[10px] font-black uppercase tracking-[0.3em]">Ei määritettyjä valvontapisteitä.</div>
-                  )}
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          );
-        })}
-      </Accordion>
-
-      <div className="mt-12 p-8 rounded-[2.5rem] bg-black/40 border border-white/5 space-y-6 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 copper-gradient opacity-5 blur-3xl" />
-        <h3 className="text-xs font-black uppercase text-muted-foreground flex items-center gap-3 tracking-[0.2em]">
-          <Settings2 className="w-5 h-5 text-accent" /> VIRANOMAISOHJEET JA LINKIT
-        </h3>
-        <div className="flex flex-col sm:flex-row gap-4">
-          <Input 
-            placeholder="Viranomaisohjeen URL (esim. Ruokavirasto.fi)" 
-            value={regulatoryUrl}
-            onChange={(e) => setRegulatoryUrl(e.target.value)}
-            className="bg-black/20 border-white/10 text-xs h-12 rounded-xl"
-          />
-          <Button onClick={() => monitoringService.saveRegulatoryUrl(firestore!, regulatoryUrl)} variant="outline" className="border-white/10 text-accent uppercase text-[10px] font-black h-12 px-8 rounded-xl tracking-widest hover:bg-accent/10">TALLENNA LINKKI</Button>
-        </div>
       </div>
 
-      <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}>
-        <DialogContent className="bg-background border-white/10 max-w-2xl max-h-[85vh] flex flex-col p-0 rounded-[2rem] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-          <DialogHeader className="p-8 border-b border-white/5 bg-black/20">
-            <DialogTitle className="font-headline text-accent text-xl uppercase tracking-widest flex items-center gap-3">
-              <Settings2 className="w-6 h-6" /> HALLITSE VALVONTAPISTEITÄ
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="p-8 space-y-5 border-b border-white/5 bg-white/[0.02]">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">NIMI</Label>
-                  <Input placeholder="Esim. Kylmiö 3" value={newTpl.name} onChange={e => setNewTpl({...newTpl, name: e.target.value})} className="bg-black/20 h-11" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">KATEGORIA</Label>
-                  <select 
-                    value={newTpl.category} 
-                    onChange={e => setNewTpl({...newTpl, category: e.target.value})}
-                    className="w-full bg-black/20 border border-white/10 rounded-md h-11 px-3 text-xs text-foreground outline-none focus:border-accent/40"
-                  >
-                    {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.id}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[9px] font-black uppercase text-muted-foreground ml-1">OHJERAJA</Label>
-                  <Input placeholder="Esim. max +6 °C" value={newTpl.limit} onChange={e => setNewTpl({...newTpl, limit: e.target.value})} className="bg-black/20 h-11" />
-                </div>
+      <Accordion type="single" collapsible className="w-full space-y-4">
+        {/* 1. KUUMENNUS */}
+        <AccordionItem value="kuumennus" className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0">
+          <AccordionTrigger className="px-6 py-5 hover:no-underline">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20 text-orange-500">
+                <Flame className="w-5 h-5" />
               </div>
-              <Button onClick={handleAddTemplate} className="w-full copper-gradient font-black text-[10px] uppercase h-12 rounded-xl tracking-widest">
-                <Plus className="w-4 h-4 mr-2" /> LISÄÄ UUSI KOHDE
-              </Button>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest">KUUMENNUS</h3>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">Tavoite: &gt; 70 °C (Broileri 78 °C)</p>
+              </div>
             </div>
-            <ScrollArea className="flex-1 p-8">
-              <div className="grid grid-cols-1 gap-3">
-                {templates.map(t => (
-                  <div key={t.id} className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/5 group hover:border-accent/20 transition-all shadow-sm">
-                    <div>
-                      <p className="text-xs font-black text-foreground uppercase tracking-tight">{t.name}</p>
-                      <p className="text-[9px] text-muted-foreground uppercase font-black tracking-widest mt-0.5">{t.category} • {t.targetLimit}</p>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-8 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3].map(i => {
+                const target = `Mittaus ${i}`;
+                const temp = Number(getVal('Kuumennus', target, 'value'));
+                const isTooLow = temp > 0 && temp < 70;
+                return (
+                  <div key={i} className={cn("p-4 rounded-2xl border transition-all", isTooLow ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5")}>
+                    <div className="flex justify-between mb-2">
+                      <Label className="text-[10px] font-black uppercase">{target}</Label>
+                      {temp >= 70 && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                     </div>
-                    <Button variant="ghost" size="icon" onClick={() => handleDeleteTemplate(t.id)} className="text-destructive/40 hover:text-destructive hover:bg-destructive/10 h-10 w-10 rounded-xl opacity-0 group-hover:opacity-100 transition-all">
-                      <Trash2 className="w-5 h-5" />
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2 mb-3">
+                      <Input placeholder="Tuote" value={getVal('Kuumennus', target, 'type')} onChange={(e) => handleUpdate('Kuumennus', target, 'type', e.target.value)} className="h-9 text-xs" />
+                      <Input type="number" placeholder="°C" value={getVal('Kuumennus', target, 'value')} onChange={(e) => handleUpdate('Kuumennus', target, 'value', e.target.value)} className={cn("h-9 font-black", isTooLow && "text-destructive border-destructive")} />
+                    </div>
+                    {isTooLow && (
+                      <div className="space-y-1.5 animate-in slide-in-from-top-2">
+                        <Label className="text-[9px] font-black text-destructive uppercase flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> TOIMENPIDE VAADITAAN</Label>
+                        <Input placeholder="Miten virhe korjattiin? (Esim. Kuumennettu lisää)" value={getVal('Kuumennus', target, 'comment')} onChange={(e) => handleUpdate('Kuumennus', target, 'comment', e.target.value)} className="h-8 text-[10px] bg-black/40" />
+                      </div>
+                    )}
                   </div>
-                ))}
+                )
+              })}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 2. JÄÄHDYTYS */}
+        <AccordionItem value="jaahdytys" className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0">
+          <AccordionTrigger className="px-6 py-5 hover:no-underline">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 text-blue-500">
+                <Clock className="w-5 h-5" />
               </div>
-            </ScrollArea>
-          </div>
-          <DialogFooter className="p-6 border-t border-white/5 bg-black/20">
-            <Button onClick={() => setIsManageOpen(false)} className="w-full font-black text-[10px] uppercase h-12 rounded-xl tracking-widest border-white/10">SULJE HALLINTA</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest">JÄÄHDYTYS</h3>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">Max 4h / Loppu &lt; 6 °C</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-8 pt-4">
+            <div className="space-y-4">
+              {[1, 2].map(i => {
+                const target = `Jäähdytys ${i}`;
+                const startT = getVal('Jäähdytys', target, 'startTime');
+                const endT = getVal('Jäähdytys', target, 'endTime');
+                const endTemp = Number(getVal('Jäähdytys', target, 'endTemp'));
+                
+                let timeDiff = 0;
+                if (startT && endT) {
+                  const s = parse(startT, 'HH:mm', new Date());
+                  const e = parse(endT, 'HH:mm', new Date());
+                  timeDiff = differenceInHours(e, s);
+                }
+                const isViolation = (timeDiff > 4) || (endTemp > 6);
+
+                return (
+                  <div key={i} className={cn("p-5 rounded-3xl border transition-all", isViolation ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5")}>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase opacity-60">Tuote</Label>
+                        <Input value={getVal('Jäähdytys', target, 'type')} onChange={(e) => handleUpdate('Jäähdytys', target, 'type', e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase opacity-60">Alku (Klo / °C)</Label>
+                        <div className="flex gap-1">
+                          <Input type="time" value={startT} onChange={(e) => handleUpdate('Jäähdytys', target, 'startTime', e.target.value)} className="h-9 w-24" />
+                          <Input placeholder="°C" value={getVal('Jäähdytys', target, 'startTemp')} onChange={(e) => handleUpdate('Jäähdytys', target, 'startTemp', e.target.value)} className="h-9" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase opacity-60">Loppu (Klo / °C)</Label>
+                        <div className="flex gap-1">
+                          <Input type="time" value={endT} onChange={(e) => handleUpdate('Jäähdytys', target, 'endTime', e.target.value)} className="h-9 w-24" />
+                          <Input placeholder="°C" value={getVal('Jäähdytys', target, 'endTemp')} onChange={(e) => handleUpdate('Jäähdytys', target, 'endTemp', e.target.value)} className="h-9" />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center pb-2">
+                        {startT && endT && !isViolation && <CheckCircle2 className="w-6 h-6 text-green-500" />}
+                      </div>
+                    </div>
+                    {isViolation && (
+                      <div className="mt-4 space-y-1.5 border-t border-destructive/20 pt-3">
+                        <Label className="text-[9px] font-black text-destructive uppercase">POIKKEAMA: AIKA TAI LÄMPÖTILA YLITETTY</Label>
+                        <Input placeholder="Kirjaa selvitys poikkeamasta..." value={getVal('Jäähdytys', target, 'comment')} onChange={(e) => handleUpdate('Jäähdytys', target, 'comment', e.target.value)} className="h-9 bg-black/40" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 3. PUHDISTUS */}
+        <AccordionItem value="puhdistus" className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0">
+          <AccordionTrigger className="px-6 py-5 hover:no-underline">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center border border-green-500/20 text-green-500">
+                <Droplets className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest">PUHDISTUS</h3>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">Päivittäiset rutiinit</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-8 pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {['Työtasot', 'Lattiakaivot', 'Kylmälaitteet ulkoa', 'Uunit'].map(item => (
+                <div key={item} className="flex items-center justify-between p-4 rounded-2xl bg-black/20 border border-white/5 group hover:border-accent/40 transition-all">
+                  <div className="flex items-center gap-4">
+                    <Checkbox checked={!!getVal('Puhdistus', item, 'status')} onCheckedChange={(val) => handleUpdate('Puhdistus', item, 'status', val)} className="w-6 h-6 border-white/20" />
+                    <span className="text-sm font-bold uppercase tracking-tight">{item}</span>
+                  </div>
+                  <Input placeholder="Huom..." value={getVal('Puhdistus', item, 'comment')} onChange={(e) => handleUpdate('Puhdistus', item, 'comment', e.target.value)} className="h-8 w-32 bg-transparent border-none text-[10px]" />
+                </div>
+              ))}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 4. ASTIANPESU */}
+        <AccordionItem value="astianpesu" className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0">
+          <AccordionTrigger className="px-6 py-5 hover:no-underline">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center border border-sky-500/20 text-sky-500">
+                <UtensilsCrossed className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest">ASTIANPESU</h3>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">Pesu & Huuhtelu</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-8 pt-4">
+            <Card className="bg-black/20 border-white/5 p-6 rounded-3xl space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">Pesuvesi (60-65 °C)</Label>
+                  <Input type="number" placeholder="°C" value={getVal('Astianpesu', 'Kone 1', 'value')} onChange={(e) => handleUpdate('Astianpesu', 'Kone 1', 'value', e.target.value)} className="h-12 text-xl font-black" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[10px] font-black uppercase">Huuhteluvesi (&gt; 80 °C)</Label>
+                  <Input type="number" placeholder="°C" value={getVal('Astianpesu', 'Kone 1', 'endTemp')} onChange={(e) => handleUpdate('Astianpesu', 'Kone 1', 'endTemp', e.target.value)} className="h-12 text-xl font-black" />
+                </div>
+              </div>
+              <div className="flex gap-6 pt-4 border-t border-white/5">
+                <div className="flex items-center gap-3">
+                  <Checkbox checked={!!getVal('Astianpesu', 'Kone 1', 'chemicalsOk')} onCheckedChange={(val) => handleUpdate('Astianpesu', 'Kone 1', 'chemicalsOk', val)} />
+                  <Label className="text-[10px] font-black uppercase cursor-pointer">Pesu- ja huuhteluaine OK</Label>
+                </div>
+              </div>
+            </Card>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* 5. BUFFET-SEURANTA */}
+        <AccordionItem value="buffet" className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0">
+          <AccordionTrigger className="px-6 py-5 hover:no-underline">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20 text-accent">
+                <UtensilsCrossed className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black uppercase tracking-widest">BUFFET-SEURANTA</h3>
+                <p className="text-[9px] text-muted-foreground uppercase font-bold">Tupla-mittaus (0h / 2h)</p>
+              </div>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-6 pb-8 pt-4">
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => {
+                const target = `Linjasto ${i}`;
+                const dish = getVal('Buffet', target, 'dishName');
+                const t1 = getVal('Buffet', target, 'temp1');
+                const t2 = getVal('Buffet', target, 'temp2');
+                const warning = dish && !t2;
+
+                return (
+                  <div key={i} className={cn("p-4 rounded-2xl border transition-all", warning ? "bg-destructive/5 border-destructive/20" : "bg-black/20 border-white/5")}>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase opacity-60">Ruokalaji</Label>
+                        <Input value={dish} onChange={(e) => handleUpdate('Buffet', target, 'dishName', e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase opacity-60">Esillepano</Label>
+                        <Input type="time" value={getVal('Buffet', target, 'displayTime')} onChange={(e) => handleUpdate('Buffet', target, 'displayTime', e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[9px] font-black uppercase opacity-60">1. Mittaus (°C)</Label>
+                        <Input placeholder="°C" value={t1} onChange={(e) => handleUpdate('Buffet', target, 'temp1', e.target.value)} className="h-9" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className={cn("text-[9px] font-black uppercase", warning ? "text-destructive" : "opacity-60")}>
+                          2. Mittaus (2h kuluttua)
+                        </Label>
+                        <Input placeholder="°C" value={t2} onChange={(e) => handleUpdate('Buffet', target, 'temp2', e.target.value)} className={cn("h-9", warning && "border-destructive")} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {/* REGULATORY LINK */}
+      <div className="mt-8 p-6 rounded-3xl bg-black/40 border border-white/5 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Info className="w-6 h-6 text-accent" />
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Viranomaisohjeet ja säädökset</p>
+        </div>
+        <Button variant="outline" onClick={() => window.open('https://www.ruokavirasto.fi', '_blank')} className="border-white/10 text-accent uppercase text-[10px] font-black h-10 px-6">
+          AVAA RUOKAVIRASTO.FI
+        </Button>
+      </div>
     </div>
   )
 }
