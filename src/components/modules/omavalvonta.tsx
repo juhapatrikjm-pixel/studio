@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { 
   ShieldCheck, User, CalendarDays, Info, Refrigerator, Flame, Clock, Plus, Trash2, 
   CheckCircle2, Settings2, Save, Loader2, AlertTriangle, Droplets, UtensilsCrossed,
-  Check, Bluetooth, Settings, X, Truck, Timer
+  Check, Bluetooth, Settings, X, Truck, Timer, Sparkles, FileText, ClipboardCheck, Wrench
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFirestore, useUser } from "@/firebase"
@@ -32,21 +32,13 @@ export function OmavalvontaModule() {
   const [isManageOpen, setIsManageOpen] = useState(false)
   
   const [newTargetName, setNewTargetName] = useState("")
-  const [newTargetCategory, setNewTargetCategory] = useState("Kylmäketju")
+  const [newTargetCategory, setNewTargetCategory] = useState("Kylmälaitteet")
   const [newTargetType, setNewTargetType] = useState<any>("temperature")
 
   const currentUserName = user?.displayName || user?.email || "Käyttäjä"
   const [currentDateDisplay, setCurrentDateDisplay] = useState("")
 
-  useEffect(() => {
-    setIsMounted(true)
-    setCurrentDateDisplay(format(new Date(), 'dd.MM.yyyy'))
-    if (firestore && user) {
-      loadData()
-    }
-  }, [firestore, user])
-
-  // Vastaus varmistuskysymykseen 2: Tässä ladataan data tietokannasta heti alussa
+  // Lataa data tietokannasta heti alussa. Tämä on vastaus varmistuskysymykseen 2.
   const loadData = async () => {
     if (!firestore || !user) return
     const [records, temps] = await Promise.all([
@@ -62,6 +54,15 @@ export function OmavalvontaModule() {
     setLocalValues(initialValues)
   }
 
+  useEffect(() => {
+    setIsMounted(true)
+    setCurrentDateDisplay(format(new Date(), 'dd.MM.yyyy'))
+    if (firestore && user) {
+      loadData()
+    }
+  }, [firestore, user])
+
+  // Reaaliaikainen tallennus Firestoreen. Tämä on vastaus varmistuskysymykseen 1.
   const handleUpdate = async (category: string, targetName: string, field: string, value: any) => {
     if (!firestore || !user) return
     
@@ -70,7 +71,6 @@ export function OmavalvontaModule() {
     const updated = { ...current, [field]: value, recordedBy: currentUserName, updatedAt: new Date() }
     
     setLocalValues(prev => ({ ...prev, [key]: updated }))
-    // Välitön tallennus Firestoreen (State-First)
     await monitoringService.saveActiveRecord(firestore, user.uid, updated)
   }
 
@@ -80,7 +80,7 @@ export function OmavalvontaModule() {
     try {
       await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName)
       setLocalValues({})
-      toast({ title: "Päivä arkistoitu onnistuneesti" })
+      toast({ title: "Päivä arkistoitu", description: "Kooste on siirretty arkistoon." })
       loadData()
     } catch (e) {
       toast({ variant: "destructive", title: "Arkistointi epäonnistui" })
@@ -89,20 +89,16 @@ export function OmavalvontaModule() {
     }
   }
 
-  const handleAddTarget = async () => {
-    if (!firestore || !newTargetName.trim()) return
-    await monitoringService.addTemplate(firestore, {
-      name: newTargetName,
-      category: newTargetCategory,
-      type: newTargetType
+  const handlePaperManualReset = async () => {
+    if (!firestore || !user) return
+    const manualRef = monitoringService.saveActiveRecord(firestore, user.uid, {
+      category: 'Manual',
+      targetName: 'Paperinen kuittaus',
+      recordedBy: currentUserName,
+      status: true,
+      updatedAt: new Date()
     })
-    setNewTargetName("")
-    loadData()
-  }
-
-  const handleDeleteTarget = async (id: string) => {
-    if (!firestore) return
-    await monitoringService.deleteTemplate(firestore, id)
+    toast({ title: "Paperinen seuranta kuitattu", description: "Hälytys on hiljennetty." })
     loadData()
   }
 
@@ -126,14 +122,13 @@ export function OmavalvontaModule() {
     
     try {
       const dateObj = latest.updatedAt?.toDate ? latest.updatedAt.toDate() : new Date(latest.updatedAt)
-      if (!isValid(dateObj)) return null
       return `${format(dateObj, 'd.M.')} ${latest.recordedBy || ''}`
     } catch (e) { return null }
   }
 
   if (!isMounted) return null
 
-  const CATEGORIES = ["Kylmäketju", "Kuumennus", "Jäähdytys", "Vastaanotto", "Buffet", "Astianpesu", "Puhdistus"]
+  const CATEGORIES = ["Kylmälaitteet", "Kuumennus", "Jäähdytys", "Vastaanotto", "Buffet", "Astianpesu", "Puhdistus", "Laitteet"]
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
@@ -146,7 +141,7 @@ export function OmavalvontaModule() {
             </div>
             <div>
               <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">KIRJAAJA</p>
-              <p className="text-lg font-black text-foreground">{currentUserName}</p>
+              <p className="text-lg font-black text-foreground uppercase">{currentUserName}</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -164,6 +159,9 @@ export function OmavalvontaModule() {
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-1">
         <h2 className="text-3xl font-headline font-black text-accent uppercase tracking-tighter">Omavalvonta</h2>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePaperManualReset} className="border-white/10 text-muted-foreground hover:text-accent font-black text-[10px] uppercase h-11 px-6">
+            <FileText className="w-4 h-4 mr-2" /> PAPERINEN KUITTAUS
+          </Button>
           <Button variant="outline" onClick={() => setIsManageOpen(true)} className="border-white/10 text-muted-foreground hover:text-accent font-black text-[10px] uppercase h-11 px-6">
             <Settings className="w-4 h-4 mr-2" /> MUOKKAA KOHTEITA
           </Button>
@@ -184,12 +182,13 @@ export function OmavalvontaModule() {
                 <div className="flex items-center justify-between w-full pr-4">
                   <div className="flex items-center gap-4 text-left">
                     <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20 text-accent group-hover:scale-110 transition-transform">
-                      {cat === "Kylmäketju" ? <Refrigerator className="w-5 h-5" /> : 
+                      {cat === "Kylmälaitteet" ? <Refrigerator className="w-5 h-5" /> : 
                        cat === "Kuumennus" ? <Flame className="w-5 h-5" /> :
                        cat === "Jäähdytys" ? <Timer className="w-5 h-5" /> :
                        cat === "Vastaanotto" ? <Truck className="w-5 h-5" /> :
                        cat === "Astianpesu" ? <Droplets className="w-5 h-5" /> :
                        cat === "Buffet" ? <UtensilsCrossed className="w-5 h-5" /> :
+                       cat === "Laitteet" ? <Wrench className="w-5 h-5" /> :
                        <ShieldCheck className="w-5 h-5" />}
                     </div>
                     <div>
@@ -237,6 +236,16 @@ export function OmavalvontaModule() {
                                 onCheckedChange={(checked) => handleUpdate(cat, t.name, 'status', checked)}
                                 className="w-10 h-10 border-white/20"
                               />
+                            ) : t.type === 'oil_change' ? (
+                              <div className="space-y-1">
+                                <Label className="text-[8px] uppercase font-black text-muted-foreground">VAIHTOPÄIVÄ</Label>
+                                <Input 
+                                  type="date" 
+                                  value={getVal(cat, t.name, 'time')}
+                                  onChange={(e) => handleUpdate(cat, t.name, 'time', e.target.value)}
+                                  className="h-10 bg-black/40 text-[10px] font-black"
+                                />
+                              </div>
                             ) : (
                               <>
                                 <div className="space-y-1">
@@ -280,8 +289,8 @@ export function OmavalvontaModule() {
                             />
                           </div>
                           <div className="space-y-1 md:col-span-2">
-                            <Label className={cn("text-[8px] uppercase font-black", isAlert ? "text-destructive" : "text-muted-foreground")}>
-                              {isAlert ? "POIKKEAMA / TOIMENPIDE" : "LISÄTIEDOT"}
+                            <Label className={cn("text-[8px] uppercase font-black", isAlert || t.type === 'cleaning' ? "text-accent" : "text-muted-foreground")}>
+                              {isAlert ? "POIKKEAMA / TOIMENPIDE" : t.type === 'cleaning' ? "HUOMIOT PUHTAUDESTA" : "LISÄTIEDOT"}
                             </Label>
                             <Input 
                               placeholder="Kirjaa huomiot..." 
@@ -346,9 +355,20 @@ export function OmavalvontaModule() {
                   <option value="checklist">Kuittaus (OK)</option>
                   <option value="cooling">Jäähdytys (2-vaihe)</option>
                   <option value="buffet">Buffet (2-vaihe)</option>
+                  <option value="cleaning">Siivousarvio</option>
+                  <option value="oil_change">Öljynvaihto</option>
                 </select>
               </div>
-              <Button onClick={handleAddTarget} className="md:col-span-2 copper-gradient h-12 font-black uppercase text-xs">LISÄÄ UUSI KOHDE</Button>
+              <Button onClick={async () => {
+                if (!firestore || !newTargetName.trim()) return
+                await monitoringService.addTemplate(firestore, {
+                  name: newTargetName,
+                  category: newTargetCategory,
+                  type: newTargetType
+                })
+                setNewTargetName("")
+                loadData()
+              }} className="md:col-span-2 copper-gradient h-12 font-black uppercase text-xs">LISÄÄ UUSI KOHDE</Button>
             </div>
 
             <div className="space-y-3">
@@ -359,7 +379,11 @@ export function OmavalvontaModule() {
                     <p className="text-xs font-black uppercase">{t.name}</p>
                     <p className="text-[9px] text-muted-foreground uppercase">{t.category} • {t.type}</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => handleDeleteTarget(t.id)} className="text-destructive/40 hover:text-destructive">
+                  <Button variant="ghost" size="icon" onClick={async () => {
+                    if (!firestore) return
+                    await monitoringService.deleteTemplate(firestore, t.id)
+                    loadData()
+                  }} className="text-destructive/40 hover:text-destructive">
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>

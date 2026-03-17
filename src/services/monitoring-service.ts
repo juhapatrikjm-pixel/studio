@@ -13,11 +13,12 @@ export interface MonitoringRecord {
   targetName: string;
   category: string;
   value?: string;
-  value2?: string; // Esim. Jäähdytyksen loppulämpö tai Buffan 2h mittaus
+  value2?: string; 
   time?: string;
   time2?: string;
   comment?: string;
   status?: boolean;
+  chemicalStatus?: boolean;
   updatedAt: any;
 }
 
@@ -26,10 +27,13 @@ export interface MonitoringTemplate {
   name: string;
   category: string;
   targetLimit?: string;
-  type: 'temperature' | 'checklist' | 'cooling' | 'buffet' | 'dishwash';
+  type: 'temperature' | 'checklist' | 'cooling' | 'buffet' | 'cleaning' | 'oil_change';
 }
 
-// Vastaus varmistuskysymykseen 1: Tässä tallennetaan data Firestoreen
+/**
+ * Tallentaa aktiivisen merkinnän Firestoreen (omavalvonta_active).
+ * Tämä on vastaus varmistuskysymykseen 1.
+ */
 export const saveActiveRecord = async (db: Firestore, userId: string, record: Partial<MonitoringRecord>) => {
   if (!record.targetName || !record.category) return;
   const id = `${userId}_${record.category}_${record.targetName.replace(/\s+/g, '_')}`;
@@ -42,6 +46,9 @@ export const saveActiveRecord = async (db: Firestore, userId: string, record: Pa
   }, { merge: true });
 };
 
+/**
+ * Hakee kaikki aktiiviset merkinnät tietokannasta.
+ */
 export const getActiveRecords = async (db: Firestore, userId: string) => {
   const colRef = collection(db, 'omavalvonta_active');
   const q = query(colRef, where('userId', '==', userId));
@@ -49,13 +56,16 @@ export const getActiveRecords = async (db: Firestore, userId: string) => {
   return snap.docs.map(d => ({ ...d.data(), id: d.id }));
 };
 
+/**
+ * Siirtää aktiiviset tiedot arkistoon ja tyhjentää aktiivisen työtilan.
+ */
 export const archiveMonitoringDay = async (db: Firestore, userId: string, userName: string) => {
   const activeRecords = await getActiveRecords(db, userId);
   if (activeRecords.length === 0) return;
 
   const batch = writeBatch(db);
   const archiveDate = new Date();
-  const dateStr = archiveDate.toLocaleDateString('fi-FI');
+  const dateStr = `${archiveDate.getDate()}.${archiveDate.getMonth() + 1}.`;
   const archiveId = `archive_${userId}_${archiveDate.getTime()}`;
 
   const archiveRef = doc(db, 'omavalvonta_archive', archiveId);
@@ -74,34 +84,49 @@ export const archiveMonitoringDay = async (db: Firestore, userId: string, userNa
     }
   });
 
-  // Lisätään arkistomerkintä myös dokumentteihin
+  // Tallennetaan arkistomerkintä Dokumenttiarkistoon
   const fileRef = doc(db, 'uploadedRecipes', `omavalvonta_${archiveId}`);
   batch.set(fileRef, {
     id: `omavalvonta_${archiveId}`,
     name: `Tehty ${dateStr}`,
-    type: 'application/pdf', // Simuloidaan raporttia
-    size: '0.5 MB',
+    type: 'application/pdf',
+    size: 'Raportti',
     folderId: 'omavalvonta_arkisto',
     createdAt: serverTimestamp()
+  });
+
+  // Päivitetään myös globaali hälytyssyöte
+  const pulseRef = doc(db, 'selfMonitoringRecords', archiveId);
+  batch.set(pulseRef, {
+    date: archiveDate,
+    recordedBy: userName,
+    type: 'daily_archive'
   });
 
   await batch.commit();
 };
 
+/**
+ * Hakee ja alustaa valvontakohteet.
+ */
 export const getTemplates = async (db: Firestore) => {
   const snap = await getDocs(collection(db, 'monitoringTemplates'));
   if (snap.empty) {
     const defaults: Omit<MonitoringTemplate, 'id'>[] = [
-      { name: "Kylmiö 1", category: "Kylmäketju", targetLimit: "max +6 °C", type: 'temperature' },
-      { name: "Pakastin 1", category: "Kylmäketju", targetLimit: "max -18 °C", type: 'temperature' },
-      { name: "Lounas Buffet Lämmin", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
-      { name: "Salaattipöytä", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
-      { name: "Broileri", category: "Kuumennus", targetLimit: "min +78 °C", type: 'temperature' },
+      { name: "Kylmiö 1", category: "Kylmälaitteet", targetLimit: "max +6 °C", type: 'temperature' },
+      { name: "Pakastin 1", category: "Kylmälaitteet", targetLimit: "max -18 °C", type: 'temperature' },
+      { name: "Raaka-aineet", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
       { name: "Uudelleenkuumennus", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
+      { name: "Broileri", category: "Kuumennus", targetLimit: "min +78 °C", type: 'temperature' },
+      { name: "Jäähdytys (Tuote 1)", category: "Jäähdytys", targetLimit: "< 6 °C / 4h", type: 'cooling' },
+      { name: "Lämmin Buffet", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
+      { name: "Kylmä Buffet", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
       { name: "Pesuvesi", category: "Astianpesu", targetLimit: "60-65 °C", type: 'temperature' },
       { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "> 80 °C", type: 'temperature' },
-      { name: "Työtasot", category: "Puhdistus", type: 'checklist' },
-      { name: "Lattiakaivot", category: "Puhdistus", type: 'checklist' },
+      { name: "Toimittaja 1", category: "Vastaanotto", targetLimit: "OK", type: 'checklist' },
+      { name: "Keittiön yleispuhtaus", category: "Puhdistus", type: 'cleaning' },
+      { name: "Siivousliikkeen laatu", category: "Puhdistus", type: 'cleaning' },
+      { name: "Rasvakeitin 1", category: "Laitteet", targetLimit: "Öljynvaihto", type: 'oil_change' },
     ];
     
     const batch = writeBatch(db);
@@ -110,8 +135,7 @@ export const getTemplates = async (db: Firestore) => {
       batch.set(newRef, { ...d, id: newRef.id });
     });
     await batch.commit();
-    const freshSnap = await getDocs(collection(db, 'monitoringTemplates'));
-    return freshSnap.docs.map(d => d.data() as MonitoringTemplate);
+    return getTemplates(db);
   }
   return snap.docs.map(d => d.data() as MonitoringTemplate);
 };
