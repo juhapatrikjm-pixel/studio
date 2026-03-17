@@ -7,40 +7,48 @@ import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { firebaseConfig } from './config';
 
 export type FirebaseServices = {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  storage: FirebaseStorage;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
+  storage: FirebaseStorage | null;
 };
 
-// Singleton-instanssi estämään useampi alustusyritys, mikä aiheuttaa
-// "Firestore INTERNAL ASSERTION FAILED: Unexpected state" -virheitä Next.js:ssä
+// Singleton-välimuisti palveluille
 let cachedServices: FirebaseServices | null = null;
 
 /**
- * Alustaa Firebase-palvelut keskitetysti.
- * Käyttää nimettyä tietokantaa "wisemisa" ja määritettyä Storage-bucketia.
+ * Alustaa Firebase-palvelut vikasietoisesti.
+ * Estää "Internal Server Error" -virheet Next.js SSR-vaiheessa.
  */
 export function initializeFirebase(): FirebaseServices {
-  // Palautetaan aiemmin alustetut palvelut, jos ne ovat jo olemassa (asiakaspuolella)
-  if (typeof window !== 'undefined' && cachedServices) {
-    return cachedServices;
-  }
+  // 1. Palautetaan välimuistista jos löytyy (Singleton)
+  if (cachedServices) return cachedServices;
 
+  // 2. Alustetaan perus-App (estetään moninkertainen alustus)
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-  
-  // Varmistetaan ympäristömuuttujien latautuminen
-  if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
-    console.warn("DEBUG: Firebase API Key puuttuu ympäristömuuttujista!");
+
+  // 3. Palvelinpuolen (SSR) suojaus: Palautetaan vain App, ei alusteta raskaampia palveluita palvelimella
+  if (typeof window === 'undefined') {
+    return {
+      firebaseApp,
+      firestore: null,
+      auth: null,
+      storage: null
+    };
   }
 
-  // Alustetaan palvelut käyttäen pyydettyä nimettyä tietokantaa ja storage-bucketia
-  const firestore = getFirestore(firebaseApp, "wisemisa");
-  const auth = getAuth(firebaseApp);
-  const storage = getStorage(firebaseApp, "gs://wisemisa-d2b98.firebasestorage.app");
+  // 4. Asiakaspuolen alustus (wisemisa-tietokanta ja määritetty storage)
+  try {
+    const firestore = getFirestore(firebaseApp, "wisemisa");
+    const auth = getAuth(firebaseApp);
+    const storage = getStorage(firebaseApp, "gs://wisemisa-d2b98.firebasestorage.app");
 
-  cachedServices = { firebaseApp, firestore, auth, storage };
-  return cachedServices;
+    cachedServices = { firebaseApp, firestore, auth, storage };
+    return cachedServices;
+  } catch (error) {
+    console.error("Firebase initialization failed during runtime:", error);
+    return { firebaseApp, firestore: null, auth: null, storage: null };
+  }
 }
 
 export * from './provider';

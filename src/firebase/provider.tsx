@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext } from 'react';
@@ -21,6 +20,10 @@ const FirebaseContext = createContext<FirebaseContextType>({
   storage: null,
 });
 
+/**
+ * Tarjoaa Firebase-palvelut koko sovellukselle.
+ * Sallii null-arvot SSR-vaiheen aikana vikasietoisuuden parantamiseksi.
+ */
 export function FirebaseProvider({ 
   children, 
   firebaseApp, 
@@ -29,10 +32,10 @@ export function FirebaseProvider({
   storage
 }: { 
   children: React.ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  storage: FirebaseStorage;
+  firebaseApp: FirebaseApp | null;
+  firestore: Firestore | null;
+  auth: Auth | null;
+  storage: FirebaseStorage | null;
 }) {
   return (
     <FirebaseContext.Provider value={{ firebaseApp, firestore, auth, storage }}>

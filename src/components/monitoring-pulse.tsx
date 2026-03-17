@@ -6,12 +6,13 @@ import { ShieldCheck, AlertTriangle, Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, query, orderBy, limit, Timestamp } from "firebase/firestore"
-import { format, differenceInDays } from "date-fns"
+import { format, differenceInDays, isValid } from "date-fns"
 import { fi } from "date-fns/locale"
 
 export function MonitoringPulse() {
   const firestore = useFirestore()
   const [isMounted, setIsMounted] = useState(false)
+  const [now, setNow] = useState<Date | null>(null)
 
   const recordsQuery = useMemo(() => {
     if (!firestore) return null
@@ -21,23 +22,34 @@ export function MonitoringPulse() {
   const { data: records = [] } = useCollection<any>(recordsQuery)
   const latestRecord = records[0] || null
 
-  useEffect(() => setIsMounted(true), [])
+  useEffect(() => {
+    setIsMounted(true)
+    setNow(new Date())
+  }, [])
+
+  const recordDate = useMemo(() => {
+    if (!latestRecord?.date) return null
+    try {
+      if (latestRecord.date instanceof Timestamp) return latestRecord.date.toDate()
+      if (latestRecord.date?.seconds) return new Date(latestRecord.date.seconds * 1000)
+      const d = new Date(latestRecord.date)
+      return isValid(d) ? d : null
+    } catch (e) {
+      return null
+    }
+  }, [latestRecord])
+
+  const daysSince = useMemo(() => {
+    if (!recordDate || !now) return 999
+    try {
+      return Math.abs(differenceInDays(now, recordDate))
+    } catch (e) {
+      return 999
+    }
+  }, [recordDate, now])
 
   if (!isMounted || !firestore) return null
 
-  const getRecordDate = () => {
-    if (!latestRecord?.date) return null
-    if (latestRecord.date instanceof Timestamp) return latestRecord.date.toDate()
-    if (latestRecord.date?.seconds) return new Date(latestRecord.date.seconds * 1000)
-    const d = new Date(latestRecord.date)
-    return isNaN(d.getTime()) ? null : d
-  }
-
-  const recordDate = getRecordDate()
-  const daysSince = recordDate 
-    ? Math.abs(differenceInDays(new Date(), recordDate)) 
-    : 999
-  
   const isCritical = daysSince >= 7
   const isOk = daysSince === 0 && recordDate !== null
 
@@ -70,7 +82,7 @@ export function MonitoringPulse() {
               <Activity className={cn("w-4 h-4 opacity-40", isCritical && "animate-pulse")} />
             </div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-[0.1em] font-bold">
-              {recordDate 
+              {recordDate && isValid(recordDate)
                 ? `Viimeisin kirjaus: ${format(recordDate, 'd.M.yyyy')} (${daysSince} pv sitten) • ${latestRecord?.recordedBy || 'Tiimi'}` 
                 : "EI AIEMPIA KIRJAUKSIA JÄRJESTELMÄSSÄ"}
             </p>

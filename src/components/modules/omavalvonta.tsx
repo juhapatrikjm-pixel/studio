@@ -34,7 +34,7 @@ import { doc, collection, query, orderBy, limit, Timestamp } from "firebase/fire
 import { MonitoringPulse } from "../monitoring-pulse"
 import * as monitoringService from "@/services/monitoring-service"
 import { useToast } from "@/hooks/use-toast"
-import { format } from "date-fns"
+import { format, isValid } from "date-fns"
 import { fi } from "date-fns/locale"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -78,9 +78,14 @@ export function OmavalvontaModule() {
   const loadTemplates = async () => {
     if (!firestore) return
     setIsLoadingTemplates(true)
-    const data = await monitoringService.getMonitoringTemplates(firestore)
-    setTemplates(data)
-    setIsLoadingTemplates(false)
+    try {
+      const data = await monitoringService.getMonitoringTemplates(firestore)
+      setTemplates(data)
+    } catch (e) {
+      console.error("Error loading templates", e)
+    } finally {
+      setIsLoadingTemplates(false)
+    }
   }
 
   const handleSaveMeasurement = async (template: monitoringService.MonitoringTemplate) => {
@@ -139,8 +144,17 @@ export function OmavalvontaModule() {
     
     if (!latest) return "Ei kirjauksia"
     
-    const date = latest.date instanceof Timestamp ? latest.date.toDate() : new Date(latest.date)
-    return `${format(date, 'd.M.')} ${latest.recordedBy}`
+    try {
+      let date: Date;
+      if (latest.date instanceof Timestamp) date = latest.date.toDate();
+      else if (latest.date?.seconds) date = new Date(latest.date.seconds * 1000);
+      else date = new Date(latest.date);
+
+      if (!isValid(date)) return "Päivämäärävirhe"
+      return `${format(date, 'd.M.')} ${latest.recordedBy || 'Tiimi'}`
+    } catch (e) {
+      return "Virhe"
+    }
   }
 
   const categories = Array.from(new Set(templates.map(t => t.category)))
