@@ -18,9 +18,11 @@ export function WorkspaceModule() {
   const { user } = useUser()
   const currentUser = user?.displayName || (user?.isAnonymous ? "Ylläpitäjä" : "Käyttäjä")
 
-  const [todayDate, setTodayDate] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const [todayDate, setTodayDate] = useState<string>("")
   const [isSaving, setIsSaving] = useState(false)
+  const [newMaintenanceText, setNewMaintenanceText] = useState("")
+  const [readInfoIds, setReadInfoIds] = useState<string[]>([])
 
   // Estetään hydraatiovirheet suorittamalla aikariippuvaiset asiat mountin jälkeen
   useEffect(() => {
@@ -56,9 +58,6 @@ export function WorkspaceModule() {
 
   const maintenanceQuery = useMemo(() => firestore ? query(collection(firestore, 'maintenanceNotes'), orderBy('createdAt', 'desc'), limit(10)) : null, [firestore])
   const { data: maintenanceNotes = [] } = useCollection<any>(maintenanceQuery)
-  
-  const [newMaintenanceText, setNewMaintenanceText] = useState("")
-  const [readInfoIds, setReadInfoIds] = useState<string[]>([])
 
   const isRead = useMemo(() => {
     if (!shiftInfo) return false

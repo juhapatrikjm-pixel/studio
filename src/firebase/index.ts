@@ -20,6 +20,10 @@ export function initializeFirebase(): FirebaseServices {
   // Tarkistetaan, onko Firebase jo alustettu
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   
+  // Debug-logit ympäristömuuttujien tarkistukseen
+  console.log("DEBUG: Firebase API Key löytyi:", !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+  console.log("DEBUG: Project ID:", process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+
   // Alustetaan palvelut
   const firestore = getFirestore(firebaseApp);
   const auth = getAuth(firebaseApp);
