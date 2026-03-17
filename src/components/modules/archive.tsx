@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useRef, useMemo } from "react"
@@ -31,8 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useFirestore, useCollection } from "@/firebase"
 import { collection, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
-import { errorEmitter } from "@/firebase/error-emitter"
-import { FirestorePermissionError } from "@/firebase/errors"
 import { useToast } from "@/hooks/use-toast"
 
 type FolderType = {
@@ -62,33 +59,38 @@ export function ArchiveModule() {
   const [activeTab, setActiveTab] = useState<'recipes' | 'dishes' | 'uploads'>('recipes')
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
 
-  const addFolder = () => {
+  const addFolder = async () => {
     if (!newFolderName.trim() || !firestore) return
-    const id = Math.random().toString(36).substr(2, 9)
-    const folderRef = doc(firestore, 'archiveFolders', id)
-    
-    setDoc(folderRef, {
-      id,
-      name: newFolderName,
-      category: activeTab,
-      parentId: currentFolderId || null,
-      createdAt: serverTimestamp()
-    }).catch(async () => {
-      errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: folderRef.path,
-        operation: 'create'
-      }))
-    })
-    setNewFolderName("")
-    toast({ title: "Kansio luotu" })
+    setIsSaving(true)
+    try {
+      const id = Math.random().toString(36).substr(2, 9)
+      const folderRef = doc(firestore, 'archiveFolders', id)
+      
+      await setDoc(folderRef, {
+        id,
+        name: newFolderName,
+        category: activeTab,
+        parentId: currentFolderId || null,
+        createdAt: serverTimestamp()
+      })
+      setNewFolderName("")
+      toast({ title: "Kansio luotu" })
+    } catch (e) {
+      console.error("Kansion luontivirhe:", e)
+      toast({ variant: "destructive", title: "Virhe" })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const deleteFolder = (id: string) => {
+  const deleteFolder = async (id: string) => {
     if (!firestore) return
-    const folderRef = doc(firestore, 'archiveFolders', id)
-    deleteDoc(folderRef)
+    try {
+      await deleteDoc(doc(firestore, 'archiveFolders', id))
+    } catch (e) { console.error(e) }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -99,37 +101,33 @@ export function ArchiveModule() {
     const id = Math.random().toString(36).substr(2, 9)
     const docRef = doc(firestore, 'uploadedRecipes', id)
 
-    // Simuloidaan lataus (metadatan tallennus)
-    setTimeout(() => {
-      setDoc(docRef, {
-        id,
-        name: file.name,
-        type: file.type,
-        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-        folderId: currentFolderId,
-        createdAt: serverTimestamp()
-      }).then(() => {
-        setIsUploading(false)
-        toast({ title: "Resepti ladattu", description: file.name })
-      }).catch(err => {
-        setIsUploading(false)
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: docRef.path,
-          operation: 'create'
-        }))
-      })
-    }, 800)
+    // Metadatan tallennus
+    setDoc(docRef, {
+      id,
+      name: file.name,
+      type: file.type,
+      size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+      folderId: currentFolderId,
+      createdAt: serverTimestamp()
+    }).then(() => {
+      setIsUploading(false)
+      toast({ title: "Resepti ladattu", description: file.name })
+    }).catch(err => {
+      setIsUploading(false)
+      console.error("Latausvirhe:", err)
+    })
   }
 
-  const deleteItem = (id: string, collectionName: string) => {
+  const deleteItem = async (id: string, collectionName: string) => {
     if (!firestore) return
-    deleteDoc(doc(firestore, collectionName, id))
-    toast({ title: "Poistettu" })
+    try {
+      await deleteDoc(doc(firestore, collectionName, id))
+      toast({ title: "Poistettu" })
+    } catch (e) { console.error(e) }
   }
 
   const filteredFolders = folders.filter(f => f.category === activeTab && (currentFolderId ? f.parentId === currentFolderId : !f.parentId))
   
-  // Valitaan näytettävä data välilehden mukaan
   const currentItems = useMemo(() => {
     let source: any[] = []
     let colName = ""
@@ -201,8 +199,10 @@ export function ArchiveModule() {
             </CardHeader>
             <CardContent className="p-4 space-y-4">
               <div className="flex gap-2">
-                <Input placeholder="Uusi kansio..." value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addFolder()} className="h-9 text-xs bg-black/20 border-white/10" />
-                <Button onClick={addFolder} size="sm" className="copper-gradient shrink-0 px-3"><Plus className="w-4 h-4" /></Button>
+                <Input placeholder="Uusi kansio..." value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addFolder()} className="h-9 text-xs bg-black/20 border-white/10" disabled={isSaving} />
+                <Button onClick={addFolder} size="sm" className="copper-gradient shrink-0 px-3" disabled={isSaving}>
+                  {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                </Button>
               </div>
               <div className="space-y-1">
                 <div 

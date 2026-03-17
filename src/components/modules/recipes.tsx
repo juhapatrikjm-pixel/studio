@@ -18,10 +18,11 @@ import {
   Printer,
   Share2,
   Edit2,
-  Search
+  Search,
+  Loader2
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -77,6 +78,7 @@ export function RecipesModule() {
 
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState<'recipes' | 'dishes'>('recipes')
+  const [isSaving, setIsSaving] = useState(false)
 
   const [isEditing, setIsEditing] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -97,10 +99,6 @@ export function RecipesModule() {
   const [dishSteps, setDishSteps] = useState<Step[]>([])
   const [dishEquip, setDishEquip] = useState<RecipeEquipment[]>([])
 
-  const recipeFolders = folders.filter(f => f.category === 'recipes')
-  const dishFolders = folders.filter(f => f.category === 'dishes')
-
-  // KÄYTETÄÄN PALVELUKERROSTA LASKENTAAN
   const recipeCalculations = useMemo(() => calculateRecipe(ingredients, portions), [ingredients, portions])
   const dishCalculations = useMemo(() => calculateDish(selectedRecipes, dishIngredients, sellingPrice), [selectedRecipes, dishIngredients, sellingPrice])
 
@@ -114,36 +112,52 @@ export function RecipesModule() {
     setSelectedRecipes([]); setDishIngredients([]); setDishSteps([]); setDishEquip([]); setEditDishId(null);
   }
 
-  const handleSaveRecipe = () => {
+  const handleSaveRecipe = async () => {
     if (!recipeName.trim() || !firestore) return
-    const id = editId || Math.random().toString(36).substr(2, 9)
-    const data = {
-      id, name: recipeName, portions: Number(portions),
-      folderId: selectedFolderId === "root" ? null : selectedFolderId,
-      ingredients, steps, equipment: recipeEquip,
-      calculations: recipeCalculations,
-      createdAt: editId ? (globalRecipes.find(r => r.id === editId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+    setIsSaving(true)
+    try {
+      const id = editId || Math.random().toString(36).substr(2, 9)
+      const data = {
+        id, name: recipeName, portions: Number(portions),
+        folderId: selectedFolderId === "root" ? null : selectedFolderId,
+        ingredients, steps, equipment: recipeEquip,
+        calculations: recipeCalculations,
+        createdAt: editId ? (globalRecipes.find(r => r.id === editId)?.createdAt || new Date().toISOString()) : serverTimestamp()
+      }
+      await setDoc(doc(firestore, 'recipes', id), data, { merge: true });
+      toast({ title: "Resepti tallennettu" });
+      setIsEditing(false); resetRecipeForm();
+    } catch (e) {
+      console.error("Reseptin tallennusvirhe:", e)
+      toast({ variant: "destructive", title: "Tallennus epäonnistui" })
+    } finally {
+      setIsSaving(false)
     }
-    setDoc(doc(firestore, 'recipes', id), data, { merge: true });
-    toast({ title: "Resepti tallennettu" });
-    setIsEditing(false); resetRecipeForm();
   }
 
-  const handleSaveDish = () => {
+  const handleSaveDish = async () => {
     if (!dishName.trim() || !firestore) return
-    const id = editDishId || Math.random().toString(36).substr(2, 9)
-    const data = {
-      id, name: dishName, sellingPrice: Number(sellingPrice),
-      folderId: selectedDishFolderId === "root" ? null : selectedDishFolderId,
-      recipes: selectedRecipes, manualIngredients: dishIngredients,
-      steps: dishSteps, equipment: dishEquip,
-      totalCost: dishCalculations.totalCost, totalWeight: dishCalculations.totalWeight,
-      margin: dishCalculations.margin,
-      createdAt: editDishId ? (globalDishes.find(d => d.id === editDishId)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+    setIsSaving(true)
+    try {
+      const id = editDishId || Math.random().toString(36).substr(2, 9)
+      const data = {
+        id, name: dishName, sellingPrice: Number(sellingPrice),
+        folderId: selectedDishFolderId === "root" ? null : selectedDishFolderId,
+        recipes: selectedRecipes, manualIngredients: dishIngredients,
+        steps: dishSteps, equipment: dishEquip,
+        totalCost: dishCalculations.totalCost, totalWeight: dishCalculations.totalWeight,
+        margin: dishCalculations.margin,
+        createdAt: editDishId ? (globalDishes.find(d => d.id === editDishId)?.createdAt || new Date().toISOString()) : serverTimestamp()
+      }
+      await setDoc(doc(firestore, 'dishes', id), data, { merge: true });
+      toast({ title: "Annos tallennettu" });
+      setIsEditingDish(false); resetDishForm();
+    } catch (e) {
+      console.error("Annoksen tallennusvirhe:", e)
+      toast({ variant: "destructive", title: "Tallennus epäonnistui" })
+    } finally {
+      setIsSaving(false)
     }
-    setDoc(doc(firestore, 'dishes', id), data, { merge: true });
-    toast({ title: "Annos tallennettu" });
-    setIsEditingDish(false); resetDishForm();
   }
 
   const startEditRecipe = (r: any) => {
@@ -298,7 +312,9 @@ export function RecipesModule() {
               </div>
             </div>
             <div className="flex gap-3 pt-6 pb-12 mt-6 border-t border-border no-print">
-              <Button onClick={handleSaveRecipe} className="flex-1 copper-gradient text-white font-bold h-12 gap-2"><Save className="w-5 h-5" /> Tallenna</Button>
+              <Button onClick={handleSaveRecipe} className="flex-1 copper-gradient text-white font-bold h-12 gap-2" disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} Tallenna
+              </Button>
               <Button variant="outline" onClick={() => setIsEditing(false)} className="h-12 border-border">Peruuta</Button>
             </div>
           </ScrollArea>
@@ -361,7 +377,9 @@ export function RecipesModule() {
               </div>
             </div>
             <div className="flex gap-3 pt-6 pb-12 mt-6 border-t border-border no-print">
-              <Button onClick={handleSaveDish} className="flex-1 steel-detail text-background font-bold h-12 gap-2"><Save className="w-5 h-5" /> Tallenna</Button>
+              <Button onClick={handleSaveDish} className="flex-1 steel-detail text-background font-bold h-12 gap-2" disabled={isSaving}>
+                {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />} Tallenna
+              </Button>
               <Button variant="outline" onClick={() => setIsEditingDish(false)} className="h-12 border-border">Peruuta</Button>
             </div>
           </ScrollArea>

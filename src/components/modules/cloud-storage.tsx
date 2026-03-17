@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useRef } from "react"
@@ -19,7 +18,8 @@ import {
   ChevronRight, 
   ArrowLeft,
   File,
-  Loader2
+  Loader2,
+  Zap
 } from "lucide-react"
 import { 
   DropdownMenu, 
@@ -59,6 +59,7 @@ export function CloudStorageModule() {
   const [searchTerm, setSearchTerm] = useState("")
   const [newFolderName, setNewFolderName] = useState("")
   const [isUploading, setIsUploading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   // Firestore Refs
   const foldersRef = useMemo(() => (firestore ? collection(firestore, 'cloudFolders') : null), [firestore])
@@ -78,26 +79,26 @@ export function CloudStorageModule() {
   const { data: folders = [] } = useCollection<CloudFolder>(foldersQuery)
   const { data: files = [] } = useCollection<CloudFile>(filesQuery)
 
-  const currentFolder = useMemo(() => {
-    // In a real app we'd fetch the specific doc, for simplicity we search the parent's sibling folders if needed
-    // or just rely on the navigation state.
-    return null 
-  }, [currentFolderId])
-
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     if (!newFolderName.trim() || !firestore) return
-    const id = Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'cloudFolders', id)
-    
-    setDoc(docRef, {
-      id,
-      name: newFolderName,
-      parentId: currentFolderId,
-      createdAt: serverTimestamp()
-    }).then(() => {
+    setIsSaving(true)
+    try {
+      const id = Math.random().toString(36).substr(2, 9)
+      const docRef = doc(firestore, 'cloudFolders', id)
+      
+      await setDoc(docRef, {
+        id,
+        name: newFolderName,
+        parentId: currentFolderId,
+        createdAt: serverTimestamp()
+      })
       setNewFolderName("")
       toast({ title: "Kansio luotu" })
-    })
+    } catch (e) {
+      console.error("Kansiovirhe:", e)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,30 +109,35 @@ export function CloudStorageModule() {
     const id = Math.random().toString(36).substr(2, 9)
     const docRef = doc(firestore, 'cloudFiles', id)
 
-    // Simulate upload delay and save metadata
-    setTimeout(() => {
-      setDoc(docRef, {
-        id,
-        name: file.name,
-        type: file.type,
-        size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
-        folderId: currentFolderId,
-        createdAt: serverTimestamp()
-      }).then(() => {
-        setIsUploading(false)
-        toast({ title: "Tiedosto ladattu", description: file.name })
-      })
-    }, 1000)
+    // Metadatan tallennus
+    setDoc(docRef, {
+      id,
+      name: file.name,
+      type: file.type,
+      size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+      folderId: currentFolderId,
+      createdAt: serverTimestamp()
+    }).then(() => {
+      setIsUploading(false)
+      toast({ title: "Tiedosto ladattu", description: file.name })
+    }).catch(err => {
+      setIsUploading(false)
+      console.error("Latausvirhe:", err)
+    })
   }
 
-  const handleDeleteFile = (id: string) => {
+  const handleDeleteFile = async (id: string) => {
     if (!firestore) return
-    deleteDoc(doc(firestore, 'cloudFiles', id))
+    try {
+      await deleteDoc(doc(firestore, 'cloudFiles', id))
+    } catch (e) { console.error(e) }
   }
 
-  const handleDeleteFolder = (id: string) => {
+  const handleDeleteFolder = async (id: string) => {
     if (!firestore) return
-    deleteDoc(doc(firestore, 'cloudFolders', id))
+    try {
+      await deleteDoc(doc(firestore, 'cloudFolders', id))
+    } catch (e) { console.error(e) }
   }
 
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -153,7 +159,7 @@ export function CloudStorageModule() {
             </div>
             <h2 className="text-3xl font-headline font-black text-primary uppercase tracking-tight">Pilvi</h2>
           </div>
-          <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-widest opacity-60 mt-1">Industrial Document Hub</p>
+          <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-widest opacity-60 mt-1">Pysyvä tallennus pilvessä</p>
         </div>
         <div className="flex gap-2">
           <input 
@@ -191,9 +197,10 @@ export function CloudStorageModule() {
               onChange={(e) => setNewFolderName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
               className="bg-black/20 border-white/10 h-11 text-xs" 
+              disabled={isSaving}
             />
-            <Button onClick={handleCreateFolder} variant="outline" className="h-11 border-white/10 text-accent">
-              <FolderPlus className="w-5 h-5" />
+            <Button onClick={handleCreateFolder} variant="outline" className="h-11 border-white/10 text-accent" disabled={isSaving}>
+              {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FolderPlus className="w-5 h-5" />}
             </Button>
           </div>
         </CardContent>
@@ -254,7 +261,7 @@ export function CloudStorageModule() {
                 <div className="overflow-hidden">
                   <p className="text-sm font-black truncate max-w-[180px]">{file.name}</p>
                   <p className="text-[9px] text-muted-foreground font-bold uppercase">
-                    {file.size} • {file.createdAt ? format(file.createdAt.toDate(), 'd.M.yyyy', { locale: fi }) : 'Nyt'}
+                    {file.size} • {file.createdAt?.toDate ? format(file.createdAt.toDate(), 'd.M.yyyy', { locale: fi }) : 'Nyt'}
                   </p>
                 </div>
               </div>

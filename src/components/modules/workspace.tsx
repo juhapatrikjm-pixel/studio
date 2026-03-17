@@ -20,6 +20,7 @@ export function WorkspaceModule() {
 
   const [todayDate, setTodayDate] = useState<string | null>(null)
   const [isMounted, setIsMounted] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -63,29 +64,44 @@ export function WorkspaceModule() {
     return (shiftInfo.acknowledgedBy || []).includes(currentUser) || (shiftInfo.id && readInfoIds.includes(shiftInfo.id))
   }, [shiftInfo, currentUser, readInfoIds])
 
-  const markAsRead = () => {
+  const markAsRead = async () => {
     if (!firestore || !shiftInfo || !shiftInfo.id) return
-    setReadInfoIds(prev => [...prev, shiftInfo.id])
-    const docRef = doc(firestore, 'shiftInfos', shiftInfo.id)
-    updateDoc(docRef, {
-      acknowledgedBy: arrayUnion(currentUser)
-    })
+    try {
+      setReadInfoIds(prev => [...prev, shiftInfo.id])
+      const docRef = doc(firestore, 'shiftInfos', shiftInfo.id)
+      await updateDoc(docRef, {
+        acknowledgedBy: arrayUnion(currentUser)
+      })
+    } catch (e) {
+      console.error("Virhe kuittauksessa:", e)
+    }
   }
 
-  const addMaintenanceNote = () => {
+  const addMaintenanceNote = async () => {
     if (!newMaintenanceText.trim() || !firestore) return
-    addDoc(collection(firestore, 'maintenanceNotes'), {
-      text: newMaintenanceText,
-      createdAt: serverTimestamp(),
-      createdBy: currentUser,
-      status: 'active'
-    })
-    setNewMaintenanceText("")
+    setIsSaving(true)
+    try {
+      await addDoc(collection(firestore, 'maintenanceNotes'), {
+        text: newMaintenanceText,
+        createdAt: serverTimestamp(),
+        createdBy: currentUser,
+        status: 'active'
+      })
+      setNewMaintenanceText("")
+    } catch (e) {
+      console.error("Virhe huollon lisäyksessä:", e)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  const deleteMaintenanceNote = (id: string) => {
+  const deleteMaintenanceNote = async (id: string) => {
     if (!firestore || !id) return
-    deleteDoc(doc(firestore, 'maintenanceNotes', id))
+    try {
+      await deleteDoc(doc(firestore, 'maintenanceNotes', id))
+    } catch (e) {
+      console.error("Virhe poistossa:", e)
+    }
   }
 
   const safeFormatDate = (date: any) => {
@@ -94,6 +110,8 @@ export function WorkspaceModule() {
       let d: Date;
       if (date && typeof date.toDate === 'function') {
         d = date.toDate();
+      } else if (date instanceof Date) {
+        d = date;
       } else {
         d = new Date(date);
       }
@@ -196,9 +214,10 @@ export function WorkspaceModule() {
                   onChange={(e) => setNewMaintenanceText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && addMaintenanceNote()}
                   className="bg-white/5 border-white/10 h-12 text-sm rounded-xl"
+                  disabled={isSaving}
                 />
-                <Button onClick={addMaintenanceNote} className="copper-gradient h-12 px-6">
-                  <Send className="w-5 h-5" />
+                <Button onClick={addMaintenanceNote} className="copper-gradient h-12 px-6" disabled={isSaving}>
+                  {isSaving ? <Zap className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
                 </Button>
               </div>
               
