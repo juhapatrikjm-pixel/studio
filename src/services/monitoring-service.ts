@@ -1,9 +1,8 @@
-import { Firestore, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp, doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { Firestore, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp, doc, getDoc, setDoc, deleteDoc, where, writeBatch } from 'firebase/firestore';
 import { FirebaseStorage, ref, uploadBytes, listAll, getDownloadURL } from 'firebase/storage';
 
 /**
  * @fileOverview Omavalvonnan liiketoimintalogiikka ja tietokantaoperaatiot.
- * Keskittyy "wisemisa"-tietokantaan.
  */
 
 export interface MonitoringRecord {
@@ -15,8 +14,7 @@ export interface MonitoringRecord {
   comment?: string;
   status: boolean;
   method: 'manual' | 'bluetooth' | 'paper_sync';
-  category?: string;
-  additionalData?: any;
+  category: string;
 }
 
 export interface MonitoringTemplate {
@@ -24,7 +22,7 @@ export interface MonitoringTemplate {
   name: string;
   category: string;
   targetLimit: string;
-  type: 'temperature' | 'sensory' | 'boolean' | 'date' | 'text';
+  type: 'temperature' | 'sensory' | 'boolean' | 'text' | 'date';
 }
 
 export const getRegulatoryUrl = async (db: Firestore): Promise<string | null> => {
@@ -33,9 +31,13 @@ export const getRegulatoryUrl = async (db: Firestore): Promise<string | null> =>
     const snap = await getDoc(settingsRef);
     return snap.exists() ? snap.data().regulatoryUrl || null : null;
   } catch (error) {
-    console.error("Error fetching regulatory URL", error);
     return null;
   }
+};
+
+export const saveRegulatoryUrl = async (db: Firestore, url: string) => {
+  const settingsRef = doc(db, 'settings', 'global');
+  await setDoc(settingsRef, { regulatoryUrl: url }, { merge: true });
 };
 
 export const saveMonitoringRecord = async (db: Firestore, record: Partial<MonitoringRecord>) => {
@@ -48,48 +50,59 @@ export const saveMonitoringRecord = async (db: Firestore, record: Partial<Monito
     await addDoc(collection(db, 'selfMonitoringRecords'), recordData);
     return { success: true };
   } catch (error) {
-    console.error("Monitoring Service: Error saving record", error);
+    console.error("Error saving record", error);
     throw error;
   }
 };
 
-export const handleBluetoothMeasurement = async () => {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve("4.5"), 1500);
-  });
-};
-
-// Storage helpers
-export const uploadDocument = async (storage: FirebaseStorage, file: File) => {
-  const fileRef = ref(storage, `monitoring-docs/${Date.now()}_${file.name}`);
-  await uploadBytes(fileRef, file);
-  return fileRef;
-};
-
-export const listDocuments = async (storage: FirebaseStorage) => {
-  const listRef = ref(storage, 'monitoring-docs');
-  const res = await listAll(listRef);
-  const files = await Promise.all(
-    res.items.map(async (item) => ({
-      name: item.name,
-      url: await getDownloadURL(item),
-    }))
-  );
-  return files;
-};
-
 export const getMonitoringTemplates = async (db: Firestore): Promise<MonitoringTemplate[]> => {
-  try {
-    const colRef = collection(db, 'monitoringTemplates');
-    const snap = await getDocs(colRef);
-    return snap.docs.map(d => ({ ...d.data(), id: d.id } as MonitoringTemplate));
-  } catch (error) {
-    console.error("Error fetching templates", error);
-    return [];
+  const colRef = collection(db, 'monitoringTemplates');
+  const snap = await getDocs(colRef);
+  let templates = snap.docs.map(d => ({ ...d.data(), id: d.id } as MonitoringTemplate));
+  
+  if (templates.length === 0) {
+    const defaults: Omit<MonitoringTemplate, 'id'>[] = [
+      { name: "Kylmiö 1", category: "Kylmälaitteet", targetLimit: "max +6 °C", type: "temperature" },
+      { name: "Pakastin 1", category: "Kylmälaitteet", targetLimit: "max -18 °C", type: "temperature" },
+      { name: "Lounaskeitto", category: "Kuumennus", targetLimit: "min +70 °C", type: "temperature" },
+      { name: "Jäähdytysseuranta", category: "Jäähdytys", targetLimit: "60 -> 6 °C / 4h", type: "text" },
+      { name: "Kuorman lämpötila", category: "Vastaanotto", targetLimit: "pakaste -18 / tuore +6", type: "temperature" },
+      { name: "Keittiön tasot", category: "Puhdistus", targetLimit: "Puhdas", type: "boolean" },
+      { name: "Pesuvesi", category: "Astianpesu", targetLimit: "min +60 °C", type: "temperature" },
+      { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "min +80 °C", type: "temperature" },
+      { name: "Buffet Lämmin", category: "Buffet", targetLimit: "min +60 °C", type: "temperature" },
+      { name: "Buffet Kylmä", category: "Buffet", targetLimit: "max +12 °C", type: "temperature" },
+    ];
+    
+    const batch = writeBatch(db);
+    for (const t of defaults) {
+      const newRef = doc(collection(db, 'monitoringTemplates'));
+      batch.set(newRef, t);
+    }
+    await batch.commit();
+    return getMonitoringTemplates(db);
   }
+  
+  return templates;
 };
 
-export const addMonitoringTemplate = async (db: Firestore, template: Omit<MonitoringTemplate, 'id'>) => {
-  const colRef = collection(db, 'monitoringTemplates');
-  await addDoc(colRef, { ...template });
+export const addTemplate = async (db: Firestore, template: Omit<MonitoringTemplate, 'id'>) => {
+  await addDoc(collection(db, 'monitoringTemplates'), template);
+};
+
+export const deleteTemplate = async (db: Firestore, id: string) => {
+  await deleteDoc(doc(db, 'monitoringTemplates', id));
+};
+
+export const archiveDay = async (db: Firestore, date: string, user: string) => {
+  const id = `archive_${date}_${Math.random().toString(36).substr(2, 5)}`;
+  await setDoc(doc(db, 'uploadedRecipes', id), {
+    id,
+    name: `Tehtävä ${date}`,
+    type: 'application/pdf-mock',
+    size: '0.1 MB',
+    folderId: 'omavalvonta_arkisto',
+    createdAt: serverTimestamp(),
+    recordedBy: user
+  });
 };
