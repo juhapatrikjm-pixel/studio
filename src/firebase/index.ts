@@ -14,10 +14,13 @@ export type FirebaseServices = {
 };
 
 /**
- * Alustaa Firebase-palvelut Singleton-mallilla.
+ * Alustaa Firebase-palvelut Singleton-mallilla ympäristömuuttujia hyödyntäen.
  */
 export function initializeFirebase(): FirebaseServices {
+  // Tarkistetaan, onko Firebase jo alustettu
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  
+  // Alustetaan palvelut
   const firestore = getFirestore(firebaseApp);
   const auth = getAuth(firebaseApp);
   const storage = getStorage(firebaseApp);

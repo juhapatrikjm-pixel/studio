@@ -91,7 +91,12 @@ export function WorkspaceModule() {
   const safeFormatDate = (date: any) => {
     if (!date) return "Äsken"
     try {
-      const d = (date instanceof Timestamp) ? date.toDate() : new Date(date)
+      let d: Date;
+      if (date && typeof date.toDate === 'function') {
+        d = date.toDate();
+      } else {
+        d = new Date(date);
+      }
       if (!d || isNaN(d.getTime())) return "Äsken"
       return formatDistanceToNow(d, { addSuffix: true, locale: fi })
     } catch (e) {
@@ -118,12 +123,10 @@ export function WorkspaceModule() {
     ]
     return logs.sort((a, b) => {
       const getTime = (val: any) => {
-        if (val instanceof Timestamp) return val.toMillis()
-        if (val) {
-          const d = new Date(val)
-          return isNaN(d.getTime()) ? 0 : d.getTime()
-        }
-        return 0
+        if (!val) return 0;
+        if (typeof val.toMillis === 'function') return val.toMillis();
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? 0 : d.getTime();
       }
       return getTime(b.time) - getTime(a.time)
     }).slice(0, 8)
@@ -235,7 +238,7 @@ export function WorkspaceModule() {
                   return (
                     <div key={log.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-transparent hover:bg-white/10 transition-all group">
                       <div className="w-10 h-10 rounded-lg bg-black/40 flex items-center justify-center border border-white/10 shrink-0">
-                        <IconComponent className="w-5 h-5 text-accent" />
+                        {IconComponent && <IconComponent className="w-5 h-5 text-accent" />}
                       </div>
                       <div className="flex-1 overflow-hidden">
                         <p className="text-sm font-black text-foreground leading-tight truncate">{log.text}</p>
