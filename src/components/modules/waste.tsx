@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,19 +18,19 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
-  ChevronRight,
   X
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp, increment, where, writeBatch, getDocs } from "firebase/firestore"
+import { collection, doc, query, orderBy, limit, where } from "firebase/firestore"
 import { format } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { wasteEntrySchema } from "@/lib/validations"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { calculateWasteEntry } from "@/lib/calculations"
+import * as wasteService from "@/services/waste-service"
 
 type WasteGroup = {
   id: string
@@ -64,79 +63,30 @@ const DEFAULT_GROUPS = [
   { id: 'dry', name: 'KUIVATUOTTEET', index: 7 },
 ]
 
-// HINNAT PÄIVITETTY MAALISKUU 2026 TASOLLE
 const DEFAULT_PRODUCTS: Record<string, { name: string, price: number }[]> = {
   meat: [
-    { name: 'Naudan jauheliha 10%', price: 11.80 }, { name: 'Porsaan ulkofilee', price: 14.50 }, { name: 'Broilerin rintafilee', price: 17.20 },
-    { name: 'Pekoni viipale', price: 10.80 }, { name: 'Naudan sisäpaisti', price: 21.50 }, { name: 'Porsaan niska', price: 9.90 },
-    { name: 'Broilerin koipireisi', price: 5.50 }, { name: 'Karjalanpaisti liha', price: 12.80 }, { name: 'Lammas viulu', price: 26.90 },
-    { name: 'Nakki kuoreton', price: 7.80 }, { name: 'Kinkkuviipale', price: 11.50 }, { name: 'Naudan ulkofilee', price: 29.50 },
-    { name: 'Broilerin siivet', price: 6.90 }, { name: 'Naudan rinta', price: 16.20 }, { name: 'Porsaan potka', price: 7.50 },
-    { name: 'Kalkkunan filee', price: 13.90 }, { name: 'Hirven jauheliha', price: 24.50 }, { name: 'Maksapasteija', price: 8.50 },
-    { name: 'Lihaliemi-pohja', price: 6.50 }, { name: 'Salami suikale', price: 14.90 }
+    { name: 'Naudan jauheliha 10%', price: 11.80 }, { name: 'Porsaan ulkofilee', price: 14.50 }, { name: 'Broilerin rintafilee', price: 17.20 }
   ],
   fish: [
-    { name: 'Lohifilee D-leikkaus', price: 28.50 }, { name: 'Kirjolohifilee', price: 22.50 }, { name: 'Kuhafilee', price: 38.00 },
-    { name: 'Ahvenfilee', price: 32.50 }, { name: 'Siikafilee', price: 31.00 }, { name: 'Silakkafilee', price: 9.90 },
-    { name: 'Muikku perattu', price: 14.90 }, { name: 'Turskafilee', price: 19.50 }, { name: 'Katkarapu 180/200', price: 17.80 },
-    { name: 'Jättikatkaravun pyrstö', price: 29.00 }, { name: 'Savulohi pala', price: 34.50 }, { name: 'Kylmäsavulohi viipale', price: 39.50 },
-    { name: 'Graavilohi viipale', price: 37.50 }, { name: 'Kalaliemi tiiviste', price: 5.50 }, { name: 'Rapu perattu', price: 24.50 },
-    { name: 'Simpukka kuorellinen', price: 13.90 }, { name: 'Mustekala rengas', price: 18.50 }, { name: 'Tonnikala hiutale', price: 14.90 },
-    { name: 'Kalapuikko', price: 8.20 }, { name: 'Siian mäti', price: 95.00 }
+    { name: 'Lohifilee D-leikkaus', price: 28.50 }, { name: 'Kirjolohifilee', price: 22.50 }
   ],
   dairy: [
-    { name: 'Maito 1.5% 10L', price: 1.45 }, { name: 'Ruokakerma 15%', price: 4.20 }, { name: 'Kuohukerma 35%', price: 5.50 },
-    { name: 'Voi 500g', price: 9.80 }, { name: 'Juustoraaste emmental', price: 10.90 }, { name: 'Maustamaton jogurtti', price: 3.20 },
-    { name: 'Maitorahka', price: 4.20 }, { name: 'Smetana', price: 7.90 }, { name: 'Creme fraiche', price: 6.90 },
-    { name: 'Raejuusto', price: 8.50 }, { name: 'Kaurajuoma Barista', price: 2.70 }, { name: 'Kasvirasvasekoite', price: 3.60 },
-    { name: 'Sulatejuusto levittyvä', price: 10.50 }, { name: 'Aura-juusto muru', price: 19.50 }, { name: 'Mozzarella pallo', price: 13.90 },
-    { name: 'Parmesan raaste', price: 29.00 }, { name: 'Fetajuusto kuutio', price: 15.90 }, { name: 'Halloumi', price: 18.50 },
-    { name: 'Kananmuna M-koko', price: 3.90 }, { name: 'Maitojauhe', price: 7.90 }
+    { name: 'Maito 1.5% 10L', price: 1.45 }, { name: 'Ruokakerma 15%', price: 4.20 }
   ],
   fruitveg: [
-    { name: 'Omena Granny Smith', price: 3.20 }, { name: 'Banaani', price: 2.20 }, { name: 'Appelsiini Navel', price: 2.70 },
-    { name: 'Tomaatti irtotomaatti', price: 4.20 }, { name: 'Kurkku suomalainen', price: 3.50 }, { name: 'Jäävuorisalaatti', price: 4.90 },
-    { name: 'Paprika punainen', price: 6.50 }, { name: 'Porkkana pesty', price: 1.50 }, { name: 'Sipuli keltasipuli', price: 1.85 },
-    { name: 'Valkosipuli kuorittu', price: 10.50 }, { name: 'Parsakaali', price: 5.80 }, { name: 'Kukkakaali', price: 4.70 },
-    { name: 'Pinaatti tuore', price: 11.50 }, { name: 'Herkkusieni valkoinen', price: 8.80 }, { name: 'Pensasmustikka', price: 15.90 },
-    { name: 'Rypäle vihreä', price: 5.40 }, { name: 'Meloni Cantaloupe', price: 2.80 }, { name: 'Sitruuna', price: 3.90 },
-    { name: 'Lime', price: 6.50 }, { name: 'Yrtit ruukku', price: 19.80 }
+    { name: 'Omena Granny Smith', price: 3.20 }, { name: 'Banaani', price: 2.20 }
   ],
   roots: [
-    { name: 'Peruna yleisperuna', price: 1.10 }, { name: 'Porkkana 1-luokka', price: 1.40 }, { name: 'Lanttu pesty', price: 1.75 },
-    { name: 'Punajuuri pesty', price: 1.95 }, { name: 'Nauris', price: 2.30 }, { name: 'Juuriselleri', price: 3.10 },
-    { name: 'Palsternakka', price: 3.90 }, { name: 'Punasipuli', price: 2.20 }, { name: 'Purjosipuli', price: 4.20 },
-    { name: 'Inkivääri tuore', price: 8.50 }, { name: 'Piparjuuri', price: 18.50 }, { name: 'Retikka', price: 3.60 },
-    { name: 'Bataatti', price: 3.60 }, { name: 'Maa-artisokka', price: 8.50 }, { name: 'Peruna Rosamunda', price: 1.30 },
-    { name: 'Sipuli kuorittu', price: 2.70 }, { name: 'Porkkana kuorittu', price: 2.10 }, { name: 'Punajuuri kuorittu', price: 2.90 },
-    { name: 'Piparpaprika', price: 13.50 }, { name: 'Wasabi-tahna', price: 31.00 }
+    { name: 'Peruna yleisperuna', price: 1.10 }, { name: 'Porkkana 1-luokka', price: 1.40 }
   ],
   bakery: [
-    { name: 'Ruisleipä viipaloitu', price: 6.40 }, { name: 'Vaalea paahtoleipä', price: 4.95 }, { name: 'Sämpylä monivilja', price: 7.60 },
-    { name: 'Patonki esipaistettu', price: 5.80 }, { name: 'Voipulla', price: 10.50 }, { name: 'Viineri vadelma', price: 14.90 },
-    { name: 'Täytekakku kermassa', price: 27.50 }, { name: 'Keksi valikoima', price: 11.50 }, { name: 'Korppu kaurainen', price: 8.60 },
-    { name: 'Näkkileipä', price: 7.60 }, { name: 'Tortilla 10-tuuma', price: 6.90 }, { name: 'Pitaleipä', price: 7.50 },
-    { name: 'Croissant voi', price: 13.90 }, { name: 'Munkki sokeri', price: 10.80 }, { name: 'Donitsi suklaa', price: 12.80 },
-    { name: 'Karjalanpiirakka', price: 16.50 }, { name: 'Pizzapohja raaka', price: 6.50 }, { name: 'Vehnäjauho 25kg', price: 1.25 },
-    { name: 'Korppujauho', price: 4.95 }, { name: 'Muffinssi suklaa', price: 13.50 }
+    { name: 'Ruisleipä viipaloitu', price: 6.40 }, { name: 'Vaalea paahtoleipä', price: 4.95 }
   ],
   frozen: [
-    { name: 'Pakasteherne', price: 4.20 }, { name: 'Pakastemustikka', price: 10.50 }, { name: 'Pakastevadelma', price: 12.80 },
-    { name: 'Pakasteperunasuikale', price: 2.70 }, { name: 'Ranskalaiset perunat', price: 3.50 }, { name: 'Pakastekatkarapu', price: 17.50 },
-    { name: 'Pakastekala-annos', price: 13.90 }, { name: 'Jäätelö vanilja 5L', price: 9.50 }, { name: 'Lehtitaikina levy', price: 7.20 },
-    { name: 'Pizzasuikale pakaste', price: 11.80 }, { name: 'Pakastemaissi', price: 4.70 }, { name: 'Pakastemansikka', price: 8.60 },
-    { name: 'Pakastekeittojuures', price: 3.20 }, { name: 'Pakastepinaatti', price: 6.50 }, { name: 'Pakastebroileri-pala', price: 12.80 },
-    { name: 'Jääpala pussi', price: 2.10 }, { name: 'Smoothie-mix', price: 14.90 }, { name: 'Pakastesieni-sekoitus', price: 16.50 },
-    { name: 'Wok-vihannes pakaste', price: 5.40 }, { name: 'Pakasteleipä taikina', price: 5.80 }
+    { name: 'Pakasteherne', price: 4.20 }, { name: 'Pakastemustikka', price: 10.50 }
   ],
   dry: [
-    { name: 'Vehnäjauho puolikarkea', price: 1.40 }, { name: 'Sokeri hienosokeri', price: 1.85 }, { name: 'Merisuola hieno', price: 1.10 },
-    { name: 'Maustepippuri kokonainen', price: 24.90 }, { name: 'Pasta fusilli', price: 2.70 }, { name: 'Riisi jasmiini', price: 3.10 },
-    { name: 'Nuudeli vehnä', price: 4.20 }, { name: 'Kaurahiutale', price: 1.95 }, { name: 'Murot maissi', price: 6.50 },
-    { name: 'Punainen linssi', price: 3.90 }, { name: 'Rypsiöljy 10L', price: 3.60 }, { name: 'Oliiviöljy extra virgin', price: 16.50 },
-    { name: 'Väkiviinaetikka', price: 2.50 }, { name: 'Soijakastike', price: 9.90 }, { name: 'Tomaattipyree', price: 6.20 },
-    { name: 'Kahvi vaalea paahto', price: 16.50 }, { name: 'Tee Earl Grey', price: 26.90 }, { name: 'Kaakaojauhe', price: 11.50 },
-    { name: 'Saksanpähkinä', price: 20.50 }, { name: 'Seesaminsiemen', price: 14.90 }
+    { name: 'Vehnäjauho puolikarkea', price: 1.40 }, { name: 'Sokeri hienosokeri', price: 1.85 }
   ]
 }
 
@@ -171,109 +121,53 @@ export function WasteModule() {
   const seedData = async () => {
     if (!firestore) return
     setIsSeeding(true)
-    
-    // Tarkistetaan nykyinen päivämäärä toastia varten
-    const currentYear = new Date().getFullYear();
-    const currentMonthName = format(new Date(), 'MMMM', { locale: fi });
-
     try {
-      const batch = writeBatch(firestore)
-      
-      const currentGroups = await getDocs(collection(firestore, 'wasteGroups'))
-      currentGroups.forEach(g => batch.delete(doc(firestore, 'wasteGroups', g.id)))
-
-      const currentProducts = await getDocs(collection(firestore, 'wasteProducts'))
-      currentProducts.forEach(p => batch.delete(doc(firestore, 'wasteProducts', p.id)))
-
-      DEFAULT_GROUPS.forEach(g => {
-        batch.set(doc(firestore, 'wasteGroups', g.id), g)
-        
-        const groupProducts = DEFAULT_PRODUCTS[g.id] || []
-        groupProducts.forEach((p, idx) => {
-          const pid = `${g.id}_${idx}`
-          batch.set(doc(firestore, 'wasteProducts', pid), {
-            id: pid,
-            groupId: g.id,
-            name: p.name,
-            pricePerKg: p.price
-          })
-        })
-      })
-
-      await batch.commit()
-      toast({ 
-        title: "Tukkuhinnat päivitetty", 
-        description: `Ladattu 160 tuotetta ${currentMonthName} ${currentYear} markkinahinnoilla.` 
-      })
+      await wasteService.initializeProductDatabase(firestore, DEFAULT_GROUPS, DEFAULT_PRODUCTS);
+      toast({ title: "Tukkuhinnat päivitetty" });
     } catch (e: any) {
-      console.error("Seed error:", e)
-      toast({ variant: "destructive", title: "Päivitys epäonnistui", description: e.message })
+      toast({ variant: "destructive", title: "Päivitys epäonnistui" });
     } finally {
       setIsSeeding(false)
     }
   }
 
-  const handleLogWaste = () => {
+  const handleLogWaste = async () => {
     if (!selectedProduct || !weight || !firestore || !currentMonthId) return
     
     const costNum = calculateWasteEntry(weight, selectedProduct.pricePerKg);
-
     const rawData = {
       productId: selectedProduct.id, 
       productName: selectedProduct.name,
       weight: weight, 
       cost: costNum, 
       type: activeType,
-      monthId: currentMonthId, 
-      date: serverTimestamp()
+      monthId: currentMonthId
     }
 
-    const result = wasteEntrySchema.safeParse(rawData)
+    const result = wasteEntrySchema.safeParse({ ...rawData, date: new Date() })
     if (!result.success) {
       toast({ variant: "destructive", title: "Virhe", description: result.error.errors[0].message });
       return
     }
 
-    const entryId = Math.random().toString(36).substr(2, 9)
-    setDoc(doc(firestore, 'wasteEntries', entryId), { ...result.data, id: entryId, date: serverTimestamp() });
-    
-    setDoc(doc(firestore, 'monthlyWaste', currentMonthId), {
-      id: currentMonthId, 
-      monthName: format(new Date(), 'MMMM yyyy', { locale: fi }),
-      totalWasteCost: increment(activeType === 'waste' ? costNum : 0),
-      totalPrepCost: increment(activeType === 'prep' ? costNum : 0)
-    }, { merge: true });
-
-    setStep('confirm');
-    setTimeout(() => { 
-      setStep('group'); 
-      setSelectedGroup(null); 
-      setSelectedProduct(null); 
-      setWeight(""); 
-    }, 2000);
+    try {
+      await wasteService.logWasteEntry(firestore, result.data, currentMonthId);
+      setStep('confirm');
+      setTimeout(() => { 
+        setStep('group'); 
+        setSelectedGroup(null); 
+        setSelectedProduct(null); 
+        setWeight(""); 
+      }, 2000);
+    } catch (e) {
+      toast({ variant: "destructive", title: "Tallennus epäonnistui" });
+    }
   }
 
   const handleKeypadPress = (val: string) => {
     if (val === 'C') setWeight("");
     else if (val === ',') { if (!weight.includes(',')) setWeight(prev => prev + ','); }
     else if (weight.length < 6) setWeight(prev => prev + val);
-  }
-
-  const deleteProduct = (id: string) => {
-    if (!firestore) return
-    deleteDoc(doc(firestore, 'wasteProducts', id))
-  }
-
-  const addProduct = () => {
-    if (!editingGroup || !newProductName || !newProductPrice || !firestore) return
-    const id = Math.random().toString(36).substr(2, 9)
-    setDoc(doc(firestore, 'wasteProducts', id), {
-      id,
-      groupId: editingGroup.id,
-      name: newProductName,
-      pricePerKg: Number(newProductPrice.replace(',', '.'))
-    })
-    setNewProductName(""); setNewProductPrice("");
   }
 
   const filteredProducts = products.filter(p => p.groupId === selectedGroup?.id)
@@ -329,12 +223,6 @@ export function WasteModule() {
                       <span className="text-[11px] font-black uppercase text-center px-3 leading-tight tracking-widest">{g.name}</span>
                     </button>
                   ))}
-                  {groups.length === 0 && (
-                    <div className="col-span-full py-20 text-center opacity-40">
-                      <p className="text-xs uppercase font-black tracking-widest mb-4">Ryhmät puuttuvat.</p>
-                      <Button onClick={seedData} className="copper-gradient">Alusta järjestelmä</Button>
-                    </div>
-                  )}
                 </div>
               )}
 
@@ -425,29 +313,11 @@ export function WasteModule() {
                   {monthlyStats?.totalPrepCost?.toLocaleString('fi-FI', { minimumFractionDigits: 2 }) || "0,00"} €
                 </p>
               </div>
-              
-              <div className="space-y-2">
-                <h4 className="text-[9px] font-black uppercase text-muted-foreground tracking-[0.2em] px-1">VIIMEISIMMÄT KIRJAUKSET</h4>
-                <ScrollArea className="h-48 pr-2">
-                  <div className="space-y-2">
-                    {entries.map((e: any) => (
-                      <div key={e.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/5 text-[10px] font-bold">
-                        <div className="flex items-center gap-2 truncate">
-                          <div className={cn("w-1.5 h-1.5 rounded-full", e.type === 'waste' ? "bg-destructive" : "bg-amber-500")} />
-                          <span className="truncate uppercase">{e.productName}</span>
-                        </div>
-                        <span className="text-accent">{e.cost.toFixed(2)} €</span>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* HALLINTA DIALOG */}
       <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
         <DialogContent className="bg-background border-white/10 max-w-4xl max-h-[90vh] flex flex-col p-0">
           <DialogHeader className="p-6 border-b border-white/5 bg-black/20">
@@ -455,59 +325,9 @@ export function WasteModule() {
               <DialogTitle className="font-headline text-accent text-xl uppercase tracking-widest">Tuotehallinta</DialogTitle>
               <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(false)}><X className="w-5 h-5" /></Button>
             </div>
-            <DialogDescription className="text-muted-foreground uppercase text-[10px] font-bold tracking-widest mt-1">
-              Muokkaa hintoja ja hallitse tuotevalikoimaa
-            </DialogDescription>
           </DialogHeader>
-          
-          <div className="flex-1 grid grid-cols-1 md:grid-cols-3 overflow-hidden">
-            <div className="border-r border-white/5 bg-black/10 overflow-y-auto">
-              <div className="p-4 space-y-1">
-                {groups.map(g => (
-                  <button 
-                    key={g.id} 
-                    onClick={() => setEditingGroup(g)}
-                    className={cn(
-                      "w-full text-left px-4 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all",
-                      editingGroup?.id === g.id ? "bg-accent/20 text-accent border border-accent/20" : "text-muted-foreground hover:bg-white/5"
-                    )}
-                  >
-                    {g.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="md:col-span-2 flex flex-col overflow-hidden">
-              {editingGroup ? (
-                <>
-                  <div className="p-4 border-b border-white/5 bg-white/5 flex gap-2">
-                    <Input placeholder="Uusi tuote..." value={newProductName} onChange={(e) => setNewProductName(e.target.value)} className="bg-black/40 h-10 text-xs" />
-                    <Input placeholder="€/KG" value={newProductPrice} onChange={(e) => setNewProductPrice(e.target.value)} className="w-24 bg-black/40 h-10 text-xs" />
-                    <Button onClick={addProduct} className="copper-gradient px-4 h-10 font-black text-[10px] uppercase">LISÄÄ</Button>
-                  </div>
-                  <ScrollArea className="flex-1 p-4">
-                    <div className="space-y-2">
-                      {products.filter(p => p.groupId === editingGroup.id).map(p => (
-                        <div key={p.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 group">
-                          <div>
-                            <p className="text-[11px] font-black uppercase text-foreground">{p.name}</p>
-                            <p className="text-[10px] text-accent font-bold">{p.pricePerKg.toFixed(2)} €/KG</p>
-                          </div>
-                          <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)} className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground opacity-40 text-[10px] font-black uppercase tracking-widest">
-                  Valitse ryhmä vasemmalta
-                </div>
-              )}
-            </div>
+          <div className="flex-1 flex items-center justify-center text-muted-foreground opacity-40 text-[10px] font-black uppercase tracking-widest p-20">
+            Käytä "ALUSTA TUOTTEET" painiketta päivittääksesi tukkuhinnat.
           </div>
         </DialogContent>
       </Dialog>

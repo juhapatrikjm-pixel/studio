@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,14 +9,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { 
   Euro, 
   BarChart3, 
-  Save, 
-  Trash2, 
   Calculator, 
-  History as HistoryIcon,
   Gem
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, query, orderBy, limit, serverTimestamp } from "firebase/firestore"
+import { collection, doc, query, orderBy, limit } from "firebase/firestore"
 import { format, isSameMonth, parseISO } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -24,6 +21,7 @@ import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Toolti
 import { cn } from "@/lib/utils"
 import { financialSchema } from "@/lib/validations"
 import { calculateFinancials } from "@/lib/calculations"
+import * as financeService from "@/services/finance-service"
 
 type FinancialRecord = {
   id: string
@@ -88,7 +86,7 @@ export function TulosModule() {
     })
   }, [records])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!firestore || !recordsRef) return
     const recordDate = entryType === 'daily' ? formData.date : formData.month
     const laborCost = (Number(formData.workHours.replace(',', '.')) || 0) * hourlyRate
@@ -105,11 +103,13 @@ export function TulosModule() {
       return
     }
 
-    setDoc(doc(firestore, 'financialRecords', recordDate), { ...result.data, id: recordDate, createdAt: serverTimestamp() }, { merge: true })
-      .then(() => {
-        toast({ title: "Tiedot tallennettu" });
-        setFormData({ ...formData, revenue: "", foodCost: "", workHours: "", otherExpenses: "", comment: "" });
-      })
+    try {
+      await financeService.saveFinancialRecord(firestore, { ...result.data, id: recordDate });
+      toast({ title: "Tiedot tallennettu" });
+      setFormData({ ...formData, revenue: "", foodCost: "", workHours: "", otherExpenses: "", comment: "" });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Tallennus epäonnistui" });
+    }
   }
 
   return (

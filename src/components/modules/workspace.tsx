@@ -6,12 +6,13 @@ import { Badge } from "@/components/ui/badge"
 import { Info, ChefHat, CookingPot, Wrench, Send, Trash2, CheckCircle, Zap } from "lucide-react"
 import { OmavalvontaStatusHeader } from "./omavalvonta"
 import { useUser, useFirestore, useCollection } from "@/firebase"
-import { collection, query, orderBy, limit, doc, updateDoc, arrayUnion, where, addDoc, serverTimestamp, deleteDoc } from "firebase/firestore"
+import { collection, query, orderBy, limit, where } from "firebase/firestore"
 import { format, formatDistanceToNow } from "date-fns"
 import { fi } from "date-fns/locale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import * as workspaceService from "@/services/workspace-service"
 
 export function WorkspaceModule() {
   const firestore = useFirestore()
@@ -67,10 +68,7 @@ export function WorkspaceModule() {
     if (!firestore || !shiftInfo || !shiftInfo.id) return
     try {
       setReadInfoIds(prev => [...prev, shiftInfo.id])
-      const docRef = doc(firestore, 'shiftInfos', shiftInfo.id)
-      await updateDoc(docRef, {
-        acknowledgedBy: arrayUnion(currentUser)
-      })
+      await workspaceService.acknowledgeShiftInfo(firestore, shiftInfo.id, currentUser)
     } catch (e) {
       console.error("Virhe kuittauksessa:", e)
     }
@@ -80,12 +78,7 @@ export function WorkspaceModule() {
     if (!newMaintenanceText.trim() || !firestore) return
     setIsSaving(true)
     try {
-      await addDoc(collection(firestore, 'maintenanceNotes'), {
-        text: newMaintenanceText,
-        createdAt: serverTimestamp(),
-        createdBy: currentUser,
-        status: 'active'
-      })
+      await workspaceService.addMaintenanceNote(firestore, newMaintenanceText, currentUser)
       setNewMaintenanceText("")
     } catch (e) {
       console.error("Virhe huollon lisäyksessä:", e)
@@ -97,7 +90,7 @@ export function WorkspaceModule() {
   const deleteMaintenanceNote = async (id: string) => {
     if (!firestore || !id) return
     try {
-      await deleteDoc(doc(firestore, 'maintenanceNotes', id))
+      await workspaceService.deleteMaintenanceNote(firestore, id)
     } catch (e) {
       console.error("Virhe poistossa:", e)
     }

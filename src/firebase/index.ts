@@ -14,13 +14,17 @@ export type FirebaseServices = {
 };
 
 /**
- * Alustaa Firebase-palvelut Singleton-mallilla.
+ * Alustaa Firebase-palvelut keskitetysti.
  * Käyttää nimettyä tietokantaa "wisemisa" ja määritettyä Storage-bucketia.
  */
 export function initializeFirebase(): FirebaseServices {
   const firebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
   
-  // Yhdistetään nimettyyn tietokantaan ja tarkkaan storage-bucketiin
+  // Varmistetaan ympäristömuuttujien latautuminen
+  if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+    console.warn("DEBUG: Firebase API Key puuttuu ympäristömuuttujista!");
+  }
+
   const firestore = getFirestore(firebaseApp, "wisemisa");
   const auth = getAuth(firebaseApp);
   const storage = getStorage(firebaseApp, "gs://wisemisa-d2b98.firebasestorage.app");

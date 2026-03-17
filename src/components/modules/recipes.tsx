@@ -12,23 +12,22 @@ import {
   Trash2, 
   Save, 
   Scale, 
-  Folder,
   X,
   TrendingUp,
   Printer,
-  Share2,
   Edit2,
   Search,
   Loader2
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
+import { collection, doc } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import { calculateRecipe, calculateDish } from "@/lib/calculations"
+import * as recipeService from "@/services/recipe-service"
 
 type Ingredient = {
   id: string
@@ -64,12 +63,10 @@ export function RecipesModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
   
-  const foldersRef = useMemo(() => (firestore ? collection(firestore, 'archiveFolders') : null), [firestore])
   const recipesRef = useMemo(() => (firestore ? collection(firestore, 'recipes') : null), [firestore])
   const dishesRef = useMemo(() => (firestore ? collection(firestore, 'dishes') : null), [firestore])
   const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
 
-  const { data: folders = [] } = useCollection<any>(foldersRef)
   const { data: globalRecipes = [] } = useCollection<any>(recipesRef)
   const { data: globalDishes = [] } = useCollection<any>(dishesRef)
   const { data: settings } = useDoc<any>(settingsRef)
@@ -121,14 +118,12 @@ export function RecipesModule() {
         id, name: recipeName, portions: Number(portions),
         folderId: selectedFolderId === "root" ? null : selectedFolderId,
         ingredients, steps, equipment: recipeEquip,
-        calculations: recipeCalculations,
-        createdAt: editId ? (globalRecipes.find(r => r.id === editId)?.createdAt || new Date().toISOString()) : serverTimestamp()
+        calculations: recipeCalculations
       }
-      await setDoc(doc(firestore, 'recipes', id), data, { merge: true });
+      await recipeService.saveRecipe(firestore, data)
       toast({ title: "Resepti tallennettu" });
       setIsEditing(false); resetRecipeForm();
     } catch (e) {
-      console.error("Reseptin tallennusvirhe:", e)
       toast({ variant: "destructive", title: "Tallennus epäonnistui" })
     } finally {
       setIsSaving(false)
@@ -146,14 +141,12 @@ export function RecipesModule() {
         recipes: selectedRecipes, manualIngredients: dishIngredients,
         steps: dishSteps, equipment: dishEquip,
         totalCost: dishCalculations.totalCost, totalWeight: dishCalculations.totalWeight,
-        margin: dishCalculations.margin,
-        createdAt: editDishId ? (globalDishes.find(d => d.id === editDishId)?.createdAt || new Date().toISOString()) : serverTimestamp()
+        margin: dishCalculations.margin
       }
-      await setDoc(doc(firestore, 'dishes', id), data, { merge: true });
+      await recipeService.saveDish(firestore, data)
       toast({ title: "Annos tallennettu" });
       setIsEditingDish(false); resetDishForm();
     } catch (e) {
-      console.error("Annoksen tallennusvirhe:", e)
       toast({ variant: "destructive", title: "Tallennus epäonnistui" })
     } finally {
       setIsSaving(false)
@@ -171,6 +164,17 @@ export function RecipesModule() {
     setSelectedDishFolderId(d.folderId || "root"); setSelectedRecipes(d.recipes || []);
     setDishIngredients(d.manualIngredients || []); setDishSteps(d.steps || []);
     setDishEquip(d.equipment || []); setIsEditingDish(true);
+  }
+
+  const handleDeleteItem = async (id: string, type: 'recipe' | 'dish') => {
+    if (!firestore) return;
+    try {
+      if (type === 'recipe') await recipeService.deleteRecipe(firestore, id);
+      else await recipeService.deleteDish(firestore, id);
+      toast({ title: "Poistettu" });
+    } catch (e) {
+      toast({ variant: "destructive", title: "Poisto epäonnistui" });
+    }
   }
 
   const filteredItems = useMemo(() => {
@@ -239,7 +243,7 @@ export function RecipesModule() {
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => activeTab === 'recipes' ? startEditRecipe(item) : startEditDish(item)}><Edit2 className="w-3.5 h-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteDoc(doc(firestore, activeTab === 'recipes' ? 'recipes' : 'dishes', item.id))}><Trash2 className="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteItem(item.id, activeTab === 'recipes' ? 'recipe' : 'dish')}><Trash2 className="w-3.5 h-3.5" /></Button>
                   </div>
                </CardContent>
             </Card>
@@ -247,7 +251,6 @@ export function RecipesModule() {
         </div>
       </div>
 
-      {/* RESEPTI POPUP */}
       <Dialog open={isEditing} onOpenChange={(open) => { if (!open) resetRecipeForm(); setIsEditing(open); }}>
         <DialogContent className="max-w-6xl h-[90vh] bg-background border-border overflow-hidden flex flex-col p-0 print-container">
           <DialogHeader className="p-6 border-b border-border bg-card no-print">
@@ -321,7 +324,6 @@ export function RecipesModule() {
         </DialogContent>
       </Dialog>
 
-      {/* ANNOS POPUP */}
       <Dialog open={isEditingDish} onOpenChange={(open) => { if (!open) resetDishForm(); setIsEditingDish(open); }}>
         <DialogContent className="max-w-6xl h-[90vh] bg-background border-border overflow-hidden flex flex-col p-0 print-container">
           <DialogHeader className="p-6 border-b border-border bg-card no-print">
