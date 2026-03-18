@@ -22,6 +22,18 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "Contact": {
+      "title": "Contact",
+      "description": "Manuaalisesti lisätyt yhteystiedot",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "WasteGroup": {
       "title": "WasteGroup",
       "description": "Hävikkiryhmät (esim. Kala, Liha)",
@@ -99,6 +111,10 @@
     "/userProfiles/{userId}": {
       "schema": "UserProfile",
       "description": "Käyttäjien profiilit"
+    },
+    "/contacts/{contactId}": {
+      "schema": "Contact",
+      "description": "Yhteystiedot"
     },
     "/wasteGroups/{groupId}": {
       "schema": "WasteGroup",

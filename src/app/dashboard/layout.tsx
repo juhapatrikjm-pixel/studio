@@ -1,10 +1,11 @@
+
 "use client"
 
 import { useUser, useFirestore, useDoc } from "@/firebase"
 import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useMemo, useState, ReactNode } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, Zap, Loader2, GripVertical } from "lucide-react"
+import { LayoutDashboard, MessageSquare, Cloud, Contact, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, Zap, Loader2, GripVertical } from "lucide-react"
 import { doc, setDoc } from "firebase/firestore"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -33,7 +34,7 @@ export const BASE_MENU_ITEMS = [
   { id: 'archive', path: '/dashboard/archive', icon: Archive, label: 'Arkisto' },
   { id: 'messaging', path: '/dashboard/messaging', icon: MessageSquare, label: 'Chat' },
   { id: 'cloud', path: '/dashboard/cloud', icon: Cloud, label: 'Pilvi' },
-  { id: 'directory', path: '/dashboard/directory', icon: Users, label: 'Tiimi' },
+  { id: 'directory', path: '/dashboard/directory', icon: Contact, label: 'Yhteystiedot' },
   { id: 'profile', path: '/dashboard/profile', icon: UserCircle, label: 'Profiili' },
   { id: 'admin', path: '/dashboard/admin', icon: ShieldCheck, label: 'Hallinta' },
 ] as const
