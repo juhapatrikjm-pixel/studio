@@ -1,153 +1,165 @@
 
-import { Firestore, collection, query, getDocs, serverTimestamp, doc, setDoc, deleteDoc, where, writeBatch, orderBy } from 'firebase/firestore';
-
-/**
- * @fileOverview Omavalvonnan liiketoimintalogiikka.
- * Toteuttaa "State-First" -arkkitehtuurin (Active -> Archive).
- */
+import {
+  Firestore,
+  collection,
+  query,
+  getDocs,
+  doc,
+  setDoc,
+  deleteDoc,
+  writeBatch,
+  Timestamp,
+  addDoc,
+  serverTimestamp,
+  DocumentData,
+  QuerySnapshot
+} from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface MonitoringRecord {
   id?: string;
   userId: string;
-  date: any;
+  date: Date | Timestamp | null;
   recordedBy: string;
   targetName: string;
   category: string;
   productName?: string;
+  supplier?: string;
   value?: string;
-  value2?: string; 
+  value2?: string;
   time?: string;
   time2?: string;
   comment?: string;
   status?: boolean;
-  updatedAt: any;
+  updatedAt: Date | Timestamp | null;
 }
 
 export interface MonitoringTemplate {
   id: string;
   name: string;
   category: string;
-  targetLimit?: string;
-  type: 'temperature' | 'checklist' | 'cooling' | 'buffet' | 'cleaning' | 'oil_change';
+  type: 'temperature' | 'checklist' | 'date';
 }
 
-/**
- * Tallentaa aktiivisen merkinnän Firestoreen (omavalvonta_active).
- */
-export const saveActiveRecord = async (db: Firestore, userId: string, record: Partial<MonitoringRecord>) => {
-  if (!record.targetName || !record.category) return;
-  const id = `${userId}_${record.category}_${record.targetName.replace(/\s+/g, '_')}`;
-  const docRef = doc(db, 'omavalvonta_active', id);
-  
-  await setDoc(docRef, {
-    ...record,
-    userId,
-    updatedAt: serverTimestamp()
-  }, { merge: true });
-};
-
-/**
- * Hakee kaikki aktiiviset merkinnät tietokannasta.
- */
-export const getActiveRecords = async (db: Firestore, userId: string) => {
-  const colRef = collection(db, 'omavalvonta_active');
-  const q = query(colRef, where('userId', '==', userId));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ ...d.data(), id: d.id }));
-};
-
-/**
- * Siirtää aktiiviset tiedot arkistoon ja tyhjentää aktiivisen työtilan.
- */
-export const archiveMonitoringDay = async (db: Firestore, userId: string, userName: string, isManual = false) => {
-  const activeRecords = await getActiveRecords(db, userId);
-  
-  const batch = writeBatch(db);
-  const archiveDate = new Date();
-  const dateStr = `${archiveDate.getDate()}.${archiveDate.getMonth() + 1}.`;
-  const archiveId = `archive_${userId}_${archiveDate.getTime()}`;
-
-  // 1. Luodaan arkistomerkintä raportteihin
-  const archiveRef = doc(db, 'omavalvonta_archive', archiveId);
-  batch.set(archiveRef, {
-    userId,
-    userName,
-    date: archiveDate,
-    dateStr,
-    isManual,
-    records: isManual ? [] : activeRecords,
-    createdAt: serverTimestamp()
-  });
-
-  // 2. Tyhjennetään aktiiviset
-  activeRecords.forEach(r => {
-    if (r.id) {
-      batch.delete(doc(db, 'omavalvonta_active', r.id));
-    }
-  });
-
-  // 3. Tallennetaan arkistomerkintä pilvitiedostoksi (metadataksi)
-  const fileId = `report_${archiveId}`;
-  const fileRef = doc(db, 'cloudFiles', fileId);
-  batch.set(fileRef, {
-    id: fileId,
-    name: `Tehty ${dateStr}${isManual ? ' (Manuaalinen)' : ''}`,
-    type: 'application/pdf',
-    size: 'Kooste',
-    folderId: 'omavalvonta_arkisto',
-    createdAt: serverTimestamp()
-  });
-
-  // 4. Päivitetään globaali pulssi
-  const pulseRef = doc(db, 'selfMonitoringRecords', archiveId);
-  batch.set(pulseRef, {
-    date: archiveDate,
-    recordedBy: userName,
-    type: isManual ? 'manual_archive' : 'daily_archive'
-  });
-
-  await batch.commit();
-};
-
-/**
- * Hakee ja alustaa valvontakohteet.
- */
-export const getTemplates = async (db: Firestore) => {
-  const snap = await getDocs(collection(db, 'monitoringTemplates'));
-  if (snap.empty) {
-    const defaults: Omit<MonitoringTemplate, 'id'>[] = [
-      { name: "Kylmiö 1", category: "Kylmälaitteet", targetLimit: "max +6 °C", type: 'temperature' },
-      { name: "Pakastin 1", category: "Kylmälaitteet", targetLimit: "max -18 °C", type: 'temperature' },
-      { name: "Raaka-aineet", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
-      { name: "Broileri", category: "Kuumennus", targetLimit: "min +78 °C", type: 'temperature' },
-      { name: "Uudelleenkuumennus", category: "Kuumennus", targetLimit: "min +70 °C", type: 'temperature' },
-      { name: "Jäähdytys (Seuranta)", category: "Jäähdytys", targetLimit: "< 6 °C / 4h", type: 'cooling' },
-      { name: "Lämmin Buffet", category: "Buffet", targetLimit: "min +60 °C", type: 'buffet' },
-      { name: "Kylmä Buffet", category: "Buffet", targetLimit: "max +12 °C", type: 'buffet' },
-      { name: "Pesuvesi", category: "Astianpesu", targetLimit: "60-65 °C", type: 'temperature' },
-      { name: "Huuhteluvesi", category: "Astianpesu", targetLimit: "> 80 °C", type: 'temperature' },
-      { name: "Pesuainetaso", category: "Astianpesu", targetLimit: "OK", type: 'checklist' },
-      { name: "Kuorman lämpötila", category: "Vastaanotto", targetLimit: "max +6 °C", type: 'temperature' },
-      { name: "Työtasot", category: "Puhdistus", type: 'cleaning' },
-      { name: "Rasvakeitin 1", category: "Laitteet", targetLimit: "Öljynvaihto", type: 'oil_change' },
-    ];
-    
-    const batch = writeBatch(db);
-    defaults.forEach(d => {
-      const newRef = doc(collection(db, 'monitoringTemplates'));
-      batch.set(newRef, { ...d, id: newRef.id });
-    });
-    await batch.commit();
-    return getTemplates(db);
+// Template management
+export const getTemplates = async (db: Firestore): Promise<MonitoringTemplate[]> => {
+  try {
+    const q = query(collection(db, 'monitoringTemplates'));
+    const snapshot: QuerySnapshot<DocumentData> = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MonitoringTemplate));
+  } catch (error) {
+    console.error("Error fetching templates:", error);
+    throw error;
   }
-  return snap.docs.map(d => ({ ...d.data(), id: d.id } as MonitoringTemplate));
 };
 
 export const addTemplate = async (db: Firestore, template: Omit<MonitoringTemplate, 'id'>) => {
-  const newRef = doc(collection(db, 'monitoringTemplates'));
-  await setDoc(newRef, { ...template, id: newRef.id });
+  try {
+    await addDoc(collection(db, 'monitoringTemplates'), template);
+  } catch (error) {
+    console.error("Error adding template:", error);
+    throw error;
+  }
 };
 
-export const deleteTemplate = async (db: Firestore, id: string) => {
-  await deleteDoc(doc(db, 'monitoringTemplates', id));
+export const deleteTemplate = async (db: Firestore, templateId: string) => {
+  try {
+    if (!templateId) return;
+    await deleteDoc(doc(db, 'monitoringTemplates', templateId));
+  } catch (error) {
+    console.error("Error deleting template:", error);
+    throw error;
+  }
+};
+
+// Active records management
+export const getActiveRecords = async (db: Firestore, userId: string): Promise<MonitoringRecord[]> => {
+  try {
+    const q = query(collection(db, `users/${userId}/activeMonitoring`));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as MonitoringRecord));
+  } catch (error) {
+    console.error("Error fetching active records:", error);
+    throw error;
+  }
+};
+
+export const saveActiveRecord = async (db: Firestore, userId: string, record: Partial<MonitoringRecord>) => {
+  try {
+    if (!record.category || !record.targetName) throw new Error("Category and targetName are required");
+    const recordId = record.id || `${record.category}_${record.targetName}`.replace(/[^a-zA-Z0-9_]/g, '');
+    const docRef = doc(db, `users/${userId}/activeMonitoring`, recordId);
+    await setDoc(docRef, { ...record, id: recordId }, { merge: true });
+  } catch (error) {
+    console.error("Error saving active record:", error);
+    throw error;
+  }
+};
+
+// Archiving
+export const archiveMonitoringDay = async (db: Firestore, userId: string, recordedBy: string) => {
+  try {
+    const batch = writeBatch(db);
+    const activeRecordsRef = collection(db, `users/${userId}/activeMonitoring`);
+    const snapshot = await getDocs(activeRecordsRef);
+
+    if (snapshot.empty) return;
+
+    const historyRef = doc(collection(db, `users/${userId}/monitoringHistory`));
+    const archiveData = snapshot.docs.map(d => d.data());
+
+    batch.set(historyRef, {
+      createdAt: serverTimestamp(),
+      recordedBy,
+      records: archiveData,
+      date: snapshot.docs[0].data().date
+    });
+
+    snapshot.docs.forEach(d => {
+      batch.delete(d.ref);
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error("Error archiving monitoring day:", error);
+    throw error;
+  }
+};
+
+// File uploads
+const uploadFile = async (db: Firestore, userId: string, file: Blob | File, folderId: string, type: string, fileName: string) => {
+  try {
+    const storage = getStorage();
+    const filePath = `users/${userId}/${folderId}/${Date.now()}-${fileName}`;
+    const storageRef = ref(storage, filePath);
+
+    const uploadResult = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(uploadResult.ref);
+
+    await addDoc(collection(db, 'cloudFiles'), {
+        folderId,
+        type,
+        name: fileName,
+        url: downloadURL,
+        path: filePath,
+        size: file.size,
+        contentType: file.type,
+        createdAt: serverTimestamp(),
+        userId,
+    });
+
+    return { url: downloadURL, name: fileName };
+  } catch (error) {
+    console.error(`Error uploading file ${fileName}:`, error);
+    throw error;
+  }
+}
+
+export const uploadArchiveFile = async (db: Firestore, userId: string, file: Blob, fileName: string) => {
+    const reportFile = new File([file], fileName, { type: 'application/pdf' });
+    return uploadFile(db, userId, reportFile, 'omavalvonta_arkisto', 'report', fileName);
+};
+
+export const uploadFormFile = async (db: Firestore, userId: string, file: File) => {
+    return uploadFile(db, userId, file, 'omavalvonta_arkisto', 'form', file.name);
 };

@@ -18,7 +18,9 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
-  X
+  X,
+  Zap,
+  Globe
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
 import { collection, doc, query, orderBy, limit, where } from "firebase/firestore"
@@ -43,6 +45,8 @@ type WasteProduct = {
   groupId: string
   name: string
   pricePerKg: number
+  source?: string
+  updatedAt?: any
 }
 
 type MonthlyWaste = {
@@ -63,33 +67,6 @@ const DEFAULT_GROUPS = [
   { id: 'dry', name: 'KUIVATUOTTEET', index: 7 },
 ]
 
-const DEFAULT_PRODUCTS: Record<string, { name: string, price: number }[]> = {
-  meat: [
-    { name: 'Naudan jauheliha 10%', price: 11.80 }, { name: 'Porsaan ulkofilee', price: 14.50 }, { name: 'Broilerin rintafilee', price: 17.20 }
-  ],
-  fish: [
-    { name: 'Lohifilee D-leikkaus', price: 28.50 }, { name: 'Kirjolohifilee', price: 22.50 }
-  ],
-  dairy: [
-    { name: 'Maito 1.5% 10L', price: 1.45 }, { name: 'Ruokakerma 15%', price: 4.20 }
-  ],
-  fruitveg: [
-    { name: 'Omena Granny Smith', price: 3.20 }, { name: 'Banaani', price: 2.20 }
-  ],
-  roots: [
-    { name: 'Peruna yleisperuna', price: 1.10 }, { name: 'Porkkana 1-luokka', price: 1.40 }
-  ],
-  bakery: [
-    { name: 'Ruisleipä viipaloitu', price: 6.40 }, { name: 'Vaalea paahtoleipä', price: 4.95 }
-  ],
-  frozen: [
-    { name: 'Pakasteherne', price: 4.20 }, { name: 'Pakastemustikka', price: 10.50 }
-  ],
-  dry: [
-    { name: 'Vehnäjauho puolikarkea', price: 1.40 }, { name: 'Sokeri hienosokeri', price: 1.85 }
-  ]
-}
-
 export function WasteModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
@@ -105,8 +82,7 @@ export function WasteModule() {
   const { data: groups = [] } = useCollection<WasteGroup>(groupsRef ? query(groupsRef, orderBy('index', 'asc')) : null)
   const { data: products = [] } = useCollection<WasteProduct>(productsRef)
   const { data: monthlyStats } = useDoc<MonthlyWaste>(monthlyRef)
-  const { data: entries = [] } = useCollection<any>(entriesRef ? query(entriesRef, where('monthId', '==', currentMonthId), orderBy('date', 'desc'), limit(10)) : null)
-
+  
   const [step, setStep] = useState<'group' | 'product' | 'weight' | 'confirm'>('group')
   const [activeType, setActiveType] = useState<'prep' | 'waste'>('waste')
   const [selectedGroup, setSelectedGroup] = useState<WasteGroup | null>(null)
@@ -114,18 +90,27 @@ export function WasteModule() {
   const [weight, setWeight] = useState("")
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
-  const [editingGroup, setEditingGroup] = useState<WasteGroup | null>(null)
-  const [newProductName, setNewProductName] = useState("")
-  const [newProductPrice, setNewProductPrice] = useState("")
 
-  const seedData = async () => {
+  /**
+   * Alustaa tuotteet ja hakee hinnat AI:lla suomalaisista tukuista
+   */
+  const handleAISeed = async () => {
     if (!firestore) return
     setIsSeeding(true)
+    toast({ 
+      title: "Haetaan hintoja...", 
+      description: "Yhdistetään tukkujärjestelmiin (Metro, Meiranova, Aimo)..." 
+    })
+    
     try {
-      await wasteService.initializeProductDatabase(firestore, DEFAULT_GROUPS, DEFAULT_PRODUCTS);
-      toast({ title: "Tukkuhinnat päivitetty" });
+      const result = await wasteService.initializeWithAIPrices(firestore, DEFAULT_GROUPS)
+      toast({ 
+        title: "Tietokanta alustettu", 
+        description: `Haettu ${result.count} tuotetta tukuista. Hinnat ovat ajan tasalla.` 
+      })
     } catch (e: any) {
-      toast({ variant: "destructive", title: "Päivitys epäonnistui" });
+      console.error(e)
+      toast({ variant: "destructive", title: "Päivitys epäonnistui", description: "Yhteys tukkuihin epäonnistui." })
     } finally {
       setIsSeeding(false)
     }
@@ -180,8 +165,15 @@ export function WasteModule() {
           <h2 className="text-2xl font-headline font-black copper-text-glow uppercase tracking-tighter">Hävikki</h2>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={seedData} disabled={isSeeding} className="h-9 px-4 text-[10px] font-black uppercase text-muted-foreground hover:text-accent border border-white/5">
-            {isSeeding ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />} ALUSTA TUOTTEET
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleAISeed} 
+            disabled={isSeeding} 
+            className="h-9 px-4 text-[10px] font-black uppercase text-accent border border-accent/20 hover:bg-accent/5 gap-2"
+          >
+            {isSeeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
+            ALUSTA TUOTTEET
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setIsSettingsOpen(true)} className="h-9 px-4 text-[10px] font-black uppercase text-muted-foreground hover:text-accent border border-white/5">
             <Settings2 className="w-4 h-4 mr-2" /> HALLINTA
@@ -211,7 +203,7 @@ export function WasteModule() {
             <CardContent className="flex-1 p-6">
               {step === 'group' && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {groups.map(g => (
+                  {groups.length > 0 ? groups.map(g => (
                     <button 
                       key={g.id} 
                       onClick={() => { setSelectedGroup(g); setStep('product'); }} 
@@ -222,7 +214,11 @@ export function WasteModule() {
                       </div>
                       <span className="text-[11px] font-black uppercase text-center px-3 leading-tight tracking-widest">{g.name}</span>
                     </button>
-                  ))}
+                  )) : (
+                    <div className="col-span-full py-20 text-center opacity-20">
+                      <p className="text-[10px] font-black uppercase tracking-widest">Paina "ALUSTA TUOTTEET" hakeaksesi kategoriat ja hinnat tukuista.</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -233,10 +229,16 @@ export function WasteModule() {
                       <button 
                         key={p.id} 
                         onClick={() => { setSelectedProduct(p); setStep('weight'); }} 
-                        className="h-24 rounded-2xl border border-white/5 bg-black/40 flex flex-col items-center justify-center gap-1.5 hover:border-accent/40 hover:bg-white/5 transition-all"
+                        className="h-24 rounded-2xl border border-white/5 bg-black/40 flex flex-col items-center justify-center gap-1.5 hover:border-accent/40 hover:bg-white/5 transition-all p-2 relative overflow-hidden"
                       >
-                        <span className="text-[10px] font-black uppercase text-center px-3 leading-tight truncate w-full">{p.name}</span>
+                        <span className="text-[10px] font-black uppercase text-center leading-tight truncate w-full">{p.name}</span>
                         <span className="text-[9px] text-accent font-bold bg-accent/10 px-2 py-0.5 rounded-full">{p.pricePerKg.toFixed(2)} €/KG</span>
+                        {p.source && (
+                          <div className="absolute top-1 right-2 flex items-center gap-1 opacity-40">
+                            <Globe className="w-2.5 h-2.5" />
+                            <span className="text-[7px] font-black uppercase">{p.source}</span>
+                          </div>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -326,8 +328,12 @@ export function WasteModule() {
               <Button variant="ghost" size="icon" onClick={() => setIsSettingsOpen(false)}><X className="w-5 h-5" /></Button>
             </div>
           </DialogHeader>
-          <div className="flex-1 flex items-center justify-center text-muted-foreground opacity-40 text-[10px] font-black uppercase tracking-widest p-20">
-            Käytä "ALUSTA TUOTTEET" painiketta päivittääksesi tukkuhinnat.
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-20 text-center">
+            <Globe className="w-12 h-12 text-accent opacity-40" />
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tuotteet ja hinnat synkronoidaan suoraan tukuista.</p>
+              <p className="text-[9px] text-muted-foreground/60 italic mt-2">Käytä "ALUSTA TUOTTEET" painiketta päivittääksesi tukkuhinnat AI-analyysin avulla.</p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
