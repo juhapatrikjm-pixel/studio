@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo } from "react"
@@ -9,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Phone, Mail, Globe, MessageSquare, Plus, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 
@@ -22,6 +21,24 @@ type Supplier = {
   color: string
 }
 
+const supplierConverter: FirestoreDataConverter<Supplier> = {
+  toFirestore: (supplier: Supplier): DocumentData => {
+    const { id, ...data } = supplier;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Supplier => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      name: data.name,
+      url: data.url,
+      phone: data.phone,
+      email: data.email,
+      color: data.color
+    };
+  }
+};
+
 const PRESET_COLORS = [
   { name: "Kupari", value: "bg-[#b87333]" },
   { name: "Teräs", value: "bg-[#d4d4d8]" },
@@ -33,10 +50,10 @@ const PRESET_COLORS = [
 
 export function SuppliersModule() {
   const firestore = useFirestore()
-  const suppliersRef = useMemo(() => (firestore ? collection(firestore, 'suppliers') : null), [firestore])
+  const suppliersRef = useMemo(() => (firestore ? collection(firestore, 'suppliers').withConverter(supplierConverter) : null), [firestore])
   const { data: suppliers = [] } = useCollection<Supplier>(suppliersRef)
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Omit<Supplier, 'id'>>({
     name: "",
     url: "",
     phone: "",
@@ -45,11 +62,10 @@ export function SuppliersModule() {
   })
 
   const addSupplier = () => {
-    if (!formData.name.trim() || !firestore) return
-    const id = Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'suppliers', id)
+    if (!formData.name.trim() || !suppliersRef) return
+    const docRef = doc(suppliersRef)
     
-    setDoc(docRef, { id, ...formData })
+    setDoc(docRef, formData)
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
           path: docRef.path,
@@ -61,8 +77,8 @@ export function SuppliersModule() {
   }
 
   const removeSupplier = (id: string) => {
-    if (!firestore) return
-    const docRef = doc(firestore, 'suppliers', id)
+    if (!suppliersRef) return
+    const docRef = doc(suppliersRef, id)
     deleteDoc(docRef).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: docRef.path,

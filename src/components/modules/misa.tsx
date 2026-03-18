@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ListChecks, Plus, Trash2, Calendar as CalendarIcon, Share2, Printer, Edit2, ClipboardList, ShoppingCart, AlertTriangle, ChefHat, Scale } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, arrayUnion, query, where } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, arrayUnion, query, where, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { useToast } from "@/hooks/use-toast"
@@ -33,6 +33,24 @@ type MisaList = {
   endDate?: string
 }
 
+const misaListConverter: FirestoreDataConverter<MisaList> = {
+  toFirestore: (list: MisaList): DocumentData => {
+    const { id, ...data } = list;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): MisaList => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      title: data.title,
+      category: data.category,
+      items: data.items,
+      startDate: data.startDate,
+      endDate: data.endDate
+    };
+  }
+};
+
 export function MisaModule() {
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -41,7 +59,7 @@ export function MisaModule() {
   
   const misaListsRef = useMemo(() => {
     if (!firestore) return null;
-    return query(collection(firestore, 'misaLists'), where('category', '==', activeTab));
+    return query(collection(firestore, 'misaLists').withConverter(misaListConverter), where('category', '==', activeTab));
   }, [firestore, activeTab]);
   
   const recipesRef = useMemo(() => (firestore ? collection(firestore, 'recipes') : null), [firestore]);

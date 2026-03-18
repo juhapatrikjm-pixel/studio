@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, Timestamp, query, orderBy } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, Timestamp, query, orderBy, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -29,6 +29,25 @@ type Order = {
   status: 'pending' | 'shipped' | 'arrived'
 }
 
+const orderConverter: FirestoreDataConverter<Order> = {
+  toFirestore: (order: Order): DocumentData => {
+    const { id, ...data } = order;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Order => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      supplierId: data.supplierId,
+      supplierName: data.supplierName,
+      color: data.color,
+      orderDate: data.orderDate,
+      arrivalDate: data.arrivalDate,
+      status: data.status
+    };
+  }
+};
+
 type Reminder = {
   id: string
   date: any
@@ -37,11 +56,43 @@ type Reminder = {
   hasAlert: boolean
 }
 
+const reminderConverter: FirestoreDataConverter<Reminder> = {
+  toFirestore: (reminder: Reminder): DocumentData => {
+    const { id, ...data } = reminder;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Reminder => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      date: data.date,
+      time: data.time,
+      content: data.content,
+      hasAlert: data.hasAlert
+    };
+  }
+};
+
 type Supplier = {
   id: string
   name: string
   color: string
 }
+
+const supplierConverter: FirestoreDataConverter<Supplier> = {
+  toFirestore: (supplier: Supplier): DocumentData => {
+    const { id, ...data } = supplier;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Supplier => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      name: data.name,
+      color: data.color
+    };
+  }
+};
 
 interface OrdersModuleProps {
   onNavigateToSuppliers?: () => void
@@ -50,9 +101,9 @@ interface OrdersModuleProps {
 export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   const firestore = useFirestore()
   
-  const suppliersRef = useMemo(() => (firestore ? collection(firestore, 'suppliers') : null), [firestore])
-  const ordersRef = useMemo(() => (firestore ? collection(firestore, 'orders') : null), [firestore])
-  const remindersRef = useMemo(() => (firestore ? collection(firestore, 'orderReminders') : null), [firestore])
+  const suppliersRef = useMemo(() => (firestore ? collection(firestore, 'suppliers').withConverter(supplierConverter) : null), [firestore])
+  const ordersRef = useMemo(() => (firestore ? collection(firestore, 'orders').withConverter(orderConverter) : null), [firestore])
+  const remindersRef = useMemo(() => (firestore ? collection(firestore, 'orderReminders').withConverter(reminderConverter) : null), [firestore])
   
   const { data: suppliers = [] } = useCollection<Supplier>(suppliersRef)
   
@@ -79,16 +130,15 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   }, [])
 
   const handleMakeOrder = () => {
-    if (!supplierNameInput.trim() || !firestore || !arrivalDate) return
+    if (!ordersRef || !supplierNameInput.trim() || !arrivalDate) return
     
     const existingSupplier = suppliers.find(s => s.id === selectedSupplierId || s.name.toLowerCase() === supplierNameInput.toLowerCase())
     const color = existingSupplier?.color || "bg-[#71717a]"
     const supplierId = existingSupplier?.id || null
 
     const id = Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'orders', id)
-    const orderData = {
-      id,
+    const docRef = doc(ordersRef, id)
+    const orderData: Omit<Order, 'id'> = {
       supplierId: supplierId,
       supplierName: supplierNameInput,
       color: color,
@@ -109,8 +159,8 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   }
 
   const handleDeleteOrder = (id: string) => {
-    if (!firestore) return
-    const docRef = doc(firestore, 'orders', id)
+    if (!ordersRef) return
+    const docRef = doc(ordersRef, id)
     deleteDoc(docRef).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: docRef.path,
@@ -120,11 +170,10 @@ export function OrdersModule({ onNavigateToSuppliers }: OrdersModuleProps) {
   }
 
   const handleAddReminder = () => {
-    if (!selectedDay || !newReminder.content.trim() || !firestore) return
+    if (!remindersRef || !selectedDay || !newReminder.content.trim()) return
     const id = Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'orderReminders', id)
-    const reminderData = {
-      id,
+    const docRef = doc(remindersRef, id)
+    const reminderData: Omit<Reminder, 'id'> = {
       date: Timestamp.fromDate(selectedDay),
       ...newReminder
     }

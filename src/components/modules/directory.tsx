@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Phone, Search, UserPlus, Mail, ShieldCheck, QrCode, Copy, Check, Loader2, MessageSquare, Trash2, Edit2, Save, X, Plus } from "lucide-react"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
-import { collection, query, orderBy, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore"
+import { collection, query, orderBy, doc, setDoc, deleteDoc, serverTimestamp, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Label } from "@/components/ui/label"
@@ -22,6 +22,23 @@ type Contact = {
   createdAt: any
 }
 
+const contactConverter: FirestoreDataConverter<Contact> = {
+  toFirestore: (contact: Contact): DocumentData => {
+    const { id, ...data } = contact;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Contact => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      createdAt: data.createdAt
+    };
+  }
+};
+
 export function DirectoryModule() {
   const firestore = useFirestore()
   const { user } = useUser()
@@ -31,7 +48,7 @@ export function DirectoryModule() {
   const { data: profile } = useDoc<any>(profileRef)
   const isAdmin = profile?.role === 'admin'
 
-  const contactsRef = useMemo(() => (firestore ? collection(firestore, 'contacts') : null), [firestore])
+  const contactsRef = useMemo(() => (firestore ? collection(firestore, 'contacts').withConverter(contactConverter) : null), [firestore])
   const { data: contacts = [] } = useCollection<Contact>(contactsRef ? query(contactsRef, orderBy('name', 'asc')) : null)
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -40,12 +57,11 @@ export function DirectoryModule() {
   const [copied, setCopied] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  const [formData, setFormData] = useState({
-    id: "",
-    name: "",
-    phone: "",
-    email: ""
-  })
+  const [formData, setFormData] = useState<Omit<Contact, 'createdAt' | 'id'> & { id?: string }>({ 
+    name: "", 
+    phone: "", 
+    email: "" 
+  });
 
   const joinUrl = useMemo(() => {
     if (typeof window === 'undefined' || !user) return ""
@@ -60,32 +76,38 @@ export function DirectoryModule() {
   }
 
   const handleSaveContact = async () => {
-    if (!formData.name.trim() || !firestore) return
-    setIsSaving(true)
-    const id = formData.id || Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'contacts', id)
-    
-    setDoc(docRef, {
-      ...formData,
-      id,
-      createdAt: serverTimestamp()
-    }, { merge: true }).then(() => {
-      toast({ title: formData.id ? "Päivitetty" : "Lisätty" })
-      setIsAddContactOpen(false)
-      setFormData({ id: "", name: "", phone: "", email: "" })
-    }).finally(() => setIsSaving(false))
-  }
+    if (!formData.name.trim() || !contactsRef) return;
+    setIsSaving(true);
+    try {
+      const docRef = formData.id ? doc(contactsRef, formData.id) : doc(contactsRef);
+      const contactData: Omit<Contact, 'id'> = {
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        createdAt: serverTimestamp(),
+      };
+      await setDoc(docRef, contactData, { merge: true });
+      toast({ title: formData.id ? "Päivitetty" : "Lisätty" });
+      setIsAddContactOpen(false);
+      setFormData({ name: "", phone: "", email: "" });
+    } catch (e) {
+      console.error("Error saving contact: ", e);
+      toast({ variant: "destructive", title: "Tallennus epäonnistui" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDeleteContact = async (id: string) => {
-    if (!firestore || !confirm("Poistetaanko yhteystieto?")) return
-    await deleteDoc(doc(firestore, 'contacts', id))
+    if (!contactsRef || !confirm("Poistetaanko yhteystieto?")) return
+    await deleteDoc(doc(contactsRef, id))
     toast({ title: "Poistettu" })
   }
 
   const filteredContacts = contacts.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.phone.includes(searchTerm) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (c.phone && c.phone.includes(searchTerm)) ||
+    (c.email && c.email.toLowerCase().includes(searchTerm.toLowerCase()))
   )
 
   return (
@@ -98,7 +120,10 @@ export function DirectoryModule() {
         <div className="flex gap-2">
           {isAdmin && (
             <>
-              <Button onClick={() => setIsAddContactOpen(true)} className="bg-white/5 border border-white/10 hover:bg-white/10 text-accent font-black uppercase text-[10px] h-10 px-6 gap-2">
+              <Button onClick={() => {
+                setFormData({ name: "", phone: "", email: "" });
+                setIsAddContactOpen(true);
+              }} className="bg-white/5 border border-white/10 hover:bg-white/10 text-accent font-black uppercase text-[10px] h-10 px-6 gap-2">
                 <Plus className="w-4 h-4" /> LISÄÄ YHTEYSTIETO
               </Button>
               <Button onClick={() => setIsInviteOpen(true)} className="copper-gradient hover:opacity-90 gap-2 shadow-lg font-black uppercase text-[10px] h-10 px-6">

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Wrench, Plus, Trash2, Phone, Mail, Cpu, UserCog } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 
@@ -25,11 +25,33 @@ type MaintenanceContact = {
   email: string
 }
 
+const equipmentConverter: FirestoreDataConverter<Equipment> = {
+  toFirestore: (equipment: Equipment): DocumentData => {
+    const { id, ...data } = equipment;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Equipment => {
+    const data = snapshot.data(options)!;
+    return { id: snapshot.id, name: data.name, code: data.code };
+  }
+};
+
+const maintenanceContactConverter: FirestoreDataConverter<MaintenanceContact> = {
+  toFirestore: (contact: MaintenanceContact): DocumentData => {
+    const { id, ...data } = contact;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): MaintenanceContact => {
+    const data = snapshot.data(options)!;
+    return { id: snapshot.id, name: data.name, phone: data.phone, email: data.email };
+  }
+};
+
 export function MaintenanceModule() {
   const firestore = useFirestore()
   
-  const equipRef = useMemo(() => (firestore ? collection(firestore, 'equipment') : null), [firestore])
-  const contactsRef = useMemo(() => (firestore ? collection(firestore, 'maintenanceContacts') : null), [firestore])
+  const equipRef = useMemo(() => (firestore ? collection(firestore, 'equipment').withConverter(equipmentConverter) : null), [firestore])
+  const contactsRef = useMemo(() => (firestore ? collection(firestore, 'maintenanceContacts').withConverter(maintenanceContactConverter) : null), [firestore])
   
   const { data: equipmentList = [] } = useCollection<Equipment>(equipRef)
   const { data: contacts = [] } = useCollection<MaintenanceContact>(contactsRef)
@@ -38,24 +60,26 @@ export function MaintenanceModule() {
   const [newContact, setNewContact] = useState({ name: "", phone: "", email: "" })
 
   const addEquipment = () => {
-    if (!newEquip.name.trim() || !firestore) return
-    const id = Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'equipment', id)
-    
-    setDoc(docRef, { id, ...newEquip })
+    if (!newEquip.name.trim() || !equipRef) return
+    const newDocRef = doc(equipRef)
+    const equipmentData: Omit<Equipment, 'id'> = {
+      name: newEquip.name,
+      code: newEquip.code,
+    }
+    setDoc(newDocRef, equipmentData)
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: docRef.path,
+          path: newDocRef.path,
           operation: 'create',
-          requestResourceData: newEquip
+          requestResourceData: equipmentData
         }))
       })
     setNewEquip({ name: "", code: "" })
   }
 
   const removeEquipment = (id: string) => {
-    if (!firestore) return
-    const docRef = doc(firestore, 'equipment', id)
+    if (!equipRef) return
+    const docRef = doc(equipRef, id)
     deleteDoc(docRef).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: docRef.path,
@@ -65,24 +89,27 @@ export function MaintenanceModule() {
   }
 
   const addContact = () => {
-    if (!newContact.name.trim() || !firestore) return
-    const id = Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'maintenanceContacts', id)
-    
-    setDoc(docRef, { id, ...newContact })
+    if (!newContact.name.trim() || !contactsRef) return
+    const newDocRef = doc(contactsRef)
+    const contactData: Omit<MaintenanceContact, 'id'> = {
+      name: newContact.name,
+      phone: newContact.phone,
+      email: newContact.email
+    }
+    setDoc(newDocRef, contactData)
       .catch(async () => {
         errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: docRef.path,
+          path: newDocRef.path,
           operation: 'create',
-          requestResourceData: newContact
+          requestResourceData: contactData
         }))
       })
     setNewContact({ name: "", phone: "", email: "" })
   }
 
   const removeContact = (id: string) => {
-    if (!firestore) return
-    const docRef = doc(firestore, 'maintenanceContacts', id)
+    if (!contactsRef) return
+    const docRef = doc(contactsRef, id)
     deleteDoc(docRef).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: docRef.path,

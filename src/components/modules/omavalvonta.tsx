@@ -169,7 +169,7 @@ export function OmavalvontaModule() {
     if (!firestore || !user) return;
     setIsSaving(true);
     try {
-      await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName, 'manual_archive');
+      await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName);
       toast({ title: "Päivä kuitattu tehdyksi (Manuaalinen)", description: "Järjestelmä on päivitetty." });
       loadData();
     } catch (e) {

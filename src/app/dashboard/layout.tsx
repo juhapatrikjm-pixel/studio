@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useUser, useFirestore, useDoc } from "@/firebase"
@@ -137,7 +136,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const profileRef = useMemo(() => (firestore && user ? doc(firestore, 'userProfiles', user.uid) : null), [firestore, user])
   const { data: profile } = useDoc<any>(profileRef)
 
-  const [menuItems, setMenuItems] = useState(BASE_MENU_ITEMS);
+  const [menuItems, setMenuItems] = useState<MenuItemType[]>([...BASE_MENU_ITEMS]);
 
   useEffect(() => {
     if (profile?.moduleOrder) {

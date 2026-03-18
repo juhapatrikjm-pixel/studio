@@ -9,7 +9,7 @@ import { Sparkles, Send, Loader2, Trash2 } from "lucide-react"
 import { summarizeTeamDiscussion } from "@/ai/flows/summarize-team-discussion-flow"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, deleteDoc, doc } from "firebase/firestore"
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, deleteDoc, doc, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { format } from "date-fns"
 
 type Message = {
@@ -20,6 +20,23 @@ type Message = {
   time: any
 }
 
+const messageConverter: FirestoreDataConverter<Message> = {
+  toFirestore: (message: Message): DocumentData => {
+    const { id, ...data } = message;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Message => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      sender: data.sender,
+      userId: data.userId,
+      content: data.content,
+      time: data.time
+    };
+  }
+};
+
 export function MessagingModule() {
   const firestore = useFirestore()
   const { user } = useUser()
@@ -27,7 +44,7 @@ export function MessagingModule() {
   const profileRef = useMemo(() => (firestore && user ? doc(firestore, 'userProfiles', user.uid) : null), [firestore, user])
   const { data: profile } = useDoc<any>(profileRef)
 
-  const messagesRef = useMemo(() => (firestore ? collection(firestore, 'messages') : null), [firestore])
+  const messagesRef = useMemo(() => (firestore ? collection(firestore, 'messages').withConverter(messageConverter) : null), [firestore])
   const messagesQuery = useMemo(() => {
     if (!messagesRef) return null
     return query(messagesRef, orderBy('time', 'asc'), limit(100))
@@ -49,7 +66,7 @@ export function MessagingModule() {
         userId: user.uid,
         content: input,
         time: serverTimestamp()
-      })
+      } as Omit<Message, 'id'>)
       setInput("")
     } catch (e) {
       console.error("Virhe viestin lähetyksessä:", e)
@@ -73,9 +90,9 @@ export function MessagingModule() {
   }
 
   const deleteMessage = async (id: string) => {
-    if (!firestore) return
+    if (!messagesRef) return
     try {
-      await deleteDoc(doc(firestore, 'messages', id))
+      await deleteDoc(doc(messagesRef, id))
     } catch (e) {
       console.error("Virhe poistossa:", e)
     }

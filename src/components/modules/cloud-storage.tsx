@@ -15,11 +15,9 @@ import {
   Trash2, 
   FolderPlus, 
   Folder, 
-  ChevronRight, 
   ArrowLeft,
   File,
-  Loader2,
-  Zap
+  Loader2
 } from "lucide-react"
 import { 
   DropdownMenu, 
@@ -28,7 +26,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, query, where, orderBy, serverTimestamp } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, query, where, orderBy, serverTimestamp, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
@@ -41,6 +39,7 @@ type CloudFile = {
   size: string
   folderId: string | null
   createdAt: any
+  url?: string
 }
 
 type CloudFolder = {
@@ -49,6 +48,41 @@ type CloudFolder = {
   parentId: string | null
   createdAt: any
 }
+
+const folderConverter: FirestoreDataConverter<CloudFolder> = {
+  toFirestore: (folder: CloudFolder): DocumentData => {
+    const { id, ...data } = folder;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): CloudFolder => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      name: data.name,
+      parentId: data.parentId,
+      createdAt: data.createdAt
+    };
+  }
+};
+
+const fileConverter: FirestoreDataConverter<CloudFile> = {
+  toFirestore: (file: CloudFile): DocumentData => {
+    const { id, ...data } = file;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): CloudFile => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      name: data.name,
+      type: data.type,
+      size: data.size,
+      folderId: data.folderId,
+      createdAt: data.createdAt,
+      url: data.url
+    };
+  }
+};
 
 export function CloudStorageModule() {
   const firestore = useFirestore()
@@ -61,11 +95,9 @@ export function CloudStorageModule() {
   const [isUploading, setIsUploading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Firestore Refs
-  const foldersRef = useMemo(() => (firestore ? collection(firestore, 'cloudFolders') : null), [firestore])
-  const filesRef = useMemo(() => (firestore ? collection(firestore, 'cloudFiles') : null), [firestore])
+  const foldersRef = useMemo(() => (firestore ? collection(firestore, 'cloudFolders').withConverter(folderConverter) : null), [firestore])
+  const filesRef = useMemo(() => (firestore ? collection(firestore, 'cloudFiles').withConverter(fileConverter) : null), [firestore])
 
-  // Queries
   const foldersQuery = useMemo(() => {
     if (!foldersRef) return null
     return query(foldersRef, where('parentId', '==', currentFolderId), orderBy('name', 'asc'))
@@ -80,64 +112,75 @@ export function CloudStorageModule() {
   const { data: files = [] } = useCollection<CloudFile>(filesQuery)
 
   const handleCreateFolder = async () => {
-    if (!newFolderName.trim() || !firestore) return
-    setIsSaving(true)
+    if (!newFolderName.trim() || !foldersRef) return;
+    setIsSaving(true);
     try {
-      const id = Math.random().toString(36).substr(2, 9)
-      const docRef = doc(firestore, 'cloudFolders', id)
-      
-      await setDoc(docRef, {
-        id,
+      const newDocRef = doc(foldersRef);
+      const newFolder: CloudFolder = {
+        id: newDocRef.id,
         name: newFolderName,
         parentId: currentFolderId,
-        createdAt: serverTimestamp()
-      })
-      setNewFolderName("")
-      toast({ title: "Kansio luotu" })
+        createdAt: serverTimestamp(),
+      };
+      await setDoc(newDocRef, newFolder);
+      setNewFolderName("");
+      toast({ title: "Kansio luotu" });
     } catch (e) {
-      console.error("Kansiovirhe:", e)
+      console.error("Kansiovirhe:", e);
+      toast({ variant: "destructive", title: "Kansion luonti epäonnistui" });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !firestore) return
+    const file = e.target.files?.[0];
+    if (!file || !filesRef) return;
 
-    setIsUploading(true)
-    const id = Math.random().toString(36).substr(2, 9)
-    const docRef = doc(firestore, 'cloudFiles', id)
-
-    // Metadatan tallennus
-    setDoc(docRef, {
-      id,
+    setIsUploading(true);
+    const newDocRef = doc(filesRef);
+    const newFile: CloudFile = {
+      id: newDocRef.id,
       name: file.name,
       type: file.type,
       size: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
       folderId: currentFolderId,
-      createdAt: serverTimestamp()
-    }).then(() => {
-      setIsUploading(false)
-      toast({ title: "Tiedosto ladattu", description: file.name })
-    }).catch(err => {
-      setIsUploading(false)
-      console.error("Latausvirhe:", err)
-    })
-  }
+      createdAt: serverTimestamp(),
+    };
+
+    setDoc(newDocRef, newFile)
+      .then(() => {
+        toast({ title: "Tiedosto ladattu", description: file.name });
+      })
+      .catch((err) => {
+        console.error("Latausvirhe:", err);
+        toast({ variant: "destructive", title: "Tiedoston lataus epäonnistui" });
+      })
+      .finally(() => {
+        setIsUploading(false);
+      });
+  };
 
   const handleDeleteFile = async (id: string) => {
-    if (!firestore) return
+    if (!filesRef) return
     try {
-      await deleteDoc(doc(firestore, 'cloudFiles', id))
-    } catch (e) { console.error(e) }
+      await deleteDoc(doc(filesRef, id))
+      toast({ title: "Tiedosto poistettu" })
+    } catch (e) { 
+      console.error(e) 
+      toast({ variant: "destructive", title: "Poisto epäonnistui" })
+    }
   }
 
   const handleDeleteFolder = async (id: string) => {
-    if (!firestore) return
+    if (!foldersRef) return
     try {
-      await deleteDoc(doc(firestore, 'cloudFolders', id))
-    } catch (e) { console.error(e) }
+      await deleteDoc(doc(foldersRef, id))
+      toast({ title: "Kansio poistettu" })
+    } catch (e) { 
+      console.error(e) 
+      toast({ variant: "destructive", title: "Poisto epäonnistui" })
+    }
   }
 
   const filteredFiles = files.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -162,17 +205,8 @@ export function CloudStorageModule() {
           <p className="text-[11px] text-muted-foreground uppercase font-bold tracking-widest opacity-60 mt-1">Pysyvä tallennus pilvessä</p>
         </div>
         <div className="flex gap-2">
-          <input 
-            type="file" 
-            className="hidden" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-          />
-          <Button 
-            onClick={() => fileInputRef.current?.click()} 
-            disabled={isUploading}
-            className="copper-gradient hover:opacity-90 gap-2 shadow-lg font-black uppercase text-[10px] h-10 px-6"
-          >
+          <input type="file" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+          <Button onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="copper-gradient hover:opacity-90 gap-2 shadow-lg font-black uppercase text-[10px] h-10 px-6">
             {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} 
             LATAA TIEDOSTO
           </Button>
@@ -183,22 +217,10 @@ export function CloudStorageModule() {
         <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Etsi tiedostoja..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-black/20 border-white/10 h-11" 
-            />
+            <Input placeholder="Etsi tiedostoja..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-black/20 border-white/10 h-11" />
           </div>
           <div className="flex gap-2 w-full md:w-auto">
-            <Input 
-              placeholder="Uusi kansio..." 
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
-              className="bg-black/20 border-white/10 h-11 text-xs" 
-              disabled={isSaving}
-            />
+            <Input placeholder="Uusi kansio..." value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()} className="bg-black/20 border-white/10 h-11 text-xs" disabled={isSaving}/>
             <Button onClick={handleCreateFolder} variant="outline" className="h-11 border-white/10 text-accent" disabled={isSaving}>
               {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FolderPlus className="w-5 h-5" />}
             </Button>
@@ -208,12 +230,7 @@ export function CloudStorageModule() {
 
       <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
         {currentFolderId && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setCurrentFolderId(null)}
-            className="h-7 px-2 text-accent hover:text-accent hover:bg-accent/5"
-          >
+          <Button variant="ghost" size="sm" onClick={() => setCurrentFolderId(null)} className="h-7 px-2 text-accent hover:text-accent hover:bg-accent/5">
             <ArrowLeft className="w-4 h-4 mr-1" /> TAKAISIN JUUREEN
           </Button>
         )}
@@ -221,66 +238,37 @@ export function CloudStorageModule() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {/* KANSIOT */}
         {folders.map((folder) => (
-          <Card 
-            key={folder.id} 
-            className="industrial-card group hover:border-accent/40 cursor-pointer transition-all border-none bg-white/5"
-            onClick={() => setCurrentFolderId(folder.id)}
-          >
+          <Card key={folder.id} className="industrial-card group hover:border-accent/40 cursor-pointer transition-all border-none bg-white/5" onClick={() => setCurrentFolderId(folder.id)}>
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-accent/10 border border-accent/20">
-                  <Folder className="w-6 h-6 text-accent" />
-                </div>
-                <div className="overflow-hidden">
-                  <p className="text-sm font-black uppercase tracking-tight truncate">{folder.name}</p>
-                  <p className="text-[9px] text-muted-foreground font-bold uppercase">KANSIO</p>
-                </div>
+                <div className="p-3 rounded-xl bg-accent/10 border border-accent/20"><Folder className="w-6 h-6 text-accent" /></div>
+                <div className="overflow-hidden"><p className="text-sm font-black uppercase tracking-tight truncate">{folder.name}</p><p className="text-[9px] text-muted-foreground font-bold uppercase">KANSIO</p></div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100"
-                onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }}>
                 <Trash2 className="w-4 h-4" />
               </Button>
             </CardContent>
           </Card>
         ))}
 
-        {/* TIEDOSTOT */}
         {filteredFiles.map((file) => (
           <Card key={file.id} className="industrial-card group hover:border-primary/40 transition-all border-none bg-white/5">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-4 overflow-hidden">
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 group-hover:bg-primary/10 transition-colors">
-                  {getFileIcon(file.type)}
-                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10 group-hover:bg-primary/10 transition-colors">{getFileIcon(file.type)}</div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-black truncate max-w-[180px]">{file.name}</p>
-                  <p className="text-[9px] text-muted-foreground font-bold uppercase">
-                    {file.size} • {file.createdAt?.toDate ? format(file.createdAt.toDate(), 'd.M.yyyy', { locale: fi }) : 'Nyt'}
-                  </p>
+                  <p className="text-[9px] text-muted-foreground font-bold uppercase">{file.size} • {file.createdAt?.toDate ? format(file.createdAt.toDate(), 'd.M.yyyy', { locale: fi }) : 'Nyt'}</p>
                 </div>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-accent">
-                    <MoreVertical className="w-4 h-4" />
-                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-accent"><MoreVertical className="w-4 h-4" /></Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-background border-white/10">
-                  <DropdownMenuItem className="gap-2 text-[10px] font-black uppercase">
-                    <Download className="w-4 h-4" /> LATAA
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    className="gap-2 text-destructive text-[10px] font-black uppercase"
-                    onClick={() => handleDeleteFile(file.id)}
-                  >
-                    <Trash2 className="w-4 h-4" /> POISTA
-                  </DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 text-[10px] font-black uppercase"><Download className="w-4 h-4" /> LATAA</DropdownMenuItem>
+                  <DropdownMenuItem className="gap-2 text-destructive text-[10px] font-black uppercase" onClick={() => handleDeleteFile(file.id)}><Trash2 className="w-4 h-4" /> POISTA</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </CardContent>
@@ -288,9 +276,7 @@ export function CloudStorageModule() {
         ))}
 
         {folders.length === 0 && filteredFiles.length === 0 && (
-          <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-3xl opacity-20">
-            <p className="text-[10px] font-black uppercase tracking-[0.2em]">Tämä sijainti on tyhjä. Lataa tiedosto tai luo kansio.</p>
-          </div>
+          <div className="col-span-full py-20 text-center border-2 border-dashed border-white/5 rounded-3xl opacity-20"><p className="text-[10px] font-black uppercase tracking-[0.2em]">Tämä sijainti on tyhjä.</p></div>
         )}
       </div>
     </div>

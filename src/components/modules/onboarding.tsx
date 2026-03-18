@@ -23,7 +23,7 @@ import {
   Loader2
 } from "lucide-react"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, where, writeBatch } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, where, writeBatch, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot, getDocs } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { useToast } from "@/hooks/use-toast"
@@ -38,10 +38,40 @@ type OnboardingTask = {
   order: number
 }
 
+const onboardingTaskConverter: FirestoreDataConverter<OnboardingTask> = {
+  toFirestore: (task: OnboardingTask): DocumentData => {
+    const { id, ...data } = task;
+    return data;
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): OnboardingTask => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      title: data.title,
+      description: data.description,
+      category: data.category,
+      order: data.order
+    };
+  }
+};
+
 type CategoryMeta = {
   goal: string
   masterQuestion: string
 }
+
+const categoryMetaConverter: FirestoreDataConverter<CategoryMeta> = {
+  toFirestore: (meta: CategoryMeta): DocumentData => {
+    return { goal: meta.goal, masterQuestion: meta.masterQuestion };
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): CategoryMeta => {
+    const data = snapshot.data(options)!;
+    return {
+      goal: data.goal,
+      masterQuestion: data.masterQuestion
+    };
+  }
+};
 
 const CATEGORIES = [
   { id: 'general', label: 'Talon tavat', icon: BookOpen, color: 'text-blue-400' },
@@ -88,9 +118,9 @@ export function OnboardingModule() {
   const isAdmin = true // Testivaiheessa aina Admin
 
   // Firestore Refs
-  const tasksRef = useMemo(() => (firestore ? collection(firestore, 'onboardingTasks') : null), [firestore])
+  const tasksRef = useMemo(() => (firestore ? collection(firestore, 'onboardingTasks').withConverter(onboardingTaskConverter) : null), [firestore])
   const progressRef = useMemo(() => (firestore ? collection(firestore, 'onboardingProgress') : null), [firestore])
-  const metaRef = useMemo(() => (firestore ? collection(firestore, 'onboardingMeta') : null), [firestore])
+  const metaRef = useMemo(() => (firestore ? collection(firestore, 'onboardingMeta').withConverter(categoryMetaConverter) : null), [firestore])
 
   // Queries
   const tasksQuery = useMemo(() => tasksRef ? query(tasksRef, orderBy('order', 'asc')) : null, [tasksRef])
@@ -105,7 +135,7 @@ export function OnboardingModule() {
   const [isSeeding, setIsSeeding] = useState(false)
   const [newTask, setNewTask] = useState({ title: "", description: "" })
 
-  const categoryMetaRef = useMemo(() => (firestore ? doc(firestore, 'onboardingMeta', activeCategory) : null), [firestore, activeCategory])
+  const categoryMetaRef = useMemo(() => (firestore ? doc(firestore, 'onboardingMeta', activeCategory).withConverter(categoryMetaConverter) : null), [firestore, activeCategory])
   const { data: currentMeta } = useDoc<CategoryMeta>(categoryMetaRef)
 
   const [localQuestion, setLocalQuestion] = useState("")
@@ -115,9 +145,9 @@ export function OnboardingModule() {
     if (currentMeta) {
       setLocalQuestion(currentMeta.masterQuestion || "")
       setLocalGoal(currentMeta.goal || "")
-    } else {
-      setLocalQuestion(DEFAULT_DATA[activeCategory]?.masterQuestion || "")
-      setLocalGoal(DEFAULT_DATA[activeCategory]?.goal || "")
+    } else if (DEFAULT_DATA[activeCategory]) {
+      setLocalQuestion(DEFAULT_DATA[activeCategory].masterQuestion)
+      setLocalGoal(DEFAULT_DATA[activeCategory].goal)
     }
   }, [currentMeta, activeCategory])
 
@@ -126,7 +156,7 @@ export function OnboardingModule() {
   
   const stats = useMemo(() => {
     const total = allTasks.length
-    const completed = userProgress.length
+    const completed = completedTaskIds.size
     const percent = total > 0 ? (completed / total) * 100 : 0
     
     const catStats = CATEGORIES.reduce((acc, cat) => {
@@ -141,7 +171,7 @@ export function OnboardingModule() {
     }, {} as Record<string, { total: number, completed: number, percent: number }>)
 
     return { total, completed, percent, catStats }
-  }, [allTasks, userProgress, completedTaskIds])
+  }, [allTasks, completedTaskIds])
 
   // Handlers
   const toggleTask = (taskId: string) => {
@@ -180,28 +210,33 @@ export function OnboardingModule() {
     setIsSeeding(true)
     try {
       const batch = writeBatch(firestore)
-      allTasks.forEach(t => batch.delete(doc(tasksRef, t.id)))
+      const currentTasks = await getDocs(tasksRef);
+      currentTasks.forEach(t => batch.delete(t.ref))
+      const currentMeta = await getDocs(metaRef);
+      currentMeta.forEach(m => batch.delete(m.ref));
 
-      Object.entries(DEFAULT_DATA).forEach(([catId, data]) => {
-        data.tasks.forEach((title, i) => {
-          const id = Math.random().toString(36).substr(2, 9)
-          batch.set(doc(tasksRef, id), {
-            id,
+
+      for (const [catId, data] of Object.entries(DEFAULT_DATA)) {
+        for (const [i, title] of data.tasks.entries()) {
+          const taskDocRef = doc(tasksRef);
+          batch.set(taskDocRef, {
             title,
             description: "",
             category: catId,
             order: i
           })
-        })
-        batch.set(doc(metaRef, catId), {
+        }
+        const metaDocRef = doc(metaRef, catId);
+        batch.set(metaDocRef, {
           goal: data.goal,
           masterQuestion: data.masterQuestion
         })
-      })
+      }
 
       await batch.commit()
       toast({ title: "Oletuspohja ladattu" })
     } catch (e) {
+      console.error("Seeding error: ", e);
       toast({ variant: "destructive", title: "Virhe latauksessa" })
     } finally {
       setIsSeeding(false)
@@ -223,18 +258,17 @@ export function OnboardingModule() {
   }
 
   const addTask = () => {
-    if (!newTask.title.trim() || !firestore) return
-    const id = Math.random().toString(36).substr(2, 9)
-    const taskData = {
-      id,
+    if (!newTask.title.trim() || !tasksRef) return
+    const taskData: Omit<OnboardingTask, 'id'> = {
       title: newTask.title,
       description: newTask.description,
       category: activeCategory,
       order: allTasks.length
     };
-    setDoc(doc(firestore, 'onboardingTasks', id), taskData).catch(async (e) => {
+    const taskDocRef = doc(tasksRef);
+    setDoc(taskDocRef, taskData).catch(async (e) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: `onboardingTasks/${id}`,
+        path: taskDocRef.path,
         operation: 'create',
         requestResourceData: taskData
       }));
@@ -243,8 +277,8 @@ export function OnboardingModule() {
   }
 
   const updateTaskTitle = (taskId: string, newTitle: string) => {
-    if (!firestore) return
-    setDoc(doc(firestore, 'onboardingTasks', taskId), { title: newTitle }, { merge: true }).catch(async (e) => {
+    if (!tasksRef) return
+    setDoc(doc(tasksRef, taskId), { title: newTitle }, { merge: true }).catch(async (e) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: `onboardingTasks/${taskId}`,
         operation: 'update',
@@ -254,8 +288,8 @@ export function OnboardingModule() {
   }
 
   const deleteTask = (id: string) => {
-    if (!firestore) return
-    const docRef = doc(firestore, 'onboardingTasks', id);
+    if (!tasksRef) return
+    const docRef = doc(tasksRef, id);
     deleteDoc(docRef).catch(async (e) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: docRef.path,
@@ -390,8 +424,8 @@ export function OnboardingModule() {
                         <Checkbox checked={completedTaskIds.has(task.id)} onCheckedChange={() => toggleTask(task.id)} className="w-6 h-6 border-white/20 data-[state=checked]:bg-green-500" />
                         {isManaging ? (
                           <Input 
-                            value={task.title} 
-                            onChange={(e) => updateTaskTitle(task.id, e.target.value)}
+                            defaultValue={task.title} 
+                            onBlur={(e) => updateTaskTitle(task.id, e.target.value)}
                             className="bg-transparent border-none p-0 text-sm font-black uppercase tracking-tight focus-visible:ring-0"
                           />
                         ) : (
@@ -400,7 +434,7 @@ export function OnboardingModule() {
                       </div>
                       {isManaging && <Button variant="ghost" size="icon" onClick={() => deleteTask(task.id)} className="text-destructive/40 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>}
                     </div>
-                  ))}
+                  ))}\
                 </div>
               </ScrollArea>
 
