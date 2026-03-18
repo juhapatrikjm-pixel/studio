@@ -33,10 +33,10 @@ const fetchWholesalePricesPrompt = ai.definePrompt({
   prompt: `You are a professional purchasing agent for a Finnish restaurant. 
 Today's date is {{{date}}}.
 
-Your task is to generate a comprehensive list of at least 25 common restaurant ingredients used in Finland. 
-For each item, provide a realistic wholesale price per kilogram (EUR/kg) based on current market trends in Finnish wholesalers like Metro, Meiranova, and Aimo.
+Your task is to generate a comprehensive list of 160 common restaurant ingredients used in Finland. 
+Your list must contain exactly 20 ingredients for each of the following 8 categories: LIHA, KALA, MAITOTUOTTEET, HEVI, JUUREKSET, LEIPOMO, PAKASTEET, KUIVATUOTTEET.
 
-Categorize items into these groups: LIHA, KALA, MAITOTUOTTEET, HEVI, JUUREKSET, LEIPOMO, PAKASTEET, KUIVATUOTTEET.
+For each item, provide a realistic wholesale price per kilogram (EUR/kg) based on current market trends in Finnish wholesalers like Metro, Meiranova, and Aimo.
 
 Ensure prices are realistic for the Finnish market (e.g., Filet of Salmon might be 22-28 €/kg, Minced Beef 10-12 €/kg, Potatoes 1-1.5 €/kg).
 
