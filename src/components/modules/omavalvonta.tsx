@@ -10,16 +10,16 @@ import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/
 import { 
   ShieldCheck, User, CalendarDays, Info, Refrigerator, Flame, Clock, Plus, Trash2, 
   CheckCircle2, Save, Loader2, AlertTriangle, Droplets, UtensilsCrossed,
-  Check, Settings, X, Truck, Timer, Wrench, FileText, Download, Upload, Folder, Beef, Salad, Sparkles, UploadCloud
+  Check, Settings, X, Truck, Timer, Wrench, FileText, Download, Upload, Folder, Beef, Salad, Sparkles, UploadCloud, ExternalLink
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useFirestore, useUser, useCollection } from "@/firebase"
+import { useFirestore, useUser, useCollection, useDoc } from "@/firebase"
 import * as monitoringService from "@/services/monitoring-service"
 import { useToast } from "@/hooks/use-toast"
 import { format, isValid, differenceInMinutes, parse } from "date-fns"
 import { fi } from "date-fns/locale"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { collection, query, where, orderBy } from "firebase/firestore"
+import { collection, query, where, orderBy, doc } from "firebase/firestore"
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
@@ -47,18 +47,11 @@ export function OmavalvontaModule() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const addEntry = (setter: React.Dispatch<React.SetStateAction<any[]>>, type?: string) => {
-    const newEntry: any = { id: Date.now() };
-    if (type) newEntry.type = type;
-    setter(prev => [...prev, newEntry]);
-  };
-
-  const removeEntry = (setter: React.Dispatch<React.SetStateAction<any[]>>, id: number) => {
-    setter(prev => prev.length > 1 ? prev.filter(entry => entry.id !== id) : prev);
-  };
-
   const currentUserName = user?.displayName || user?.email || "Käyttäjä"
   const [currentDateDisplay, setCurrentDateDisplay] = useState("")
+
+  const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
+  const { data: globalSettings } = useDoc<any>(settingsRef)
 
   // Queries for Document Archive
   const reportsQuery = useMemo(() => firestore ? query(collection(firestore, 'cloudFiles'), where('folderId', '==', 'omavalvonta_arkisto'), where('type', '==', 'report'), orderBy('createdAt', 'desc')) : null, [firestore]);
@@ -101,6 +94,36 @@ export function OmavalvontaModule() {
     await monitoringService.saveActiveRecord(firestore, user.uid, updated);
   }
 
+  const addEntry = (setter: React.Dispatch<React.SetStateAction<any[]>>, type?: string) => {
+    const newEntry: any = { id: Date.now() };
+    if (type) newEntry.type = type;
+    setter(prev => [...prev, newEntry]);
+  };
+
+  const removeEntry = (setter: React.Dispatch<React.SetStateAction<any[]>>, id: number) => {
+    setter(prev => prev.length > 1 ? prev.filter(entry => entry.id !== id) : prev);
+  };
+
+  const handleArchive = async () => {
+    if (!firestore || !user) return;
+    setIsSaving(true);
+    try {
+      const pdfBlob = generatePdf();
+      const fileName = `omavalvonta-raportti-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      await monitoringService.uploadArchiveFile(firestore, user.uid, pdfBlob, fileName);
+
+      await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName);
+      setLocalValues({});
+      toast({ title: "Päivä arkistoitu onnistuneesti!", description: "PDF-raportti on luotu ja tallennettu arkistoon." });
+      loadData();
+    } catch (e) {
+      console.error("Archiving failed:", e);
+      toast({ variant: "destructive", title: "Arkistointi epäonnistui" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const generatePdf = () => {
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold");
@@ -142,37 +165,19 @@ export function OmavalvontaModule() {
     return doc.output('blob');
   };
 
-  const handleArchive = async () => {
+  const handleManualArchive = async () => {
     if (!firestore || !user) return;
     setIsSaving(true);
     try {
-      const pdfBlob = generatePdf();
-      const fileName = `omavalvonta-raportti-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-      await monitoringService.uploadArchiveFile(firestore, user.uid, pdfBlob, fileName);
-
-      await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName);
-      setLocalValues({});
-      toast({ title: "Päivä arkistoitu onnistuneesti!", description: "PDF-raportti on luotu ja tallennettu arkistoon." });
+      await monitoringService.archiveMonitoringDay(firestore, user.uid, currentUserName, 'manual_archive');
+      toast({ title: "Päivä kuitattu tehdyksi (Manuaalinen)", description: "Järjestelmä on päivitetty." });
       loadData();
     } catch (e) {
-      console.error("Archiving failed:", e);
-      toast({ variant: "destructive", title: "Arkistointi epäonnistui" });
+      toast({ variant: "destructive", title: "Kuittaus epäonnistui" });
     } finally {
       setIsSaving(false);
     }
-  };
-  
-  const handleFormUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-      if (!event.target.files || event.target.files.length === 0 || !firestore || !user) return;
-      const file = event.target.files[0];
-      toast({ title: "Ladataan tiedostoa..." });
-      try {
-        await monitoringService.uploadFormFile(firestore, user.uid, file);
-        toast({ title: "Lomake ladattu onnistuneesti!" });
-      } catch (error) {
-        toast({ variant: "destructive", title: "Lataus epäonnistui" });
-      }
-  };
+  }
 
   const getVal = (cat: string, target: string, field: string) => localValues[`${cat}_${target}`]?.[field] || "";
 
@@ -189,26 +194,6 @@ export function OmavalvontaModule() {
     }
   }
 
-  const { totalTasks, completedTasks, progress } = useMemo(() => {
-    const dynamicTasks = [
-      ...coolingEntries.map(e => ({ cat: 'Jäähdytys', name: `Jäähdytys-${e.id}` })),
-      ...heatingEntries.map(e => ({ cat: 'Kuumennus', name: `${e.type === 'new' ? 'Valmistus' : 'Uudelleenkuumennus'}-${e.id}` })),
-      ...buffetEntries.map(e => ({ cat: 'Buffet', name: `Buffet-${e.type}-${e.id}` })),
-      ...vastaanottoEntries.map(e => ({ cat: 'Vastaanotto', name: `Vastaanotto-${e.id}` }))
-    ];
-    const templateTasks = templates.map(t => ({ cat: t.category, name: t.name }));
-    const staticTasks = [{ cat: 'Astianpesu', name: 'astianpesukone' }];
-
-    const allTasks = [...dynamicTasks, ...templateTasks, ...staticTasks];
-    const completed = allTasks.filter(task => isDone(task.cat, task.name)).length;
-    
-    return {
-      totalTasks: allTasks.length,
-      completedTasks: completed,
-      progress: allTasks.length > 0 ? Math.round((completed / allTasks.length) * 100) : 0
-    };
-  }, [templates, localValues, coolingEntries, heatingEntries, buffetEntries, vastaanottoEntries]);
-
   const getHeaderInfo = (category: string) => {
     const catRecords = Object.values(localValues).filter((r: any) => r.category === category && r.updatedAt);
     if (catRecords.length === 0) return `0% tehty`;
@@ -218,13 +203,6 @@ export function OmavalvontaModule() {
       return `Viimeisin: ${format(dateObj, 'HH:mm')} (${latest.recordedBy?.split(' ')[0] || ''})`;
     } catch (e) { return `...`; }
   }
-  
-  const cheers = useMemo(() => ["Kokki on keittiön kuningas! 👑", "Tänään on loistava päivä tehdä taikuutta lautasella! ✨", "Pidetään veitset terävinä ja mieli kirkkaana! 🔪", "Keittiössä ei hikoilla, siellä loistetaan! 💪", "Mise en place on puoli voittoa! 🔥", "Tänään jokainen annos on mestariteos! 🎨", "Parasta ruokaa, parhaalla asenteella! 🥘", "Tiimityö on keittiön suola! 🧂", "Hymyile, asiakkaat maistavat rakkauden ruoassa! 😊", "Tänään vedetään täysillä, kuten aina! 🚀"], []);
-  const [cheer, setCheer] = useState("")
-
-  useEffect(() => {
-    setCheer(cheers[Math.floor(Math.random() * cheers.length)])
-  }, [cheers])
 
   if (!isMounted) return null
 
@@ -232,9 +210,33 @@ export function OmavalvontaModule() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in duration-500 pb-20">
-      <Card className="industrial-card border-accent/20 bg-accent/5"><CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-6"><div className="flex items-center gap-4"><div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20"><User className="w-6 h-6 text-accent" /></div><div><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Kirjaaja</p><p className="text-lg font-black text-foreground uppercase">{currentUserName}</p></div></div><div className="flex flex-col md:flex-row items-center gap-4"><div className="text-center md:text-right"><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Päivämäärä</p><p className="text-lg font-black text-accent">{currentDateDisplay}</p></div><div className="w-12 h-12 rounded-xl bg-black/40 flex items-center justify-center border border-white/5"><CalendarDays className="w-6 h-6 text-muted-foreground" /></div></div></CardContent></Card>
-       <Card className="industrial-card"><CardContent className="p-5 space-y-3"><div className="flex justify-between items-center"><p className="text-xs font-black uppercase tracking-widest text-accent">Päivän edistyminen</p><p className="text-sm font-black uppercase text-foreground">{completedTasks} / {totalTasks} TEHTY</p></div><div className="w-full bg-black/20 rounded-full h-2.5 border border-white/5"><div className="bg-green-500 h-full rounded-full transition-all duration-500" style={{ width: `${progress}%` }} /></div><p className="text-center text-xs text-muted-foreground font-medium pt-1">"{cheer}"</p></CardContent></Card>
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-1"><h2 className="text-3xl font-headline font-black text-accent uppercase tracking-tighter">Omavalvonta</h2><div className="flex gap-2"><Button variant="outline" onClick={() => setIsManageOpen(true)} className="border-white/10 text-muted-foreground hover:text-accent font-black text-[10px] uppercase h-11 px-6"><Settings className="w-4 h-4 mr-2" /> Muokkaa kohteita</Button><Button onClick={handleArchive} disabled={isSaving} className="copper-gradient font-black text-[10px] uppercase h-11 px-8 tracking-widest shadow-lg">{isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Arkistoi & Kuittaa</Button></div></div>
+      <header className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-2xl industrial-card border-accent/20 bg-accent/5">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center border border-accent/20"><User className="w-6 h-6 text-accent" /></div>
+          <div><p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Istunnon kirjaaja</p><p className="text-lg font-black text-foreground uppercase">{currentUserName}</p></div>
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="text-right">
+            <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">Päivämäärä</p>
+            <p className="text-lg font-black text-accent">{currentDateDisplay}</p>
+          </div>
+          {globalSettings?.viranomaisohjeUrl && (
+            <a href={globalSettings.viranomaisohjeUrl} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-xl bg-black/40 flex items-center justify-center border border-white/5 hover:border-accent/40 transition-colors group">
+              <ExternalLink className="w-6 h-6 text-muted-foreground group-hover:text-accent" />
+            </a>
+          )}
+        </div>
+      </header>
+
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-1">
+        <h2 className="text-3xl font-headline font-black text-accent uppercase tracking-tighter">Omavalvonta</h2>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button variant="outline" onClick={() => setIsManageOpen(true)} className="border-white/10 text-muted-foreground hover:text-accent font-black text-[10px] uppercase h-11 px-6"><Settings className="w-4 h-4 mr-2" /> Muokkaa kohteita</Button>
+          <Button variant="outline" onClick={handleManualArchive} disabled={isSaving} className="border-accent/20 text-accent/60 hover:text-accent font-black text-[10px] uppercase h-11 px-6">Manuaalinen kuittaus</Button>
+          <Button onClick={handleArchive} disabled={isSaving} className="copper-gradient font-black text-[10px] uppercase h-11 px-8 tracking-widest shadow-lg">{isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />} Arkistoi päivä</Button>
+        </div>
+      </div>
+
       <Accordion type="multiple" className="w-full space-y-4">
         {CATEGORIES.map(cat => {
           const headerInfo = getHeaderInfo(cat);
@@ -263,16 +265,19 @@ export function OmavalvontaModule() {
           )
         })}
 
-        <DokumenttiarkistoContent reportFiles={reportFiles} formFiles={formFiles} onFileUpload={handleFormUpload} fileInputRef={fileInputRef} />
+        <DokumenttiarkistoContent reportFiles={reportFiles} formFiles={formFiles} onFileUpload={async (e: any) => {
+          if (!e.target.files?.[0] || !user || !firestore) return;
+          await monitoringService.uploadFormFile(firestore, user.uid, e.target.files[0]);
+          toast({ title: "Lomake ladattu" });
+        }} fileInputRef={fileInputRef} />
 
       </Accordion>
+
       <Dialog open={isManageOpen} onOpenChange={setIsManageOpen}><DialogContent className="bg-background border-white/10 max-w-2xl max-h-[80vh] flex flex-col p-0 overflow-hidden"><DialogHeader className="p-6 border-b border-white/5 bg-black/20"><div className="flex items-center justify-between"><CardTitle className="font-headline text-accent text-xl uppercase tracking-widest">Muokkaa kohteita</CardTitle><Button variant="ghost" size="icon" onClick={() => setIsManageOpen(false)}><X className="w-5 h-5" /></Button></div></DialogHeader><div className="p-6 space-y-6 overflow-y-auto"><div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/5 p-4 rounded-2xl border border-white/5"><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground">KOHTEEN NIMI</Label><Input value={newTargetName} onChange={(e) => setNewTargetName(e.target.value)} placeholder="Esim. Kylmiö 3..." className="bg-black/40" /></div><div className="space-y-2"><Label className="text-[10px] font-black uppercase text-muted-foreground">KATEGORIA</Label><select value={newTargetCategory} onChange={(e) => setNewTargetCategory(e.target.value)} className="w-full h-10 rounded-md border border-input bg-black/40 px-3 py-2 text-sm font-black uppercase">{CATEGORIES.filter(c => !['Buffet', 'Kuumennus', 'Jäähdytys', 'Astianpesu', 'Vastaanotto'].includes(c)).map(c => <option key={c} value={c}>{c}</option>)}</select></div><div className="space-y-2 md:col-span-2"><Label className="text-[10px] font-black uppercase text-muted-foreground">TYYPPI</Label><select value={newTargetType} onChange={(e) => setNewTargetType(e.target.value)} className="w-full h-10 rounded-md border border-input bg-black/40 px-3 py-2 text-sm font-black uppercase"><option value="temperature">Lämpötila (°C)</option><option value="checklist">Kuittaus (Tehty/Ei tehty)</option><option value="date">Päivämäärä</option></select></div><Button onClick={async () => { if (!firestore || !newTargetName.trim()) return; await monitoringService.addTemplate(firestore, { name: newTargetName, category: newTargetCategory, type: newTargetType }); setNewTargetName(""); loadData(); }} className="md:col-span-2 copper-gradient h-12 font-black uppercase text-xs">LISÄÄ UUSI KOHDE</Button></div><div className="space-y-3"><h4 className="text-[10px] font-black uppercase tracking-widest text-accent px-1">Nykyiset kohteet</h4>{templates.map(t => (<div key={t.id} className="flex items-center justify-between p-3 rounded-xl bg-black/20 border border-white/5"><div><p className="text-xs font-black uppercase">{t.name}</p><p className="text-[9px] text-muted-foreground uppercase">{t.category} • {t.type}</p></div><Button variant="ghost" size="icon" onClick={async () => { if (!firestore) return; await monitoringService.deleteTemplate(firestore, t.id); loadData(); }} className="text-destructive/40 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button></div>))}
             </div></div></DialogContent></Dialog>
     </div>
   )
 }
-
-// To keep the main component cleaner, sub-components are created for complex content
 
 const TemplateContent = ({ templates, category, getVal, handleUpdate, isDone, openManage }: any) => (
   <div className="space-y-2">
@@ -323,117 +328,150 @@ const AstianpesuContent = ({ getVal, handleUpdate, isDone }: any) => {
                     <div className="space-y-1"><Label className={cn("text-[8px] uppercase font-black", isWashAlert ? "text-accent" : "text-muted-foreground")}>PESULÄMPÖTILA</Label><Input type="number" placeholder="°C" value={washTemp} onChange={(e) => handleUpdate('Astianpesu', targetName, 'value', e.target.value)} className={cn("w-full h-10 font-black text-center text-lg", isWashAlert && "text-destructive border-destructive")}/></div>
                     <div className="space-y-1"><Label className={cn("text-[8px] uppercase font-black", isRinseAlert ? "text-accent" : "text-muted-foreground")}>HUUHTELULÄMPÖTILA</Label><Input type="number" placeholder="°C" value={rinseTemp} onChange={(e) => handleUpdate('Astianpesu', targetName, 'value2', e.target.value)} className={cn("w-full h-10 font-black text-center text-lg", isRinseAlert && "text-destructive border-destructive")}/></div>
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 bg-black/20 p-2 rounded-lg border border-white/5"><Checkbox checked={getVal('Astianpesu', targetName, 'detergent') === true} onCheckedChange={(v) => handleUpdate('Astianpesu', targetName, 'detergent', v)} /><span className="text-[10px] font-bold uppercase">Pesuaine OK</span></div>
+                  <div className="flex items-center gap-3 bg-black/20 p-2 rounded-lg border border-white/5"><Checkbox checked={getVal('Astianpesu', targetName, 'rinseAid') === true} onCheckedChange={(v) => handleUpdate('Astianpesu', targetName, 'rinseAid', v)} /><span className="text-[10px] font-bold uppercase">Huuhteluaine OK</span></div>
+                </div>
                 <div className="space-y-1"><Label className={cn("text-[8px] uppercase font-black", isAlert ? "text-accent" : "text-muted-foreground")}>{isAlert ? "POIKKEAMA / TOIMENPIDE (VAADITAAN)" : "HUOMIOT"}</Label><Input placeholder="Kirjaa huomiot tähän..." value={getVal('Astianpesu', targetName, 'comment')} onChange={(e) => handleUpdate('Astianpesu', targetName, 'comment', e.target.value)} className={cn("h-8 text-[10px] bg-black/40", isAlert && "border-accent/40 ring-1 ring-accent/20")}/></div>
             </div>
         </>
     )
 }
 
-const DynamicEntryContent = ({ entries, setEntries, cat, getVal, handleUpdate, isDone, addEntry, removeEntry, renderEntry }: any) => (
-    <div className="space-y-4">
-        {entries.map((entry: any, index: number) => renderEntry({ entry, index, cat, getVal, handleUpdate, isDone, removeEntry, setEntries }))}
-        {cat === 'Kuumennus' || cat === 'Buffet' ? (
-             <div className="grid grid-cols-2 gap-2">
-                <Button onClick={() => addEntry(setEntries, cat === 'Kuumennus' ? 'new' : 'hot')} variant="outline" className="w-full border-dashed h-10 text-xs font-black uppercase"><Plus className="w-4 h-4 mr-2" /> Lisää {cat === 'Kuumennus' ? 'valmistus' : 'lämmin'}</Button>
-                <Button onClick={() => addEntry(setEntries, cat === 'Kuumennus' ? 'reheat' : 'cold')} variant="outline" className="w-full border-dashed h-10 text-xs font-black uppercase"><Plus className="w-4 h-4 mr-2" /> Lisää {cat === 'Kuumennus' ? 'kuumennus' : 'kylmä'}</Button>
-             </div>
-        ) : (
-             <Button onClick={() => addEntry(setEntries)} variant="outline" className="w-full border-dashed h-12 text-xs font-black uppercase"><Plus className="w-4 h-4 mr-2" /> Lisää {cat.toLowerCase()}</Button>
-        )}
+const KuumennusContent = ({ entries, setEntries, getVal, handleUpdate, isDone, addEntry, removeEntry }: any) => (
+  <div className="space-y-4">
+    {entries.map((entry: any) => {
+      const isNew = entry.type === 'new';
+      const targetName = `${isNew ? 'Valmistus' : 'Uudelleenkuumennus'}-${entry.id}`;
+      const done = isDone('Kuumennus', targetName);
+      const val = Number(getVal('Kuumennus', targetName, 'value'));
+      const prodName = getVal('Kuumennus', targetName, 'productName');
+      const isPoultry = prodName.toLowerCase().includes('broileri') || prodName.toLowerCase().includes('kana');
+      const limit = isPoultry ? 78 : 70;
+      const isAlert = val > 0 && val < limit;
+
+      return (
+        <div key={entry.id} className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
+          <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
+          <div className="flex items-center gap-3 pr-8">
+            <div className={cn("w-6 h-6 rounded-md flex items-center justify-center border shrink-0", done && !isAlert ? "bg-green-500/20 text-green-500 border-green-500/40" : "bg-white/5 border-white/10")}>{done && !isAlert ? <Check className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-white/20" />}</div>
+            <Input placeholder={`${isNew ? 'Valmistettava' : 'Uudelleenkuumennnettava'} tuote...`} value={prodName} onChange={(e) => handleUpdate('Kuumennus', targetName, 'productName', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase flex-1"/>
+          </div>
+          <div className="grid grid-cols-2 gap-4 pl-9">
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">MITATTU °C (Tavoite {limit}°C)</Label><Input type="number" placeholder="°C" value={getVal('Kuumennus', targetName, 'value')} onChange={(e) => handleUpdate('Kuumennus', targetName, 'value', e.target.value)} className={cn("h-9 font-black text-center text-lg", isAlert && "text-destructive border-destructive")}/></div>
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">KELLONAIKA</Label><Input type="time" value={getVal('Kuumennus', targetName, 'time')} onChange={(e) => handleUpdate('Kuumennus', targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
+          </div>
+          {isAlert && <div className="pl-9 space-y-1"><Label className="text-[8px] uppercase font-black text-accent">TOIMENPIDE (VAADITAAN)</Label><Input placeholder="Esim. Kuumennettu lisää..." value={getVal('Kuumennus', targetName, 'comment')} onChange={(e) => handleUpdate('Kuumennus', targetName, 'comment', e.target.value)} className="h-8 text-[10px] bg-black/40 border-accent/40" /></div>}
+        </div>
+      );
+    })}
+    <div className="grid grid-cols-2 gap-2">
+      <Button onClick={() => addEntry(setEntries, 'new')} variant="outline" className="border-dashed h-10 text-[10px] font-black uppercase"><Plus className="w-3 h-3 mr-2" /> Lisää Valmistus</Button>
+      <Button onClick={() => addEntry(setEntries, 'reheat')} variant="outline" className="border-dashed h-10 text-[10px] font-black uppercase"><Plus className="w-3 h-3 mr-2" /> Lisää Kuumennus</Button>
     </div>
+  </div>
 );
 
-const KuumennusContent = (props: any) => <DynamicEntryContent {...props} cat="Kuumennus" renderEntry={KuumennusEntry} />;
-const JaahdytysContent = (props: any) => <DynamicEntryContent {...props} cat="Jäähdytys" renderEntry={JaahdytysEntry} />;
-const BuffetContent = (props: any) => <DynamicEntryContent {...props} cat="Buffet" renderEntry={BuffetEntry} />;
-const VastaanottoContent = (props: any) => <DynamicEntryContent {...props} cat="Vastaanotto" renderEntry={VastaanottoEntry} />;
+const JaahdytysContent = ({ entries, setEntries, getVal, handleUpdate, isDone, addEntry, removeEntry }: any) => (
+  <div className="space-y-4">
+    <div className="p-4 rounded-xl bg-black/20 border border-white/5 mb-4"><p className="text-xs text-muted-foreground font-medium">Jäähdytys +60&deg;C &rarr; +6&deg;C enintään 4 tunnissa.</p></div>
+    {entries.map((entry: any) => {
+      const targetName = `Jäähdytys-${entry.id}`;
+      const done = isDone('Jäähdytys', targetName);
+      const val2 = getVal('Jäähdytys', targetName, 'value2');
+      const t1 = getVal('Jäähdytys', targetName, 'time');
+      const t2 = getVal('Jäähdytys', targetName, 'time2');
+      let timeAlert = false;
+      if (t1 && t2) {
+        const diff = differenceInMinutes(parse(t2, 'HH:mm', new Date()), parse(t1, 'HH:mm', new Date()));
+        if (diff > 240) timeAlert = true;
+      }
+      const tempAlert = val2 !== '' && Number(val2) > 6;
+      const isAlert = timeAlert || tempAlert;
 
-const KuumennusEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry, setEntries }: any) => {
-  const cat = 'Kuumennus';
-  const isNew = entry.type === 'new';
-  const targetName = `${isNew ? 'Valmistus' : 'Uudelleenkuumennus'}-${entry.id}`;
-  const done = isDone(cat, targetName);
-  const val = Number(getVal(cat, targetName, 'value'));
-  const productName = getVal(cat, targetName, 'productName');
-  const isPoultry = productName.toLowerCase().includes('broileri') || productName.toLowerCase().includes('kana');
-  const requiredTemp = isNew ? (isPoultry ? 75 : 70) : 70;
-  let isAlert = val > 0 && val < requiredTemp;
-
-  return (
-    <div className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
-        <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
-        <Input placeholder={`${isNew ? 'Valmistettava' : 'Uudelleenkuumennnettava'} tuote...`} value={productName} onChange={(e) => handleUpdate(cat, targetName, 'productName', e.target.value)} className="h-10 bg-black/40 text-xs font-bold uppercase flex-1 pr-10"/>
-        <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">°C</Label><Input type="number" placeholder="°C" value={getVal(cat, targetName, 'value')} onChange={(e) => handleUpdate(cat, targetName, 'value', e.target.value)} className={cn("h-9 font-black text-center", isAlert && "text-destructive border-destructive")}/></div>
-            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">KLO</Label><Input type="time" value={getVal(cat, targetName, 'time')} onChange={(e) => handleUpdate(cat, targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
+      return (
+        <div key={entry.id} className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
+          <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive h-7 w-7"><Trash2 className="w-4 h-4" /></Button>
+          <div className="flex items-center gap-3 pr-8">
+            <div className={cn("w-6 h-6 rounded-md flex items-center justify-center border shrink-0", done && !isAlert ? "bg-green-500/20 text-green-500 border-green-500/40" : "bg-white/5 border-white/10")}>{done && !isAlert ? <Check className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-white/20" />}</div>
+            <Input placeholder="Tuotteen nimi..." value={getVal('Jäähdytys', targetName, 'productName')} onChange={(e) => handleUpdate('Jäähdytys', targetName, 'productName', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase flex-1"/>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pl-9">
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">ALKU KLO</Label><Input type="time" value={t1} onChange={(e) => handleUpdate('Jäähdytys', targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">ALKU °C</Label><Input type="number" value={getVal('Jäähdytys', targetName, 'value')} onChange={(e) => handleUpdate('Jäähdytys', targetName, 'value', e.target.value)} className="h-9 font-black text-center bg-black/40"/></div>
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">LOPPU KLO</Label><Input type="time" value={t2} onChange={(e) => handleUpdate('Jäähdytys', targetName, 'time2', e.target.value)} className={cn("h-9 bg-black/40 text-xs", timeAlert && "border-destructive")}/></div>
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">LOPPU °C</Label><Input type="number" value={val2} onChange={(e) => handleUpdate('Jäähdytys', targetName, 'value2', e.target.value)} className={cn("h-9 font-black text-center bg-black/40", tempAlert && "text-destructive border-destructive")}/></div>
+          </div>
+          {isAlert && <div className="pl-9 space-y-1"><Label className="text-[8px] uppercase font-black text-accent">POIKKEAMA / TOIMENPIDE (VAADITAAN)</Label><Input placeholder="Kirjaa selvitys..." value={getVal('Jäähdytys', targetName, 'comment')} onChange={(e) => handleUpdate('Jäähdytys', targetName, 'comment', e.target.value)} className="h-8 text-[10px] bg-black/40 border-accent/40" /></div>}
         </div>
+      );
+    })}
+    <Button onClick={() => addEntry(setEntries)} variant="outline" className="w-full border-dashed h-12 text-xs font-black uppercase"><Plus className="w-4 h-4 mr-2" /> Lisää Jäähdytys</Button>
+  </div>
+);
+
+const BuffetContent = ({ entries, setEntries, getVal, handleUpdate, isDone, addEntry, removeEntry }: any) => (
+  <div className="space-y-4">
+    {entries.map((entry: any) => {
+      const targetName = `Buffet-${entry.type}-${entry.id}`;
+      const done = isDone('Buffet', targetName);
+      const isHot = entry.type === 'hot';
+      const val1 = getVal('Buffet', targetName, 'value');
+      const val2 = getVal('Buffet', targetName, 'value2');
+      const tempAlert = isHot ? (val1 !== '' && Number(val1) < 60) || (val2 !== '' && Number(val2) < 60) : (val1 !== '' && Number(val1) > 6) || (val2 !== '' && Number(val2) > 6);
+      const isAlert = tempAlert;
+
+      return (
+        <div key={entry.id} className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
+          <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
+          <div className="flex items-center gap-3 pr-8">
+            <div className={cn("w-6 h-6 rounded-md flex items-center justify-center border shrink-0", done && !isAlert ? "bg-green-500/20 text-green-500 border-green-500/40" : "bg-white/5 border-white/10")}>{done && !isAlert ? <Check className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-white/20" />}</div>
+            <Input placeholder={isHot ? 'Lämmin tuote...': 'Kylmä tuote...'} value={getVal('Buffet', targetName, 'productName')} onChange={(e) => handleUpdate('Buffet', targetName, 'productName', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase flex-1"/>
+          </div>
+          <div className="grid grid-cols-3 gap-2 pl-9">
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">ESILLE KLO</Label><Input type="time" value={getVal('Buffet', targetName, 'time')} onChange={(e) => handleUpdate('Buffet', targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">1. MITTAUS °C</Label><Input type="number" value={val1} onChange={(e) => handleUpdate('Buffet', targetName, 'value', e.target.value)} className={cn("h-9 font-black text-center text-lg", isAlert && "text-destructive border-destructive")}/></div>
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">2H MITTAUS °C</Label><Input type="number" value={val2} onChange={(e) => handleUpdate('Buffet', targetName, 'value2', e.target.value)} className={cn("h-9 font-black text-center text-lg", isAlert && "text-destructive border-destructive")}/></div>
+          </div>
+        </div>
+      );
+    })}
+    <div className="grid grid-cols-2 gap-2">
+      <Button onClick={() => addEntry(setEntries, 'hot')} variant="outline" className="border-dashed h-10 text-[10px] font-black uppercase"><Plus className="w-3 h-3 mr-2" /> Lisää Lämmin</Button>
+      <Button onClick={() => addEntry(setEntries, 'cold')} variant="outline" className="border-dashed h-10 text-[10px] font-black uppercase"><Plus className="w-3 h-3 mr-2" /> Lisää Kylmä</Button>
     </div>
-  );
-};
-const JaahdytysEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry, setEntries }:any) => {
-    const cat = 'Jäähdytys';
-    const targetName = `Jäähdytys-${entry.id}`;
-    const done = isDone(cat, targetName);
-    const val2 = getVal(cat, targetName, 'value2');
-    let isAlert = (val2 && Number(val2) > 6) || (getVal(cat, targetName, 'time') && getVal(cat, targetName, 'time2') && differenceInMinutes(parse(getVal(cat, targetName, 'time2'), 'HH:mm', new Date()), parse(getVal(cat, targetName, 'time'), 'HH:mm', new Date())) > 240);
-    return (
-        <div className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
-            <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive h-7 w-7"><Trash2 className="w-4 h-4" /></Button>
-            <Input placeholder="Jäähdytettävä tuote..." value={getVal(cat, targetName, 'productName')} onChange={(e) => handleUpdate(cat, targetName, 'productName', e.target.value)} className="h-10 bg-black/40 text-xs font-bold uppercase flex-1 pr-10"/>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">ALKU KLO</Label><Input type="time" value={getVal(cat, targetName, 'time')} onChange={(e) => handleUpdate(cat, targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
-                <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">ALKU °C</Label><Input type="number" placeholder="°C" value={getVal(cat, targetName, 'value')} onChange={(e) => handleUpdate(cat, targetName, 'value', e.target.value)} className="h-9 font-black text-center bg-black/40"/></div>
-                <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">LOPPU KLO</Label><Input type="time" value={getVal(cat, targetName, 'time2')} onChange={(e) => handleUpdate(cat, targetName, 'time2', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
-                <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">LOPPU °C</Label><Input type="number" placeholder="°C" value={val2} onChange={(e) => handleUpdate(cat, targetName, 'value2', e.target.value)} className={cn("h-9 font-black text-center bg-black/40", isAlert && "text-destructive border-destructive")}/></div>
+  </div>
+);
+
+const VastaanottoContent = ({ entries, setEntries, getVal, handleUpdate, isDone, addEntry, removeEntry }: any) => (
+  <div className="space-y-4">
+    {entries.map((entry: any) => {
+      const targetName = `Vastaanotto-${entry.id}`;
+      const done = isDone('Vastaanotto', targetName);
+      const val = getVal('Vastaanotto', targetName, 'value');
+      const prodName = getVal('Vastaanotto', targetName, 'productName');
+      const isAlert = val !== '' && (Number(val) > 6 || Number(val) < 0) && !prodName.toLowerCase().includes('pakaste');
+
+      return (
+        <div key={entry.id} className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
+          <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
+          <div className="flex items-center gap-3 pr-8">
+            <div className={cn("w-6 h-6 rounded-md flex items-center justify-center border shrink-0", done && !isAlert ? "bg-green-500/20 text-green-500 border-green-500/40" : "bg-white/5 border-white/10")}>{done && !isAlert ? <Check className="w-4 h-4" /> : <div className="w-2 h-2 rounded-full bg-white/20" />}</div>
+            <div className="grid grid-cols-2 gap-2 flex-1">
+              <Input placeholder="Toimittaja..." value={getVal('Vastaanotto', targetName, 'supplier')} onChange={(e) => handleUpdate('Vastaanotto', targetName, 'supplier', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase"/>
+              <Input placeholder="Tuote..." value={prodName} onChange={(e) => handleUpdate('Vastaanotto', targetName, 'productName', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase"/>
             </div>
-            <div className="space-y-1"><Label className={cn("text-[8px] uppercase font-black", isAlert ? "text-accent" : "text-muted-foreground")}>{isAlert ? "POIKKEAMA / TOIMENPIDE (VAADITAAN)" : "HUOMIOT"}</Label><Input placeholder="..." value={getVal(cat, targetName, 'comment')} onChange={(e) => handleUpdate(cat, targetName, 'comment', e.target.value)} className={cn("h-8 text-[10px] bg-black/40", isAlert && "border-accent/40 ring-1 ring-accent/20")}/></div>
+          </div>
+          <div className="grid grid-cols-2 gap-4 pl-9">
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">MITATTU °C</Label><Input type="number" placeholder="°C" value={val} onChange={(e) => handleUpdate('Vastaanotto', targetName, 'value', e.target.value)} className={cn("h-9 font-black text-center text-lg", isAlert && "text-destructive border-destructive")}/></div>
+            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">KELLONAIKA</Label><Input type="time" value={getVal('Vastaanotto', targetName, 'time')} onChange={(e) => handleUpdate('Vastaanotto', targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
+          </div>
         </div>
-    );
-};
-
-const BuffetEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry, setEntries }:any) => {
-    const cat = 'Buffet';
-    const targetName = `Buffet-${entry.type}-${entry.id}`;
-    const done = isDone(cat, targetName);
-    const val1 = getVal(cat, targetName, 'value');
-    const val2 = getVal(cat, targetName, 'value2');
-    const isHot = entry.type === 'hot';
-    const isAlert = isHot ? (val1 !== '' && Number(val1) < 60) || (val2 !== '' && Number(val2) < 60) : (val1 !== '' && Number(val1) > 6) || (val2 !== '' && Number(val2) > 6);
-    return (
-      <div className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
-         <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
-         <Input placeholder={isHot ? 'Lämmin tuote...': 'Kylmä tuote...'} value={getVal(cat, targetName, 'productName')} onChange={(e) => handleUpdate(cat, targetName, 'productName', e.target.value)} className="h-10 bg-black/40 text-xs font-bold uppercase flex-1 pr-10"/>
-         <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">KLO</Label><Input type="time" value={getVal(cat, targetName, 'time')} onChange={(e) => handleUpdate(cat, targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
-              <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">°C (ESILLE)</Label><Input type="number" placeholder="°C" value={val1} onChange={(e) => handleUpdate(cat, targetName, 'value', e.target.value)} className={cn("h-9 font-black text-center", isAlert && "text-destructive border-destructive")}/></div>
-              <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">°C (2H)</Label><Input type="number" placeholder="°C" value={val2} onChange={(e) => handleUpdate(cat, targetName, 'value2', e.target.value)} className={cn("h-9 font-black text-center bg-black/40", isAlert && "text-destructive border-destructive")}/></div>
-         </div>
-      </div>
-    )
-}
-
-const VastaanottoEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry, setEntries }: any) => {
-  const cat = 'Vastaanotto';
-  const targetName = `Vastaanotto-${entry.id}`;
-  const done = isDone(cat, targetName);
-  const val = getVal(cat, targetName, 'value');
-  const productName = getVal(cat, targetName, 'productName');
-  const isAlert = val !== '' && (Number(val) > 6 || Number(val) < 0) && !productName.toLowerCase().includes('pakaste');
-  return (
-    <div className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
-        <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
-        <div className="grid grid-cols-2 gap-2">
-          <Input placeholder="Toimittaja" value={getVal(cat, targetName, 'supplier')} onChange={(e) => handleUpdate(cat, targetName, 'supplier', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase" />
-          <Input placeholder="Tuote" value={productName} onChange={(e) => handleUpdate(cat, targetName, 'productName', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase" />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">°C</Label><Input type="number" placeholder="°C" value={val} onChange={(e) => handleUpdate(cat, targetName, 'value', e.target.value)} className={cn("h-9 font-black text-center", isAlert && "text-destructive border-destructive")}/></div>
-            <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">KLO</Label><Input type="time" value={getVal(cat, targetName, 'time')} onChange={(e) => handleUpdate(cat, targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
-        </div>
-        <div className="space-y-1"><Label className={cn("text-[8px] uppercase font-black", isAlert ? "text-accent" : "text-muted-foreground")}>{isAlert ? "POIKKEAMA / TOIMENPIDE (VAADITAAN)" : "HUOMIOT"}</Label><Input placeholder="..." value={getVal(cat, targetName, 'comment')} onChange={(e) => handleUpdate(cat, targetName, 'comment', e.target.value)} className={cn("h-8 text-[10px] bg-black/40", isAlert && "border-accent/40 ring-1 ring-accent/20")}/></div>
-    </div>
-  )
-}
+      );
+    })}
+    <Button onClick={() => addEntry(setEntries)} variant="outline" className="w-full border-dashed h-12 text-xs font-black uppercase"><Plus className="w-4 h-4 mr-2" /> Lisää Vastaanotto</Button>
+  </div>
+);
 
 const DokumenttiarkistoContent = ({ reportFiles, formFiles, onFileUpload, fileInputRef }: any) => {
   const [activeTab, setActiveTab] = useState('reports');
@@ -441,7 +479,7 @@ const DokumenttiarkistoContent = ({ reportFiles, formFiles, onFileUpload, fileIn
   const FileItem = ({ file }: any) => (
     <a href={file.url} target="_blank" rel="noopener noreferrer" className="p-3 rounded-xl bg-black/20 border border-white/5 flex items-center justify-between group hover:bg-white/10 transition-colors">
       <div className="flex items-center gap-3"><FileText className="w-4 h-4 text-blue-400" /><span className="text-xs font-bold">{file.name}</span></div>
-      <Download className="w-4 h-4 text-muted-foreground/50" />
+      <div className="flex items-center gap-2"><span className="text-[8px] font-black text-muted-foreground uppercase">{file.size}</span><Download className="w-4 h-4 text-muted-foreground/50" /></div>
     </a>
   );
 
@@ -450,15 +488,15 @@ const DokumenttiarkistoContent = ({ reportFiles, formFiles, onFileUpload, fileIn
       <AccordionTrigger className="px-6 py-5 hover:no-underline"><div className="flex items-center gap-4 text-left"><div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center"><Folder className="w-5 h-5" /></div><div><h3 className="text-sm font-black uppercase tracking-widest text-blue-400">DOKUMENTTIARKISTO</h3><p className="text-[10px] text-muted-foreground font-black uppercase mt-0.5">Raportit ja lomakkeet</p></div></div></AccordionTrigger>
       <AccordionContent className="px-6 pb-8 pt-4">
         <div className="flex gap-1 border-b border-white/10 mb-4">
-          <Button onClick={() => setActiveTab('reports')} variant={activeTab === 'reports' ? 'secondary' : 'ghost'} className="text-xs h-9 px-4">Arkistoidut Raportit</Button>
-          <Button onClick={() => setActiveTab('forms')} variant={activeTab === 'forms' ? 'secondary' : 'ghost'} className="text-xs h-9 px-4">Tyhjät Lomakkeet</Button>
+          <Button onClick={() => setActiveTab('reports')} variant={activeTab === 'reports' ? 'secondary' : 'ghost'} className="text-[10px] font-black uppercase h-9 px-4">Arkistoidut Raportit</Button>
+          <Button onClick={() => setActiveTab('forms')} variant={activeTab === 'forms' ? 'secondary' : 'ghost'} className="text-[10px] font-black uppercase h-9 px-4">Tyhjät Lomakkeet</Button>
         </div>
         <div className="space-y-2">
-          {activeTab === 'reports' && (reportFiles.length > 0 ? reportFiles.map((f: any) => <FileItem key={f.id} file={f} />) : <p className="text-xs text-center p-4 text-muted-foreground">Ei arkistoituja raportteja.</p>)}
+          {activeTab === 'reports' && (reportFiles.length > 0 ? reportFiles.map((f: any) => <FileItem key={f.id} file={f} />) : <p className="text-xs text-center p-4 text-muted-foreground italic">Ei arkistoituja raportteja.</p>)}
           {activeTab === 'forms' && (
             <>
-              {formFiles.length > 0 ? formFiles.map((f: any) => <FileItem key={f.id} file={f} />) : <p className="text-xs text-center p-4 text-muted-foreground">Ei ladattuja lomakkeita.</p>}
-              <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full border-dashed h-12 text-xs font-black uppercase mt-4"><UploadCloud className="w-4 h-4 mr-2" /> LATAA UUSI LOMAKE</Button>
+              {formFiles.length > 0 ? formFiles.map((f: any) => <FileItem key={f.id} file={f} />) : <p className="text-xs text-center p-4 text-muted-foreground italic">Ei ladattuja lomakkeita.</p>}
+              <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full border-dashed h-12 text-[10px] font-black uppercase mt-4"><UploadCloud className="w-4 h-4 mr-2" /> LATAA UUSI LOMAKE</Button>
               <Input type="file" ref={fileInputRef} onChange={onFileUpload} className="hidden" />
             </>
           )}
