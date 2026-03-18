@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,11 +20,16 @@ import {
   Loader2,
   X,
   Zap,
-  Globe
+  Globe,
+  FileText,
+  Download,
+  Share2,
+  Archive,
+  History
 } from "lucide-react"
-import { useFirestore, useCollection, useDoc } from "@/firebase"
+import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
 import { collection, doc, query, orderBy, limit, where } from "firebase/firestore"
-import { format } from "date-fns"
+import { format, subMonths, startOfMonth } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
@@ -54,6 +59,7 @@ type MonthlyWaste = {
   monthName: string
   totalWasteCost: number
   totalPrepCost: number
+  isArchived?: boolean
 }
 
 const DEFAULT_GROUPS = [
@@ -69,19 +75,22 @@ const DEFAULT_GROUPS = [
 
 export function WasteModule() {
   const firestore = useFirestore()
+  const { user } = useUser()
   const { toast } = useToast()
   
   const [currentMonthId, setCurrentMonthId] = useState<string>(format(new Date(), 'yyyy-MM'))
   const [isSeeding, setIsSeeding] = useState(false)
+  const [isArchiving, setIsArchiving] = useState(false)
   
   const groupsRef = useMemo(() => (firestore ? collection(firestore, 'wasteGroups') : null), [firestore])
   const productsRef = useMemo(() => (firestore ? collection(firestore, 'wasteProducts') : null), [firestore])
   const monthlyRef = useMemo(() => (firestore && currentMonthId ? doc(firestore, 'monthlyWaste', currentMonthId) : null), [firestore, currentMonthId])
-  const entriesRef = useMemo(() => (firestore ? collection(firestore, 'wasteEntries') : null), [firestore])
+  const archiveQuery = useMemo(() => (firestore ? query(collection(firestore, 'cloudFiles'), where('category', '==', 'waste_report'), orderBy('createdAt', 'desc')) : null), [firestore])
 
   const { data: groups = [] } = useCollection<WasteGroup>(groupsRef ? query(groupsRef, orderBy('index', 'asc')) : null)
   const { data: products = [] } = useCollection<WasteProduct>(productsRef)
   const { data: monthlyStats } = useDoc<MonthlyWaste>(monthlyRef)
+  const { data: archives = [] } = useCollection<any>(archiveQuery)
   
   const [step, setStep] = useState<'group' | 'product' | 'weight' | 'confirm'>('group')
   const [activeType, setActiveType] = useState<'prep' | 'waste'>('waste')
@@ -91,26 +100,17 @@ export function WasteModule() {
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
 
-  /**
-   * Alustaa tuotteet ja hakee hinnat AI:lla suomalaisista tukuista
-   */
+  const monthName = format(new Date(), 'MMMM yyyy', { locale: fi })
+
   const handleAISeed = async () => {
     if (!firestore) return
     setIsSeeding(true)
-    toast({ 
-      title: "Haetaan hintoja...", 
-      description: "Yhdistetään tukkujärjestelmiin (Metro, Meiranova, Aimo)..." 
-    })
-    
+    toast({ title: "Haetaan hintoja...", description: "Yhdistetään tukkujärjestelmiin..." })
     try {
       const result = await wasteService.initializeWithAIPrices(firestore, DEFAULT_GROUPS)
-      toast({ 
-        title: "Tietokanta alustettu", 
-        description: `Haettu ${result.count} tuotetta tukuista. Hinnat ovat ajan tasalla.` 
-      })
+      toast({ title: "Tietokanta alustettu", description: `Haettu ${result.count} tuotetta tukuista.` })
     } catch (e: any) {
-      console.error(e)
-      toast({ variant: "destructive", title: "Päivitys epäonnistui", description: "Yhteys tukkuihin epäonnistui." })
+      toast({ variant: "destructive", title: "Päivitys epäonnistui" })
     } finally {
       setIsSeeding(false)
     }
@@ -118,8 +118,7 @@ export function WasteModule() {
 
   const handleLogWaste = async () => {
     if (!selectedProduct || !weight || !firestore || !currentMonthId) return
-    
-    const costNum = calculateWasteEntry(weight, selectedProduct.pricePerKg);
+    const costNum = calculateWasteEntry(weight, selectedProduct.pricePerKg)
     const rawData = {
       productId: selectedProduct.id, 
       productName: selectedProduct.name,
@@ -128,37 +127,45 @@ export function WasteModule() {
       type: activeType,
       monthId: currentMonthId
     }
-
     const result = wasteEntrySchema.safeParse({ ...rawData, date: new Date() })
     if (!result.success) {
-      toast({ variant: "destructive", title: "Virhe", description: result.error.errors[0].message });
+      toast({ variant: "destructive", title: "Virhe", description: result.error.errors[0].message })
       return
     }
-
     try {
-      await wasteService.logWasteEntry(firestore, result.data, currentMonthId);
-      setStep('confirm');
+      await wasteService.logWasteEntry(firestore, result.data, currentMonthId)
+      setStep('confirm')
       setTimeout(() => { 
-        setStep('group'); 
-        setSelectedGroup(null); 
-        setSelectedProduct(null); 
-        setWeight(""); 
-      }, 2000);
+        setStep('group'); setSelectedGroup(null); setSelectedProduct(null); setWeight(""); 
+      }, 2000)
     } catch (e) {
-      toast({ variant: "destructive", title: "Tallennus epäonnistui" });
+      toast({ variant: "destructive", title: "Tallennus epäonnistui" })
+    }
+  }
+
+  const handleArchiveMonth = async () => {
+    if (!firestore || !user || !currentMonthId) return
+    setIsArchiving(true)
+    try {
+      await wasteService.generateAndArchiveMonthlyReport(firestore, user.uid, currentMonthId, monthName)
+      toast({ title: "Kuukausi arkistoitu", description: "PDF-raportti on luotu ja tallennettu arkistoon." })
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Arkistointi epäonnistui", description: e.message })
+    } finally {
+      setIsArchiving(false)
     }
   }
 
   const handleKeypadPress = (val: string) => {
-    if (val === 'C') setWeight("");
-    else if (val === ',') { if (!weight.includes(',')) setWeight(prev => prev + ','); }
-    else if (weight.length < 6) setWeight(prev => prev + val);
+    if (val === 'C') setWeight("")
+    else if (val === ',') { if (!weight.includes(',')) setWeight(prev => prev + ',') }
+    else if (weight.length < 6) setWeight(prev => prev + val)
   }
 
   const filteredProducts = products.filter(p => p.groupId === selectedGroup?.id)
 
   return (
-    <div className="flex flex-col gap-4 animate-in fade-in duration-700 pb-20">
+    <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-20">
       <header className="flex items-center justify-between px-1">
         <div className="flex items-center gap-3">
           <TrendingDown className="w-6 h-6 text-accent" />
@@ -166,14 +173,10 @@ export function WasteModule() {
         </div>
         <div className="flex gap-2">
           <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleAISeed} 
-            disabled={isSeeding} 
+            variant="ghost" size="sm" onClick={handleAISeed} disabled={isSeeding} 
             className="h-9 px-4 text-[10px] font-black uppercase text-accent border border-accent/20 hover:bg-accent/5 gap-2"
           >
-            {isSeeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} 
-            ALUSTA TUOTTEET
+            {isSeeding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />} ALUSTA TUOTTEET
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setIsSettingsOpen(true)} className="h-9 px-4 text-[10px] font-black uppercase text-muted-foreground hover:text-accent border border-white/5">
             <Settings2 className="w-4 h-4 mr-2" /> HALLINTA
@@ -188,8 +191,8 @@ export function WasteModule() {
             <CardHeader className="bg-black/40 border-b border-white/5 p-4">
               <Tabs value={activeType} onValueChange={(v: any) => setActiveType(v)} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 bg-black/60 border-white/10 h-12">
-                  <TabsTrigger value="prep" className="text-[11px] font-black uppercase data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-500">PREP-HUKKA</TabsTrigger>
-                  <TabsTrigger value="waste" className="text-[11px] font-black uppercase data-[state=active]:bg-destructive/20 data-[state=active]:text-destructive">HÄVIKKI</TabsTrigger>
+                  <TabsTrigger value="prep" className="text-[11px] font-black uppercase">PREP-HUKKA</TabsTrigger>
+                  <TabsTrigger value="waste" className="text-[11px] font-black uppercase">HÄVIKKI</TabsTrigger>
                 </TabsList>
               </Tabs>
               <div className="flex items-center gap-4 mt-4">
@@ -203,22 +206,14 @@ export function WasteModule() {
             <CardContent className="flex-1 p-6">
               {step === 'group' && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {groups.length > 0 ? groups.map(g => (
-                    <button 
-                      key={g.id} 
-                      onClick={() => { setSelectedGroup(g); setStep('product'); }} 
-                      className="aspect-square rounded-3xl bg-white/5 border border-white/5 flex flex-col items-center justify-center gap-4 hover:border-accent/40 hover:bg-accent/5 transition-all group"
-                    >
+                  {groups.map(g => (
+                    <button key={g.id} onClick={() => { setSelectedGroup(g); setStep('product'); }} className="aspect-square rounded-3xl bg-white/5 border border-white/5 flex flex-col items-center justify-center gap-4 hover:border-accent/40 hover:bg-accent/5 transition-all group">
                       <div className="w-14 h-14 rounded-2xl copper-gradient flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                         <Utensils className="w-7 h-7 text-white" />
                       </div>
                       <span className="text-[11px] font-black uppercase text-center px-3 leading-tight tracking-widest">{g.name}</span>
                     </button>
-                  )) : (
-                    <div className="col-span-full py-20 text-center opacity-20">
-                      <p className="text-[10px] font-black uppercase tracking-widest">Paina "ALUSTA TUOTTEET" hakeaksesi kategoriat ja hinnat tukuista.</p>
-                    </div>
-                  )}
+                  ))}
                 </div>
               )}
 
@@ -226,19 +221,9 @@ export function WasteModule() {
                 <ScrollArea className="h-[450px]">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {filteredProducts.map(p => (
-                      <button 
-                        key={p.id} 
-                        onClick={() => { setSelectedProduct(p); setStep('weight'); }} 
-                        className="h-24 rounded-2xl border border-white/5 bg-black/40 flex flex-col items-center justify-center gap-1.5 hover:border-accent/40 hover:bg-white/5 transition-all p-2 relative overflow-hidden"
-                      >
+                      <button key={p.id} onClick={() => { setSelectedProduct(p); setStep('weight'); }} className="h-24 rounded-2xl border border-white/5 bg-black/40 flex flex-col items-center justify-center gap-1.5 hover:border-accent/40 hover:bg-white/5 transition-all p-2">
                         <span className="text-[10px] font-black uppercase text-center leading-tight truncate w-full">{p.name}</span>
                         <span className="text-[9px] text-accent font-bold bg-accent/10 px-2 py-0.5 rounded-full">{p.pricePerKg.toFixed(2)} €/KG</span>
-                        {p.source && (
-                          <div className="absolute top-1 right-2 flex items-center gap-1 opacity-40">
-                            <Globe className="w-2.5 h-2.5" />
-                            <span className="text-[7px] font-black uppercase">{p.source}</span>
-                          </div>
-                        )}
                       </button>
                     ))}
                   </div>
@@ -261,23 +246,10 @@ export function WasteModule() {
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, ',', 0, 'C'].map(k => (
-                      <button 
-                        key={k} 
-                        onClick={() => handleKeypadPress(k.toString())} 
-                        className={cn(
-                          "h-16 rounded-2xl text-2xl font-black shadow-lg border-b-4 transition-all active:scale-95 active:border-b-0",
-                          k === 'C' ? "bg-destructive/20 text-destructive border-destructive/40" : "bg-white/5 text-foreground border-white/10"
-                        )}
-                      >
-                        {k}
-                      </button>
+                      <button key={k} onClick={() => handleKeypadPress(k.toString())} className={cn("h-16 rounded-2xl text-2xl font-black shadow-lg border-b-4 transition-all active:scale-95 active:border-b-0", k === 'C' ? "bg-destructive/20 text-destructive border-destructive/40" : "bg-white/5 text-foreground border-white/10")}>{k}</button>
                     ))}
                   </div>
-                  <Button 
-                    onClick={handleLogWaste} 
-                    disabled={!weight} 
-                    className="w-full h-20 copper-gradient text-white font-black text-xl rounded-2xl shadow-lg uppercase tracking-widest gap-4 metal-shine-overlay"
-                  >
+                  <Button onClick={handleLogWaste} disabled={!weight} className="w-full h-20 copper-gradient text-white font-black text-xl rounded-2xl shadow-lg uppercase tracking-widest gap-4">
                     <Save className="w-7 h-7" /> KIRJAA HÄVIKKI
                   </Button>
                 </div>
@@ -299,7 +271,7 @@ export function WasteModule() {
           <Card className="industrial-card">
             <CardHeader className="bg-black/20 border-b border-white/5">
               <CardTitle className="text-[10px] font-black text-accent uppercase tracking-widest flex items-center gap-2">
-                <Calculator className="w-4 h-4" /> KUUKAUSI: {monthlyStats?.monthName || currentMonthId}
+                <Calculator className="w-4 h-4" /> KUUKAUSI: {monthName}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
@@ -315,6 +287,59 @@ export function WasteModule() {
                   {monthlyStats?.totalPrepCost?.toLocaleString('fi-FI', { minimumFractionDigits: 2 }) || "0,00"} €
                 </p>
               </div>
+              
+              <Button 
+                onClick={handleArchiveMonth} 
+                disabled={isArchiving || monthlyStats?.isArchived}
+                className="w-full h-12 copper-gradient text-white font-black uppercase tracking-widest text-[10px] gap-2 shadow-lg"
+              >
+                {isArchiving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Archive className="w-4 h-4" />}
+                {monthlyStats?.isArchived ? 'KUUKAUSI ARKISTOITU' : 'LUO KUUKAUSIRAPORTTI (PDF)'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="industrial-card">
+            <CardHeader className="bg-black/20 border-b border-white/5">
+              <CardTitle className="text-[10px] font-black text-accent uppercase tracking-widest flex items-center gap-2">
+                <History className="w-4 h-4" /> HÄVIKKIRAPORTIT
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[250px]">
+                <div className="p-4 space-y-3">
+                  {archives.map((file: any) => (
+                    <div key={file.id} className="p-3 rounded-xl bg-white/5 border border-white/5 flex items-center justify-between group hover:border-accent/40 transition-all">
+                      <div className="flex items-center gap-3 overflow-hidden">
+                        <div className="p-2 rounded-lg bg-black/40 border border-white/10">
+                          <FileText className="w-4 h-4 text-accent" />
+                        </div>
+                        <div className="overflow-hidden">
+                          <p className="text-[11px] font-black uppercase truncate tracking-tight">{file.name}</p>
+                          <p className="text-[8px] text-muted-foreground uppercase font-bold">{file.size} • {format(file.createdAt?.toDate(), 'd.M.yyyy')}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <a href={file.url} target="_blank" rel="noopener noreferrer">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-accent hover:bg-accent/10"><Download className="w-4 h-4" /></Button>
+                        </a>
+                        <Button 
+                          variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-accent"
+                          onClick={() => {
+                            if (navigator.share) navigator.share({ title: file.name, url: file.url })
+                            else { navigator.clipboard.writeText(file.url); toast({ title: "Linkki kopioitu!" }) }
+                          }}
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {archives.length === 0 && (
+                    <div className="py-10 text-center opacity-20 italic text-[10px] uppercase font-black">Ei arkistoituja raportteja</div>
+                  )}
+                </div>
+              </ScrollArea>
             </CardContent>
           </Card>
         </div>
@@ -330,10 +355,7 @@ export function WasteModule() {
           </DialogHeader>
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-20 text-center">
             <Globe className="w-12 h-12 text-accent opacity-40" />
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tuotteet ja hinnat synkronoidaan suoraan tukuista.</p>
-              <p className="text-[9px] text-muted-foreground/60 italic mt-2">Käytä "ALUSTA TUOTTEET" painiketta päivittääksesi tukkuhinnat AI-analyysin avulla.</p>
-            </div>
+            <div><p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Tuotteet ja hinnat synkronoidaan suoraan tukuista.</p></div>
           </div>
         </DialogContent>
       </Dialog>
