@@ -1,57 +1,66 @@
-import { Firestore, doc, addDoc, collection, serverTimestamp, updateDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
+import { Firestore, doc, addDoc, collection, serverTimestamp, setDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 /**
  * @fileOverview Ohjauspaneelin ja yhteisten toimintojen palvelukerros.
  */
 
-export const addMaintenanceNote = async (db: Firestore, text: string, user: string) => {
-  try {
-    await addDoc(collection(db, 'maintenanceNotes'), {
-      text,
-      createdAt: serverTimestamp(),
-      createdBy: user,
-      status: 'active'
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Workspace Service: addMaintenanceNote error", error);
-    throw error;
-  }
+export const addMaintenanceNote = (db: Firestore, text: string, user: string) => {
+  const maintenanceRef = collection(db, 'maintenanceNotes');
+  const noteData = {
+    text,
+    createdAt: serverTimestamp(),
+    createdBy: user,
+    status: 'active'
+  };
+
+  addDoc(maintenanceRef, noteData).catch(async (error) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: maintenanceRef.path,
+      operation: 'create',
+      requestResourceData: noteData
+    }));
+  });
 };
 
-export const deleteMaintenanceNote = async (db: Firestore, id: string) => {
-  try {
-    await deleteDoc(doc(db, 'maintenanceNotes', id));
-    return { success: true };
-  } catch (error) {
-    console.error("Workspace Service: deleteMaintenanceNote error", error);
-    throw error;
-  }
+export const deleteMaintenanceNote = (db: Firestore, id: string) => {
+  if (!db || !id) return;
+  const docRef = doc(db, 'maintenanceNotes', id);
+  deleteDoc(docRef).catch(async (error) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: docRef.path,
+      operation: 'delete'
+    }));
+  });
 };
 
-export const acknowledgeShiftInfo = async (db: Firestore, infoId: string, user: string) => {
-  try {
-    const docRef = doc(db, 'shiftInfos', infoId);
-    await updateDoc(docRef, {
-      acknowledgedBy: arrayUnion(user)
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Workspace Service: acknowledgeShiftInfo error", error);
-    throw error;
-  }
+export const acknowledgeShiftInfo = (db: Firestore, infoId: string, user: string) => {
+  const docRef = doc(db, 'shiftInfos', infoId);
+  setDoc(docRef, {
+    acknowledgedBy: arrayUnion(user)
+  }, { merge: true }).catch(async (error) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: docRef.path,
+      operation: 'update',
+      requestResourceData: { acknowledgedBy: 'arrayUnion' }
+    }));
+  });
 };
 
-export const saveShiftInfo = async (db: Firestore, data: any) => {
-  try {
-    await addDoc(collection(db, 'shiftInfos'), {
-      ...data,
-      createdAt: serverTimestamp(),
-      acknowledgedBy: []
-    });
-    return { success: true };
-  } catch (error) {
-    console.error("Workspace Service: saveShiftInfo error", error);
-    throw error;
-  }
+export const saveShiftInfo = (db: Firestore, data: any) => {
+  const shiftInfosRef = collection(db, 'shiftInfos');
+  const infoData = {
+    ...data,
+    createdAt: serverTimestamp(),
+    acknowledgedBy: []
+  };
+
+  addDoc(shiftInfosRef, infoData).catch(async (error) => {
+    errorEmitter.emit('permission-error', new FirestorePermissionError({
+      path: shiftInfosRef.path,
+      operation: 'create',
+      requestResourceData: infoData
+    }));
+  });
 };

@@ -21,22 +21,27 @@ export default function LoginPage() {
 
     const handleAutoLogin = async () => {
       try {
+        let currentUid = user?.uid;
         if (!user) {
           setStatus("Luodaan suojattua istuntoa...")
           await setPersistence(auth, browserLocalPersistence)
           const cred = await signInAnonymously(auth)
-          
-          const profileRef = doc(firestore, 'userProfiles', cred.user.uid)
+          currentUid = cred.user.uid;
+        }
+        
+        if (currentUid) {
+          const profileRef = doc(firestore, 'userProfiles', currentUid)
           const snap = await getDoc(profileRef)
           
           if (!snap.exists()) {
             setStatus("Määritetään ylläpitäjän oikeuksia...")
             await setDoc(profileRef, {
               role: 'admin',
-              userName: `Ylläpitäjä-${cred.user.uid.slice(0, 4)}`,
+              userName: `Ylläpitäjä-${currentUid.slice(0, 4)}`,
               createdAt: serverTimestamp(),
               updatedAt: serverTimestamp(),
-              moduleOrder: []
+              moduleOrder: [],
+              favorites: []
             })
           }
         }

@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -24,7 +23,9 @@ import {
   Loader2
 } from "lucide-react"
 import { useFirestore, useCollection, useUser, useDoc } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, where, writeBatch, updateDoc } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, query, orderBy, serverTimestamp, where, writeBatch } from "firebase/firestore"
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
@@ -149,15 +150,27 @@ export function OnboardingModule() {
     const docRef = doc(firestore, 'onboardingProgress', progressId)
 
     if (completedTaskIds.has(taskId)) {
-      deleteDoc(docRef)
+      deleteDoc(docRef).catch(async (e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'delete'
+        }));
+      });
     } else {
-      setDoc(docRef, {
+      const data = {
         id: progressId,
         userId: currentUserId,
         taskId: taskId,
         completedAt: serverTimestamp(),
         completedBy: user?.displayName || "Käyttäjä"
-      })
+      };
+      setDoc(docRef, data).catch(async (e) => {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: docRef.path,
+          operation: 'create',
+          requestResourceData: data
+        }));
+      });
       toast({ title: "Tehtävä kuitattu" })
     }
   }
@@ -197,33 +210,58 @@ export function OnboardingModule() {
 
   const saveMeta = () => {
     if (!categoryMetaRef) return
-    updateDoc(categoryMetaRef, { 
+    setDoc(categoryMetaRef, { 
       masterQuestion: localQuestion,
       goal: localGoal
-    }).then(() => toast({ title: "Kategorian tiedot tallennettu" }))
+    }, { merge: true }).then(() => toast({ title: "Kategorian tiedot tallennettu" })).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: categoryMetaRef.path,
+        operation: 'update',
+        requestResourceData: { masterQuestion: localQuestion, goal: localGoal }
+      }));
+    });
   }
 
   const addTask = () => {
     if (!newTask.title.trim() || !firestore) return
     const id = Math.random().toString(36).substr(2, 9)
-    setDoc(doc(firestore, 'onboardingTasks', id), {
+    const taskData = {
       id,
       title: newTask.title,
       description: newTask.description,
       category: activeCategory,
       order: allTasks.length
-    })
+    };
+    setDoc(doc(firestore, 'onboardingTasks', id), taskData).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `onboardingTasks/${id}`,
+        operation: 'create',
+        requestResourceData: taskData
+      }));
+    });
     setNewTask({ title: "", description: "" })
   }
 
   const updateTaskTitle = (taskId: string, newTitle: string) => {
     if (!firestore) return
-    updateDoc(doc(firestore, 'onboardingTasks', taskId), { title: newTitle })
+    setDoc(doc(firestore, 'onboardingTasks', taskId), { title: newTitle }, { merge: true }).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `onboardingTasks/${taskId}`,
+        operation: 'update',
+        requestResourceData: { title: newTitle }
+      }));
+    });
   }
 
   const deleteTask = (id: string) => {
     if (!firestore) return
-    deleteDoc(doc(firestore, 'onboardingTasks', id))
+    const docRef = doc(firestore, 'onboardingTasks', id);
+    deleteDoc(docRef).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete'
+      }));
+    });
   }
 
   return (

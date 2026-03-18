@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ListChecks, Plus, Trash2, Calendar as CalendarIcon, Share2, Printer, Edit2, ClipboardList, ShoppingCart, AlertTriangle, ChefHat, Scale } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, updateDoc, arrayUnion, query, where } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, arrayUnion, query, where } from "firebase/firestore"
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { useToast } from "@/hooks/use-toast"
@@ -72,20 +72,39 @@ export function MisaModule() {
       endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     };
 
-    setDoc(newListRef, newList);
+    setDoc(newListRef, newList).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: newListRef.path,
+        operation: 'create',
+        requestResourceData: newList
+      }));
+    });
     setNewListTitle("")
     setActiveListId(listId)
   }
 
   const removeMisaList = (id: string) => {
     if (!firestore) return;
-    deleteDoc(doc(firestore, 'misaLists', id));
+    const docRef = doc(firestore, 'misaLists', id);
+    deleteDoc(docRef).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'delete'
+      }));
+    });
     if (activeListId === id) setActiveListId(null)
   }
 
   const updateListField = (id: string, field: string, value: any) => {
     if (!firestore) return;
-    updateDoc(doc(firestore, 'misaLists', id), { [field]: value });
+    const docRef = doc(firestore, 'misaLists', id);
+    setDoc(docRef, { [field]: value }, { merge: true }).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: docRef.path,
+        operation: 'update',
+        requestResourceData: { [field]: value }
+      }));
+    });
   }
 
   const addTaskToList = (listId: string) => {
@@ -98,7 +117,13 @@ export function MisaModule() {
       completed: false 
     };
 
-    updateDoc(listRef, { items: arrayUnion(newTask) });
+    setDoc(listRef, { items: arrayUnion(newTask) }, { merge: true }).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: listRef.path,
+        operation: 'update',
+        requestResourceData: { items: 'arrayUnion' }
+      }));
+    });
     setNewTaskText("")
     setNewTaskQuantity("")
   }
@@ -116,7 +141,13 @@ export function MisaModule() {
       completed: false
     }));
 
-    updateDoc(listRef, { items: arrayUnion(...newItems) });
+    setDoc(listRef, { items: arrayUnion(...newItems) }, { merge: true }).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: listRef.path,
+        operation: 'update',
+        requestResourceData: { items: 'arrayUnion' }
+      }));
+    });
     toast({ title: "Tuotu", description: `Reseptin ainekset lisätty.` });
   }
 
@@ -129,13 +160,25 @@ export function MisaModule() {
       item.id === task.id ? { ...item, completed: !item.completed } : item
     );
 
-    updateDoc(doc(firestore, 'misaLists', listId), { items: updatedItems });
+    setDoc(doc(firestore, 'misaLists', listId), { items: updatedItems }, { merge: true }).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `misaLists/${listId}`,
+        operation: 'update',
+        requestResourceData: { items: updatedItems }
+      }));
+    });
   }
 
   const removeTaskFromList = (listId: string, taskId: string) => {
     if (!firestore || !activeList) return;
     const updatedItems = activeList.items.filter(item => item.id !== taskId);
-    updateDoc(doc(firestore, 'misaLists', listId), { items: updatedItems });
+    setDoc(doc(firestore, 'misaLists', listId), { items: updatedItems }, { merge: true }).catch(async (e) => {
+      errorEmitter.emit('permission-error', new FirestorePermissionError({
+        path: `misaLists/${listId}`,
+        operation: 'update',
+        requestResourceData: { items: updatedItems }
+      }));
+    });
   }
 
   const handlePrint = () => window.print();

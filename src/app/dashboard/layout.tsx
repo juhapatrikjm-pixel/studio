@@ -5,7 +5,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useMemo, useState, ReactNode } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
 import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, Zap, Loader2, GripVertical, Star } from "lucide-react"
-import { doc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore"
+import { doc, setDoc, arrayUnion, arrayRemove } from "firebase/firestore"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge"
 import { PageCarousel } from "@/components/ui/page-carousel"
 import { FavoritesBar } from "@/components/ui/favorites-bar"
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { errorEmitter } from "@/firebase/error-emitter"
+import { FirestorePermissionError } from "@/firebase/errors"
 
 export const BASE_MENU_ITEMS = [
   { id: 'info', path: '/dashboard', icon: LayoutDashboard, label: 'Ohjaus' },
@@ -156,27 +158,43 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   }, [profile]);
 
-  const handleOrderChange = async (newItems: MenuItemType[]) => {
+  const handleOrderChange = (newItems: MenuItemType[]) => {
     setMenuItems(newItems);
-    if (profileRef) { const newOrder = newItems.filter(item => item.id !== 'info').map(item => item.id); await updateDoc(profileRef, { moduleOrder: newOrder }); }
+    if (profileRef) { 
+      const newOrder = newItems.filter(item => item.id !== 'info').map(item => item.id); 
+      setDoc(profileRef, { moduleOrder: newOrder }, { merge: true })
+        .catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: profileRef.path,
+            operation: 'update',
+            requestResourceData: { moduleOrder: newOrder }
+          }));
+        });
+    }
   };
 
-  const handleToggleFavorite = async (id: string) => {
+  const handleToggleFavorite = (id: string) => {
     if (!profileRef) return;
     const currentFavorites = favorites || [];
-    let newFavorites: string[];
     if (currentFavorites.includes(id)) {
-      newFavorites = currentFavorites.filter(favId => favId !== id);
-      await updateDoc(profileRef, { favorites: arrayRemove(id) });
+      setDoc(profileRef, { favorites: arrayRemove(id) }, { merge: true })
+        .catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: profileRef.path,
+            operation: 'update',
+            requestResourceData: { favorites: 'arrayRemove' }
+          }));
+        });
     } else if (currentFavorites.length < MAX_FAVORITES) {
-      newFavorites = [...currentFavorites, id];
-      await updateDoc(profileRef, { favorites: arrayUnion(id) });
-    } else {
-      // Optional: Add a toast notification that max favorites reached
-      console.log("Maximum number of favorites reached.");
-      return;
+      setDoc(profileRef, { favorites: arrayUnion(id) }, { merge: true })
+        .catch(async (error) => {
+          errorEmitter.emit('permission-error', new FirestorePermissionError({
+            path: profileRef.path,
+            operation: 'update',
+            requestResourceData: { favorites: 'arrayUnion' }
+          }));
+        });
     }
-    setFavorites(newFavorites);
   };
 
   const favoriteItems = useMemo(() => {
