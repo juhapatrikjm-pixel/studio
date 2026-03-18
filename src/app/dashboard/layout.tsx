@@ -4,8 +4,8 @@ import { useUser, useFirestore, useDoc } from "@/firebase"
 import { useRouter, usePathname } from "next/navigation"
 import { useEffect, useMemo, useState, ReactNode } from "react"
 import { SidebarProvider, Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
-import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, Zap, Loader2, GripVertical, Star } from "lucide-react"
-import { doc, setDoc, arrayUnion, arrayRemove } from "firebase/firestore"
+import { LayoutDashboard, MessageSquare, Cloud, Users, ShieldCheck, ChevronRight, Bell, Settings, ClipboardList, Truck, ShoppingBag, Archive, Wrench, ShieldAlert, ChefHat, Info, UserCircle, TrendingUp, CalendarDays, Trash2, GraduationCap, Zap, Loader2, GripVertical } from "lucide-react"
+import { doc, setDoc } from "firebase/firestore"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { format } from "date-fns"
@@ -13,7 +13,6 @@ import { fi } from "date-fns/locale"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { PageCarousel } from "@/components/ui/page-carousel"
-import { FavoritesBar } from "@/components/ui/favorites-bar"
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
@@ -40,9 +39,8 @@ export const BASE_MENU_ITEMS = [
 ] as const
 
 type MenuItemType = typeof BASE_MENU_ITEMS[number];
-const MAX_FAVORITES = 3;
 
-function AppSidebar({ user, profile, menuItems, onOrderChange, favorites, onToggleFavorite }: { user: any, profile: any, menuItems: MenuItemType[], onOrderChange: (items: MenuItemType[]) => void, favorites: string[], onToggleFavorite: (id: string) => void }) {
+function AppSidebar({ user, profile, menuItems, onOrderChange }: { user: any, profile: any, menuItems: MenuItemType[], onOrderChange: (items: MenuItemType[]) => void }) {
   const pathname = usePathname()
   const { setOpenMobile } = useSidebar()
 
@@ -102,9 +100,6 @@ function AppSidebar({ user, profile, menuItems, onOrderChange, favorites, onTogg
                                 </SidebarMenuButton>
                               </Link>
                             </SidebarMenuItem>
-                            <button onClick={() => onToggleFavorite(item.id)} className="p-2 rounded-full hover:bg-white/10">
-                                <Star className={cn("w-4 h-4 transition-all", favorites.includes(item.id) ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/50 hover:text-yellow-400')} />
-                            </button>
                          </div>
                        )}
                      </Draggable>
@@ -142,7 +137,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   const { data: profile } = useDoc<any>(profileRef)
 
   const [menuItems, setMenuItems] = useState(BASE_MENU_ITEMS);
-  const [favorites, setFavorites] = useState<string[]>([]);
 
   useEffect(() => {
     if (profile?.moduleOrder) {
@@ -152,9 +146,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       const otherItems = items.filter(i => i.id !== 'info');
       const sortedOthers = otherItems.sort((a, b) => { const idxA = order.indexOf(a.id); const idxB = order.indexOf(b.id); if (idxA === -1 && idxB === -1) return 0; if (idxA === -1) return 1; if (idxB === -1) return -1; return idxA - idxB; });
       setMenuItems([infoItem, ...sortedOthers]);
-    }
-    if (profile?.favorites) {
-      setFavorites(profile.favorites);
     }
   }, [profile]);
 
@@ -173,35 +164,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     }
   };
 
-  const handleToggleFavorite = (id: string) => {
-    if (!profileRef) return;
-    const currentFavorites = favorites || [];
-    if (currentFavorites.includes(id)) {
-      setDoc(profileRef, { favorites: arrayRemove(id) }, { merge: true })
-        .catch(async (error) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: profileRef.path,
-            operation: 'update',
-            requestResourceData: { favorites: 'arrayRemove' }
-          }));
-        });
-    } else if (currentFavorites.length < MAX_FAVORITES) {
-      setDoc(profileRef, { favorites: arrayUnion(id) }, { merge: true })
-        .catch(async (error) => {
-          errorEmitter.emit('permission-error', new FirestorePermissionError({
-            path: profileRef.path,
-            operation: 'update',
-            requestResourceData: { favorites: 'arrayUnion' }
-          }));
-        });
-    }
-  };
-
-  const favoriteItems = useMemo(() => {
-      if (!favorites) return [];
-      return favorites.map(id => BASE_MENU_ITEMS.find(item => item.id === id)).filter(Boolean) as MenuItemType[];
-  }, [favorites]);
-
   useEffect(() => { if (!loading && !user) { router.push('/') } }, [user, loading, router])
   useEffect(() => { setCurrentTime(new Date()); const timer = setInterval(() => setCurrentTime(new Date()), 1000); return () => clearInterval(timer) }, [])
 
@@ -215,7 +177,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider defaultOpen={false}>
       <div className="flex min-h-screen w-full bg-background overflow-hidden text-foreground relative brushed-metal">
-        <AppSidebar user={user} profile={profile} menuItems={menuItems} onOrderChange={handleOrderChange} favorites={favorites} onToggleFavorite={handleToggleFavorite} />
+        <AppSidebar user={user} profile={profile} menuItems={menuItems} onOrderChange={handleOrderChange} />
         <SidebarInset className="bg-transparent flex flex-col min-w-0 z-10 relative">
            <header className="h-14 border-b border-white/5 bg-background/60 backdrop-blur-2xl sticky top-0 z-50 px-4 flex items-center justify-between">
             <div className="flex items-center gap-4 flex-1"><SidebarTrigger className="text-muted-foreground hover:text-accent" /><Badge variant="outline" className="border-accent/40 text-accent font-black tracking-widest bg-accent/5 px-2 py-0.5 h-5 text-[9px] gap-1"><Zap className="w-3 h-3" /> {profile?.role === 'admin' ? 'ADMIN' : 'TIIMI'}</Badge></div>
@@ -232,7 +194,6 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
             </div>
           </main>
         </SidebarInset>
-        <FavoritesBar favorites={favoriteItems} onRemoveFavorite={handleToggleFavorite} maxFavorites={MAX_FAVORITES}/>
       </div>
     </SidebarProvider>
   )
