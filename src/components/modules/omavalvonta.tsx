@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect, useMemo, useRef } from "react"
@@ -104,9 +103,6 @@ export function OmavalvontaModule() {
 
   const generatePdf = () => {
     const doc = new jsPDF();
-    const head: any[] = [];
-    const body: any[] = [];
-
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text("Omavalvontaraportti", 14, 22);
@@ -118,6 +114,7 @@ export function OmavalvontaModule() {
     const tableBody: any[][] = [];
     const tableHead = [['Kategoria', 'Kohde', 'Tulos', 'Huomiot/Toimenpide', 'Kirjaaja', 'Aika']];
     
+    const CATEGORIES = ["Kylmälaitteet", "Kuumennus", "Jäähdytys", "Vastaanotto", "Buffet", "Astianpesu", "Puhdistus", "Laitteet"];
     CATEGORIES.forEach(cat => {
       const records = Object.values(localValues).filter((r: any) => r.category === cat && r.updatedAt);
       if (records.length > 0) {
@@ -248,7 +245,7 @@ export function OmavalvontaModule() {
           const isDynamic = Object.keys(dynamicSections).includes(cat);
           if (!isDynamic && catTemplates.length === 0 && cat !== 'Astianpesu') return null;
           
-          const isCategoryDone = isDynamic ? dynamicSections[cat].entries.every((e:any) => isDone(cat, `${cat}-${e.id}`)) : cat === 'Astianpesu' ? isDone(cat, 'astianpesukone') : catTemplates.every(t => isDone(cat, t.name));
+          const isCategoryDone = isDynamic ? dynamicSections[cat].entries.every((e:any) => isDone(cat, `${cat === 'Jäähdytys' ? 'Jäähdytys' : cat === 'Kuumennus' ? (e.type === 'new' ? 'Valmistus' : 'Uudelleenkuumennus') : cat === 'Buffet' ? `Buffet-${e.type}` : 'Vastaanotto'}-${e.id}`)) : cat === 'Astianpesu' ? isDone(cat, 'astianpesukone') : catTemplates.every(t => isDone(cat, t.name));
 
           return (
             <AccordionItem key={cat} value={cat} className="industrial-card border-none bg-white/5 rounded-3xl overflow-hidden px-0">
@@ -334,7 +331,7 @@ const AstianpesuContent = ({ getVal, handleUpdate, isDone }: any) => {
 
 const DynamicEntryContent = ({ entries, setEntries, cat, getVal, handleUpdate, isDone, addEntry, removeEntry, renderEntry }: any) => (
     <div className="space-y-4">
-        {entries.map((entry: any, index: number) => renderEntry({ entry, index, cat, getVal, handleUpdate, isDone, removeEntry }))}
+        {entries.map((entry: any, index: number) => renderEntry({ entry, index, cat, getVal, handleUpdate, isDone, removeEntry, setEntries }))}
         {cat === 'Kuumennus' || cat === 'Buffet' ? (
              <div className="grid grid-cols-2 gap-2">
                 <Button onClick={() => addEntry(setEntries, cat === 'Kuumennus' ? 'new' : 'hot')} variant="outline" className="w-full border-dashed h-10 text-xs font-black uppercase"><Plus className="w-4 h-4 mr-2" /> Lisää {cat === 'Kuumennus' ? 'valmistus' : 'lämmin'}</Button>
@@ -351,7 +348,7 @@ const JaahdytysContent = (props: any) => <DynamicEntryContent {...props} cat="J�
 const BuffetContent = (props: any) => <DynamicEntryContent {...props} cat="Buffet" renderEntry={BuffetEntry} />;
 const VastaanottoContent = (props: any) => <DynamicEntryContent {...props} cat="Vastaanotto" renderEntry={VastaanottoEntry} />;
 
-const KuumennusEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }: any) => {
+const KuumennusEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry, setEntries }: any) => {
   const cat = 'Kuumennus';
   const isNew = entry.type === 'new';
   const targetName = `${isNew ? 'Valmistus' : 'Uudelleenkuumennus'}-${entry.id}`;
@@ -364,7 +361,7 @@ const KuumennusEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }: an
 
   return (
     <div className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
-        <Button variant="ghost" size="icon" onClick={() => removeEntry(props.setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
         <Input placeholder={`${isNew ? 'Valmistettava' : 'Uudelleenkuumennnettava'} tuote...`} value={productName} onChange={(e) => handleUpdate(cat, targetName, 'productName', e.target.value)} className="h-10 bg-black/40 text-xs font-bold uppercase flex-1 pr-10"/>
         <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">°C</Label><Input type="number" placeholder="°C" value={getVal(cat, targetName, 'value')} onChange={(e) => handleUpdate(cat, targetName, 'value', e.target.value)} className={cn("h-9 font-black text-center", isAlert && "text-destructive border-destructive")}/></div>
@@ -373,7 +370,7 @@ const KuumennusEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }: an
     </div>
   );
 };
-const JaahdytysEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }:any) => {
+const JaahdytysEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry, setEntries }:any) => {
     const cat = 'Jäähdytys';
     const targetName = `Jäähdytys-${entry.id}`;
     const done = isDone(cat, targetName);
@@ -381,7 +378,7 @@ const JaahdytysEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }:any
     let isAlert = (val2 && Number(val2) > 6) || (getVal(cat, targetName, 'time') && getVal(cat, targetName, 'time2') && differenceInMinutes(parse(getVal(cat, targetName, 'time2'), 'HH:mm', new Date()), parse(getVal(cat, targetName, 'time'), 'HH:mm', new Date())) > 240);
     return (
         <div className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
-            <Button variant="ghost" size="icon" onClick={() => removeEntry(props.setEntries, entry.id)} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive h-7 w-7"><Trash2 className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive h-7 w-7"><Trash2 className="w-4 h-4" /></Button>
             <Input placeholder="Jäähdytettävä tuote..." value={getVal(cat, targetName, 'productName')} onChange={(e) => handleUpdate(cat, targetName, 'productName', e.target.value)} className="h-10 bg-black/40 text-xs font-bold uppercase flex-1 pr-10"/>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">ALKU KLO</Label><Input type="time" value={getVal(cat, targetName, 'time')} onChange={(e) => handleUpdate(cat, targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
@@ -394,7 +391,7 @@ const JaahdytysEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }:any
     );
 };
 
-const BuffetEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }:any) => {
+const BuffetEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry, setEntries }:any) => {
     const cat = 'Buffet';
     const targetName = `Buffet-${entry.type}-${entry.id}`;
     const done = isDone(cat, targetName);
@@ -404,7 +401,7 @@ const BuffetEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }:any) =
     const isAlert = isHot ? (val1 !== '' && Number(val1) < 60) || (val2 !== '' && Number(val2) < 60) : (val1 !== '' && Number(val1) > 6) || (val2 !== '' && Number(val2) > 6);
     return (
       <div className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
-         <Button variant="ghost" size="icon" onClick={() => removeEntry(props.setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
+         <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
          <Input placeholder={isHot ? 'Lämmin tuote...': 'Kylmä tuote...'} value={getVal(cat, targetName, 'productName')} onChange={(e) => handleUpdate(cat, targetName, 'productName', e.target.value)} className="h-10 bg-black/40 text-xs font-bold uppercase flex-1 pr-10"/>
          <div className="grid grid-cols-3 gap-2">
               <div className="space-y-1"><Label className="text-[8px] uppercase font-black text-muted-foreground">KLO</Label><Input type="time" value={getVal(cat, targetName, 'time')} onChange={(e) => handleUpdate(cat, targetName, 'time', e.target.value)} className="h-9 bg-black/40 text-xs"/></div>
@@ -415,7 +412,7 @@ const BuffetEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }:any) =
     )
 }
 
-const VastaanottoEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }: any) => {
+const VastaanottoEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry, setEntries }: any) => {
   const cat = 'Vastaanotto';
   const targetName = `Vastaanotto-${entry.id}`;
   const done = isDone(cat, targetName);
@@ -424,7 +421,7 @@ const VastaanottoEntry = ({ entry, getVal, handleUpdate, isDone, removeEntry }: 
   const isAlert = val !== '' && (Number(val) > 6 || Number(val) < 0) && !productName.toLowerCase().includes('pakaste');
   return (
     <div className={cn("p-4 rounded-2xl border transition-all flex flex-col gap-3 group relative", isAlert ? "bg-destructive/10 border-destructive/40" : "bg-black/20 border-white/5", done && !isAlert && "border-green-500/30")}>
-        <Button variant="ghost" size="icon" onClick={() => removeEntry(props.setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => removeEntry(setEntries, entry.id)} className="text-muted-foreground hover:text-destructive h-7 w-7 absolute top-2 right-2"><Trash2 className="w-4 h-4" /></Button>
         <div className="grid grid-cols-2 gap-2">
           <Input placeholder="Toimittaja" value={getVal(cat, targetName, 'supplier')} onChange={(e) => handleUpdate(cat, targetName, 'supplier', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase" />
           <Input placeholder="Tuote" value={productName} onChange={(e) => handleUpdate(cat, targetName, 'productName', e.target.value)} className="h-9 bg-black/40 text-xs font-bold uppercase" />
