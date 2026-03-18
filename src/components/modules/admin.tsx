@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Shield, Settings, Banknote, Users2, CreditCard, Info, Globe, Scale, Coins, Save } from "lucide-react"
+import { Shield, Settings, Banknote, Users2, CreditCard, Info, Globe, Scale, Coins, Save, ExternalLink } from "lucide-react"
 import { useFirestore, useDoc, useCollection, useUser } from "@/firebase"
 import { doc, setDoc, collection } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -27,6 +28,7 @@ export function AdminModule() {
   const [language, setLanguage] = useState("fi")
   const [units, setUnits] = useState("metric")
   const [currency, setCurrency] = useState("EUR")
+  const [viranomaisohjeUrl, setViranomaisohjeUrl] = useState("")
 
   useEffect(() => {
     if (settings) {
@@ -35,6 +37,7 @@ export function AdminModule() {
       setLanguage(settings.language ?? "fi")
       setUnits(settings.units ?? "metric")
       setCurrency(settings.currency ?? "EUR")
+      setViranomaisohjeUrl(settings.viranomaisohjeUrl ?? "")
     }
   }, [settings])
 
@@ -53,12 +56,13 @@ export function AdminModule() {
       hourlyRate, 
       language, 
       units, 
-      currency 
+      currency,
+      viranomaisohjeUrl
     }, { merge: true })
       .then(() => {
         toast({ 
           title: "Asetukset tallennettu",
-          description: "Keittiön parametrit on päivitetty onnistuneesti."
+          description: "Järjestelmän parametrit on päivitetty onnistuneesti."
         })
       })
   }
@@ -98,7 +102,7 @@ export function AdminModule() {
         <Card className="industrial-card">
           <CardHeader className="pb-2 border-b border-white/5">
             <CardTitle className="text-[11px] font-black uppercase text-accent flex items-center gap-2">
-              <Settings className="w-4 h-4" /> KEITTIÖN PARAMETRIT
+              <Settings className="w-4 h-4" /> JÄRJESTELMÄN PARAMETRIT
             </CardTitle>
           </CardHeader>
           <CardContent className="p-4 space-y-4">
@@ -111,6 +115,18 @@ export function AdminModule() {
                 <Label className="text-[9px] font-black uppercase text-muted-foreground">Keskituntipalkka ({currency}/h)</Label>
                 <Input type="number" value={hourlyRate} onChange={(e) => setHourlyRate(Number(e.target.value))} className="bg-black/40 h-10 font-black text-accent" />
               </div>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[9px] font-black uppercase text-muted-foreground flex items-center gap-1">
+                <ExternalLink className="w-3 h-3" /> Viranomaisohjeen URL
+              </Label>
+              <Input 
+                placeholder="https://www.ruokavirasto.fi/..." 
+                value={viranomaisohjeUrl} 
+                onChange={(e) => setViranomaisohjeUrl(e.target.value)} 
+                className="bg-black/40 h-10 text-xs font-bold" 
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
