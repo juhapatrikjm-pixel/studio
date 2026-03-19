@@ -1,7 +1,7 @@
 import { Firestore, doc, setDoc, serverTimestamp, increment, writeBatch, getDocs, collection, query, where, orderBy } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { fetchWholesalePrices } from '@/ai/flows/fetch-wholesale-prices-flow';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
 /**
@@ -52,31 +52,31 @@ export const generateAndArchiveMonthlyReport = async (db: Firestore, userId: str
     if (entries.length === 0) throw new Error("Ei kirjauksia tälle kuukaudelle.");
 
     // 2. Luo PDF
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
+    const pdf = new jsPDF();
+    const pageWidth = pdf.internal.pageSize.getWidth();
 
     // Otsikko
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(184, 115, 51); // Copper color
-    doc.text(`HAVIKKIRAPORTTI: ${monthName.toUpperCase()}`, pageWidth / 2, 20, { align: 'center' });
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(20);
+    pdf.setTextColor(184, 115, 51); // Copper color
+    pdf.text(`HAVIKKIRAPORTTI: ${monthName.toUpperCase()}`, pageWidth / 2, 20, { align: 'center' });
 
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Luotu: ${new Date().toLocaleDateString('fi-FI')}`, pageWidth / 2, 28, { align: 'center' });
+    pdf.setFontSize(10);
+    pdf.setTextColor(100);
+    pdf.text(`Luotu: ${new Date().toLocaleDateString('fi-FI')}`, pageWidth / 2, 28, { align: 'center' });
 
     // Yhteenveto
     const totalWaste = entries.filter(e => e.type === 'waste').reduce((sum, e) => sum + e.cost, 0);
     const totalPrep = entries.filter(e => e.type === 'prep').reduce((sum, e) => sum + e.cost, 0);
 
-    doc.setFontSize(12);
-    doc.setTextColor(0);
-    doc.text(`Yhteenveto:`, 14, 45);
-    doc.setFont("helvetica", "normal");
-    doc.text(`- Varsinainen havikki: ${totalWaste.toFixed(2)} EUR`, 14, 52);
-    doc.text(`- Esivalmistelu (Prep-hukka): ${totalPrep.toFixed(2)} EUR`, 14, 58);
-    doc.setFont("helvetica", "bold");
-    doc.text(`YHTEENSA: ${(totalWaste + totalPrep).toFixed(2)} EUR`, 14, 66);
+    pdf.setFontSize(12);
+    pdf.setTextColor(0);
+    pdf.text(`Yhteenveto:`, 14, 45);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`- Varsinainen havikki: ${totalWaste.toFixed(2)} EUR`, 14, 52);
+    pdf.text(`- Esivalmistelu (Prep-hukka): ${totalPrep.toFixed(2)} EUR`, 14, 58);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(`YHTEENSA: ${(totalWaste + totalPrep).toFixed(2)} EUR`, 14, 66);
 
     // Taulukko
     const tableBody = entries.map(e => [
@@ -87,7 +87,7 @@ export const generateAndArchiveMonthlyReport = async (db: Firestore, userId: str
       `${e.cost.toFixed(2)} EUR`
     ]);
 
-    (doc as any).autoTable({
+    (pdf as any).autoTable({
       startY: 75,
       head: [['Pvm', 'Tuote', 'Tyyppi', 'Maara', 'Kustannus']],
       body: tableBody,
@@ -97,7 +97,7 @@ export const generateAndArchiveMonthlyReport = async (db: Firestore, userId: str
     });
 
     // 3. Muunna Blobiksi ja lataa Storageen
-    const pdfBlob = doc.output('blob');
+    const pdfBlob = pdf.output('blob');
     const storage = getStorage();
     const fileName = `havikki-raportti-${monthId}.pdf`;
     const filePath = `reports/${userId}/waste/${fileName}`;
