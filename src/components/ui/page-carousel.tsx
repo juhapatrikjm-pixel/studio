@@ -49,7 +49,7 @@ const swipePower = (offset: number, velocity: number) => {
 export function PageCarousel({ children, menuItems }: PageCarouselProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isOpenMobile } = useSidebar();
+  const { openMobile } = useSidebar();
 
   const { currentIndex } = useMemo(() => {
     const currentIndex = menuItems.findIndex((item) => item.path === pathname);
@@ -75,7 +75,7 @@ export function PageCarousel({ children, menuItems }: PageCarouselProps) {
     { offset, velocity }: PanInfo
   ) => {
     // Prevent swipe when mobile sidebar is open
-    if (isOpenMobile) return;
+    if (openMobile) return;
 
     const swipe = swipePower(offset.x, velocity.x);
 
