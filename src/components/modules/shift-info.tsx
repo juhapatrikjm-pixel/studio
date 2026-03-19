@@ -15,49 +15,6 @@ import { errorEmitter } from "@/firebase/error-emitter"
 import { FirestorePermissionError } from "@/firebase/errors"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-const DEFAULT_CHEERS = [
-  "Kokki on keittiön kuningas! 👑",
-  "Tänään on loistava päivä tehdä taikuutta lautasella! ✨",
-  "Pidetään veitset terävinä ja mieli kirkkaana! 🔪",
-  "Keittiössä ei hikoilla, siellä loistetaan! 💪",
-  "Mise en place on puoli voittoa! 🔥",
-  "Tänään jokainen annos on mestariteos! 🎨",
-  "Parasta ruokaa, parhaalla asenteella! 🥘",
-  "Keittiötiimi on perhe! ❤️",
-  "Hymyile, asiakkaat maistavat rakkauden ruoassa! 😊",
-  "Tänään vedetään täysillä, kuten aina! 🚀",
-  "Älä stressaa, tee parhaasi! ✨",
-  "Kaikki kontrollissa, tilauslappuja tulee! 📝",
-  "Muista juoda vettä, kokki! 🥤",
-  "Keittiö on elämäntapa! 🤘",
-  "Tänään on hyvä päivä loistaa! 🌟",
-  "Nyt mennään eikä meinata! 🔥",
-  "Puhdas keittiö, puhdas mieli! 🧼",
-  "Tiimityö on keittiön suola! 🧂",
-  "Olet rautainen ammattilainen! ⚒️",
-  "Tsemppiä vuoroon, sä hoidat tän! 🤜🤛",
-  "Keittiöhuumori on parasta huumoria! 😂",
-  "Liesi kuumana, sydän lämpimänä! ❤️",
-  "Tänään yllätetään itsemme! 🌈",
-  "Kiire on vain asennekysymys! ⏱️",
-  "Jokainen lautanen on käyntikorttisi! 🎫",
-  "Pidetään maku kohdillaan! 👅",
-  "Ruoanlaitto on intohimo! 🍷",
-  "Olet keittiön sankari! 🦸",
-  "Tänään ei paleta mikään pohjaan! 🍳",
-  "Kaikki rullaa kuin rasvattu! 🧈",
-  "Keittiö on teatteri, sinä olet tähti! 🎭",
-  "Olet tehokas kuin Rational! 🌪️",
-  "Positiivisuus on tarttuvaa! 🦠 (hyvällä tavalla)",
-  "Tänään luodaan muistoja! 📸",
-  "Kupari kiiltää ja pataan porisee! ✨",
-  "Anna mennä, kokki! ⚡",
-  "Olet korvaamaton osa tätä tiimiä! 🧩",
-  "Tämä vuoro on sun! 🏆",
-  "Luo jotain uutta tänään! 💡",
-  "Keittiö elää ja hengittää kanssasi! 🌬️"
-]
-
 export function ShiftInfoModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
@@ -127,7 +84,7 @@ export function ShiftInfoModule() {
   const removePoint = (index: number) => setPoints(points.filter((_, i) => i !== index))
 
   const generateCheer = () => {
-    const messages = settings?.cheerMessages?.length > 0 ? settings.cheerMessages : DEFAULT_CHEERS
+    const messages = settings?.cheerMessages?.length > 0 ? settings.cheerMessages : []
     const randomIndex = Math.floor(Math.random() * messages.length)
     setCheer(messages[randomIndex])
   }

@@ -33,7 +33,6 @@ export const logWasteEntry = async (db: Firestore, entry: any, monthId: string) 
     await batch.commit();
     return { success: true };
   } catch (error) {
-    console.error("Waste Service: logWasteEntry error", error);
     throw error;
   }
 };
@@ -129,7 +128,6 @@ export const generateAndArchiveMonthlyReport = async (db: Firestore, userId: str
 
     return { url: downloadURL };
   } catch (error) {
-    console.error("Waste Service: archive error", error);
     throw error;
   }
 };
@@ -167,7 +165,6 @@ export const initializeWithAIPrices = async (db: Firestore, groups: any[]) => {
     await batch.commit();
     return { count: aiData.products.length, timestamp: aiData.timestamp };
   } catch (error) {
-    console.error("Waste Service: initializeWithAIPrices error", error);
     throw error;
   }
 };

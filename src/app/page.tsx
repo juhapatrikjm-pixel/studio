@@ -77,7 +77,6 @@ export default function LoginPage() {
               <p>3. Sign-in method &rarr; Add new provider</p>
               <p>4. Valitse "Anonymous" ja klikka "Enable"</p>
             </div>
-            <p className="text-[10px] opacity-60 italic">Kun olet tehnyt tämän, päivitä sivu.</p>
           </AlertDescription>
         </Alert>
       </div>
