@@ -22,10 +22,10 @@ import {
   Pencil,
   FileText,
   Image as ImageIcon,
-  Folder
+  Folder as FolderIcon
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, doc } from "firebase/firestore"
+import { collection, doc, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
@@ -40,13 +40,27 @@ type RecipeEquipment = { id: string; name: string; temp: string; time: string; i
 type SelectedRecipe = { id: string; recipeId: string; name: string; cost: number; weight: number; }
 type Folder = { id: string; name: string; type: 'recipe' | 'dish'; }
 
+const folderConverter: FirestoreDataConverter<Folder> = {
+  toFirestore: (folder: Folder): DocumentData => {
+    return { name: folder.name, type: folder.type };
+  },
+  fromFirestore: (snapshot: QueryDocumentSnapshot, options): Folder => {
+    const data = snapshot.data(options)!;
+    return {
+      id: snapshot.id,
+      name: data.name,
+      type: data.type
+    };
+  }
+};
+
 export function RecipesModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
   
   const recipesRef = useMemo(() => (firestore ? collection(firestore, 'recipes') : null), [firestore])
   const dishesRef = useMemo(() => (firestore ? collection(firestore, 'dishes') : null), [firestore])
-  const foldersRef = useMemo(() => (firestore ? collection(firestore, 'folders') : null), [firestore])
+  const foldersRef = useMemo(() => (firestore ? collection(firestore, 'folders').withConverter(folderConverter) : null), [firestore])
   const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
 
   const { data: globalRecipes = [], loading: recipesLoading } = useCollection<any>(recipesRef)
@@ -169,7 +183,7 @@ export function RecipesModule() {
     <Card key={item.id} className="industrial-card flex justify-between items-center p-3 transition-all hover:border-accent/50">
       <span className="font-bold text-foreground text-sm truncate pl-2">{item.name}</span>
       <div className="flex gap-1">
-        <Button size="icon" variant="ghost" onClick={() => handlePrint(item, type)} className="hover:bg-accent/10"><FilePdf className="w-4 h-4 text-accent"/></Button>
+        <Button size="icon" variant="ghost" onClick={() => handlePrint(item, type)} className="hover:bg-accent/10"><FileText className="w-4 h-4 text-accent"/></Button>
         <Button size="icon" variant="ghost" onClick={() => handleEdit(item, type)} className="hover:bg-secondary/50"><Pencil className="w-4 h-4 text-muted-foreground"/></Button>
         <Button size="icon" variant="ghost" onClick={() => handleDelete(item.id, item.name, type)} className="hover:bg-destructive/10"><Trash2 className="w-4 h-4 text-destructive"/></Button>
       </div>
@@ -200,11 +214,11 @@ export function RecipesModule() {
 
       <div className="grid md:grid-cols-2 gap-x-8 gap-y-10 no-print">
         <div>
-          <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2"><Folder className="w-5 h-5"/> Reseptiarkisto</h3>
+          <h3 className="text-lg font-semibold text-primary mb-4 flex items-center gap-2"><FolderIcon className="w-5 h-5"/> Reseptiarkisto</h3>
           <div className="space-y-2">{recipesLoading ? <Loader2 className="animate-spin mt-4"/> : globalRecipes.map(r => renderListItem(r, 'recipe'))}</div>
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-secondary-foreground mb-4 flex items-center gap-2"><Folder className="w-5 h-5"/> Annosarkisto</h3>
+          <h3 className="text-lg font-semibold text-secondary-foreground mb-4 flex items-center gap-2"><FolderIcon className="w-5 h-5"/> Annosarkisto</h3>
           <div className="space-y-2">{dishesLoading ? <Loader2 className="animate-spin mt-4"/> : globalDishes.map(d => renderListItem(d, 'dish'))}</div>
         </div>
       </div>
@@ -212,7 +226,7 @@ export function RecipesModule() {
       {/* RESEPTI-EDITORIN DIALOGI */}
       <Dialog open={isEditing} onOpenChange={(open) => { if (!open) { resetRecipeForm(); } setIsEditing(open); }}>
         <DialogContent className={dialogContentClass}>
-          <DialogHeader className="p-4 border-b no-print"><div className="flex items-center justify-between w-full"><DialogTitle className="text-xl font-headline text-primary">{editId ? "Muokkaa reseptiä" : "Uusi resepti"}</DialogTitle><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={() => handlePrint({}, 'recipe')}><FilePdf className="w-5 h-5 text-accent"/></Button><Button variant="ghost" size="icon" onClick={() => setIsEditing(false)}><X className="w-5 h-5" /></Button></div></div></DialogHeader>
+          <DialogHeader className="p-4 border-b no-print"><div className="flex items-center justify-between w-full"><DialogTitle className="text-xl font-headline text-primary">{editId ? "Muokkaa reseptiä" : "Uusi resepti"}</DialogTitle><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={() => handlePrint({}, 'recipe')}><FileText className="w-5 h-5 text-accent"/></Button><Button variant="ghost" size="icon" onClick={() => setIsEditing(false)}><X className="w-5 h-5" /></Button></div></div></DialogHeader>
           <ScrollArea className="flex-1 p-4">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
               <div className="lg:col-span-2 space-y-4">
@@ -231,7 +245,7 @@ export function RecipesModule() {
       {/* ANNOS-EDITORIN DIALOGI */}
       <Dialog open={isEditingDish} onOpenChange={(open) => { if (!open) { resetDishForm(); } setIsEditingDish(open); }}>
         <DialogContent className={dialogContentClass}>
-          <DialogHeader className="p-4 border-b no-print"><div className="flex items-center justify-between w-full"><DialogTitle className="text-xl font-headline text-secondary-foreground">{editDishId ? "Muokkaa annosta" : "Uusi annos"}</DialogTitle><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={() => handlePrint({}, 'dish')}><FilePdf className="w-5 h-5 text-accent"/></Button><Button variant="ghost" size="icon" onClick={() => setIsEditingDish(false)}><X className="w-5 h-5" /></Button></div></div></DialogHeader>
+          <DialogHeader className="p-4 border-b no-print"><div className="flex items-center justify-between w-full"><DialogTitle className="text-xl font-headline text-secondary-foreground">{editDishId ? "Muokkaa annosta" : "Uusi annos"}</DialogTitle><div className="flex items-center gap-2"><Button variant="ghost" size="icon" onClick={() => handlePrint({}, 'dish')}><FileText className="w-5 h-5 text-accent"/></Button><Button variant="ghost" size="icon" onClick={() => setIsEditingDish(false)}><X className="w-5 h-5" /></Button></div></div></DialogHeader>
           <ScrollArea className="flex-1 p-4">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 print:block">
               <div className="lg:col-span-2 space-y-4">

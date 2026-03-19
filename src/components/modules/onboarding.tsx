@@ -220,6 +220,7 @@ export function OnboardingModule() {
         for (const [i, title] of data.tasks.entries()) {
           const taskDocRef = doc(tasksRef);
           batch.set(taskDocRef, {
+            id: taskDocRef.id,
             title,
             description: "",
             category: catId,
@@ -259,13 +260,14 @@ export function OnboardingModule() {
 
   const addTask = () => {
     if (!newTask.title.trim() || !tasksRef) return
-    const taskData: Omit<OnboardingTask, 'id'> = {
+    const taskDocRef = doc(tasksRef);
+    const taskData: OnboardingTask = {
+      id: taskDocRef.id,
       title: newTask.title,
       description: newTask.description,
       category: activeCategory,
       order: allTasks.length
     };
-    const taskDocRef = doc(tasksRef);
     setDoc(taskDocRef, taskData).catch(async (e) => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
         path: taskDocRef.path,
