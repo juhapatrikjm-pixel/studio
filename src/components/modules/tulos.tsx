@@ -13,7 +13,7 @@ import {
   Gem
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc } from "@/firebase"
-import { collection, doc, query, orderBy, limit } from "firebase/firestore"
+import { collection, doc, query, orderBy, limit, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { format, isSameMonth, parseISO } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -36,11 +36,33 @@ type FinancialRecord = {
   createdAt: any
 }
 
+const financialRecordConverter: FirestoreDataConverter<FinancialRecord> = {
+    toFirestore: (record: FinancialRecord): DocumentData => {
+        const { id, ...data } = record;
+        return data;
+    },
+    fromFirestore: (snapshot: QueryDocumentSnapshot, options): FinancialRecord => {
+        const data = snapshot.data(options)!;
+        return {
+            id: snapshot.id,
+            date: data.date,
+            revenue: data.revenue,
+            foodCost: data.foodCost,
+            laborCost: data.laborCost,
+            workHours: data.workHours,
+            otherExpenses: data.otherExpenses,
+            comment: data.comment,
+            entryType: data.entryType,
+            createdAt: data.createdAt
+        };
+    }
+};
+
 export function TulosModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
   
-  const recordsRef = useMemo(() => (firestore ? collection(firestore, 'financialRecords') : null), [firestore])
+  const recordsRef = useMemo(() => (firestore ? collection(firestore, 'financialRecords').withConverter(financialRecordConverter) : null), [firestore])
   const settingsRef = useMemo(() => (firestore ? doc(firestore, 'settings', 'global') : null), [firestore])
   
   const recordsQuery = useMemo(() => {

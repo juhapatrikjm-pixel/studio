@@ -28,7 +28,7 @@ import {
   History
 } from "lucide-react"
 import { useFirestore, useCollection, useDoc, useUser } from "@/firebase"
-import { collection, doc, query, orderBy, limit, where } from "firebase/firestore"
+import { collection, doc, query, orderBy, limit, where, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { format, subMonths, startOfMonth } from "date-fns"
 import { fi } from "date-fns/locale"
 import { useToast } from "@/hooks/use-toast"
@@ -45,6 +45,20 @@ type WasteGroup = {
   index: number
 }
 
+const wasteGroupConverter: FirestoreDataConverter<WasteGroup> = {
+    toFirestore: (group: WasteGroup): DocumentData => {
+        return { name: group.name, index: group.index };
+    },
+    fromFirestore: (snapshot: QueryDocumentSnapshot, options): WasteGroup => {
+        const data = snapshot.data(options)!;
+        return {
+            id: snapshot.id,
+            name: data.name,
+            index: data.index
+        };
+    }
+};
+
 type WasteProduct = {
   id: string
   groupId: string
@@ -54,6 +68,24 @@ type WasteProduct = {
   updatedAt?: any
 }
 
+const wasteProductConverter: FirestoreDataConverter<WasteProduct> = {
+    toFirestore: (product: WasteProduct): DocumentData => {
+        const { id, ...data } = product;
+        return data;
+    },
+    fromFirestore: (snapshot: QueryDocumentSnapshot, options): WasteProduct => {
+        const data = snapshot.data(options)!;
+        return {
+            id: snapshot.id,
+            groupId: data.groupId,
+            name: data.name,
+            pricePerKg: data.pricePerKg,
+            source: data.source,
+            updatedAt: data.updatedAt
+        };
+    }
+};
+
 type MonthlyWaste = {
   id: string
   monthName: string
@@ -61,6 +93,23 @@ type MonthlyWaste = {
   totalPrepCost: number
   isArchived?: boolean
 }
+
+const monthlyWasteConverter: FirestoreDataConverter<MonthlyWaste> = {
+    toFirestore: (waste: MonthlyWaste): DocumentData => {
+        const { id, ...data } = waste;
+        return data;
+    },
+    fromFirestore: (snapshot: QueryDocumentSnapshot, options): MonthlyWaste => {
+        const data = snapshot.data(options)!;
+        return {
+            id: snapshot.id,
+            monthName: data.monthName,
+            totalWasteCost: data.totalWasteCost,
+            totalPrepCost: data.totalPrepCost,
+            isArchived: data.isArchived
+        };
+    }
+};
 
 const DEFAULT_GROUPS = [
   { id: 'meat', name: 'LIHA', index: 0 },
@@ -82,9 +131,9 @@ export function WasteModule() {
   const [isSeeding, setIsSeeding] = useState(false)
   const [isArchiving, setIsArchiving] = useState(false)
   
-  const groupsRef = useMemo(() => (firestore ? collection(firestore, 'wasteGroups') : null), [firestore])
-  const productsRef = useMemo(() => (firestore ? collection(firestore, 'wasteProducts') : null), [firestore])
-  const monthlyRef = useMemo(() => (firestore && currentMonthId ? doc(firestore, 'monthlyWaste', currentMonthId) : null), [firestore, currentMonthId])
+  const groupsRef = useMemo(() => (firestore ? collection(firestore, 'wasteGroups').withConverter(wasteGroupConverter) : null), [firestore])
+  const productsRef = useMemo(() => (firestore ? collection(firestore, 'wasteProducts').withConverter(wasteProductConverter) : null), [firestore])
+  const monthlyRef = useMemo(() => (firestore && currentMonthId ? doc(firestore, 'monthlyWaste', currentMonthId).withConverter(monthlyWasteConverter) : null), [firestore, currentMonthId])
   const archiveQuery = useMemo(() => (firestore ? query(collection(firestore, 'cloudFiles'), where('category', '==', 'waste_report'), orderBy('createdAt', 'desc')) : null), [firestore])
 
   const { data: groups = [] } = useCollection<WasteGroup>(groupsRef ? query(groupsRef, orderBy('index', 'asc')) : null)

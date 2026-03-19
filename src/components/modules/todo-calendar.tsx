@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
@@ -10,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { ListTodo, Plus, Trash2, Bell, Clock, Info, Save, ChevronLeft, ChevronRight, X } from "lucide-react"
 import { useFirestore, useCollection } from "@/firebase"
-import { collection, doc, setDoc, deleteDoc, updateDoc, serverTimestamp, query, orderBy } from "firebase/firestore"
+import { collection, doc, setDoc, deleteDoc, updateDoc, serverTimestamp, query, orderBy, DocumentData, FirestoreDataConverter, QueryDocumentSnapshot } from "firebase/firestore"
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth } from "date-fns"
 import { fi } from "date-fns/locale"
 import { cn } from "@/lib/utils"
@@ -30,12 +29,47 @@ type CalendarEvent = {
   color: string
 }
 
+const calendarEventConverter: FirestoreDataConverter<CalendarEvent> = {
+    toFirestore: (event: CalendarEvent): DocumentData => {
+        const { id, ...data } = event;
+        return data;
+    },
+    fromFirestore: (snapshot: QueryDocumentSnapshot, options): CalendarEvent => {
+        const data = snapshot.data(options)!;
+        return {
+            id: snapshot.id,
+            title: data.title,
+            date: data.date,
+            time: data.time,
+            description: data.description,
+            alert: data.alert,
+            color: data.color
+        };
+    }
+};
+
 type TodoTask = {
   id: string
   text: string
   completed: boolean
   createdAt: any
 }
+
+const todoTaskConverter: FirestoreDataConverter<TodoTask> = {
+    toFirestore: (task: TodoTask): DocumentData => {
+        const { id, ...data } = task;
+        return data;
+    },
+    fromFirestore: (snapshot: QueryDocumentSnapshot, options): TodoTask => {
+        const data = snapshot.data(options)!;
+        return {
+            id: snapshot.id,
+            text: data.text,
+            completed: data.completed,
+            createdAt: data.createdAt
+        };
+    }
+};
 
 const EVENT_COLORS = [
   { name: "Kupari", value: "bg-[#b87333]", hex: "#b87333" },
@@ -49,8 +83,8 @@ export function TodoCalendarModule() {
   const firestore = useFirestore()
   const { toast } = useToast()
 
-  const eventsRef = useMemo(() => (firestore ? collection(firestore, 'calendarEvents') : null), [firestore])
-  const tasksRef = useMemo(() => (firestore ? collection(firestore, 'todoTasks') : null), [firestore])
+  const eventsRef = useMemo(() => (firestore ? collection(firestore, 'calendarEvents').withConverter(calendarEventConverter) : null), [firestore])
+  const tasksRef = useMemo(() => (firestore ? collection(firestore, 'todoTasks').withConverter(todoTaskConverter) : null), [firestore])
   const tasksQuery = useMemo(() => tasksRef ? query(tasksRef, orderBy('createdAt', 'asc')) : null, [tasksRef])
 
   const { data: events = [] } = useCollection<CalendarEvent>(eventsRef)
@@ -82,18 +116,16 @@ export function TodoCalendarModule() {
   }, [currentMonth])
 
   const handleAddTodo = () => {
-    if (!newTodo.trim() || !firestore) return
-    const taskId = Math.random().toString(36).substr(2, 9)
-    const taskRef = doc(firestore, 'todoTasks', taskId)
-    const taskData = {
-      id: taskId,
+    if (!newTodo.trim() || !tasksRef) return
+    const taskDocRef = doc(tasksRef)
+    const taskData: Omit<TodoTask, 'id'> = {
       text: newTodo,
       completed: false,
       createdAt: serverTimestamp()
     }
-    setDoc(taskRef, taskData).catch(async () => {
+    setDoc(taskDocRef, taskData).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: taskRef.path,
+        path: taskDocRef.path,
         operation: 'create',
         requestResourceData: taskData
       }))
@@ -102,22 +134,20 @@ export function TodoCalendarModule() {
   }
 
   const toggleTodo = (id: string, completed: boolean) => {
-    if (!firestore) return
-    const taskRef = doc(firestore, 'todoTasks', id)
+    if (!tasksRef) return
+    const taskRef = doc(tasksRef, id)
     updateDoc(taskRef, { completed: !completed })
   }
 
   const deleteTodo = (id: string) => {
-    if (!firestore) return
-    deleteDoc(doc(firestore, 'todoTasks', id))
+    if (!tasksRef) return
+    deleteDoc(doc(tasksRef, id))
   }
 
   const handleAddEvent = () => {
-    if (!newEvent.title.trim() || !selectedDate || !firestore) return
-    const eventId = Math.random().toString(36).substr(2, 9)
-    const eventRef = doc(firestore, 'calendarEvents', eventId)
-    const eventData = {
-      id: eventId,
+    if (!newEvent.title.trim() || !selectedDate || !eventsRef) return
+    const eventDocRef = doc(eventsRef)
+    const eventData: Omit<CalendarEvent, 'id'> = {
       title: newEvent.title,
       date: format(selectedDate, 'yyyy-MM-dd'),
       time: newEvent.time,
@@ -125,9 +155,9 @@ export function TodoCalendarModule() {
       description: newEvent.description,
       color: newEvent.color
     }
-    setDoc(eventRef, eventData).catch(async () => {
+    setDoc(eventDocRef, eventData).catch(async () => {
       errorEmitter.emit('permission-error', new FirestorePermissionError({
-        path: eventRef.path,
+        path: eventDocRef.path,
         operation: 'create',
         requestResourceData: eventData
       }))
@@ -138,8 +168,8 @@ export function TodoCalendarModule() {
   }
 
   const deleteEvent = (id: string) => {
-    if (!firestore) return
-    deleteDoc(doc(firestore, 'calendarEvents', id))
+    if (!eventsRef) return
+    deleteDoc(doc(eventsRef, id))
   }
 
   const getEventsForDay = (day: Date) => {
